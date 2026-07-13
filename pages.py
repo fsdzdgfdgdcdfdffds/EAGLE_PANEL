@@ -1394,8 +1394,7 @@ async function saveEdit() {
         max_devices: devices,
         active,
         password,
-        fingerprint
-      })
+        fingerprint      })
     });
     if (!r.ok) {
       if (r.status === 403) { toast('❌ رمز اشتباه', 'err'); return; }
