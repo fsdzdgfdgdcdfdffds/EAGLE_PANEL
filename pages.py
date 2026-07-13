@@ -288,8 +288,9 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
+/* ===== تنظیمات متغیرهای تم ===== */
+:root {
+  /* تم تاریک (پیش‌فرض) */
   --bg:#0a0a1a;
   --bg2:#12122a;
   --bg3:#1a1a3a;
@@ -314,15 +315,53 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   --sidebar-w:180px;
   --radius:12px;
   --shadow:0 8px 32px rgba(0,0,0,0.5),0 0 60px rgba(100,80,255,0.02);
+  --glow-color:rgba(100,80,255,0.02);
+  --input-bg:rgba(0,0,20,.2);
+  --table-hover:rgba(100,80,255,0.02);
+  --border-color:rgba(100,80,255,0.08);
 }
-body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;display:flex;font-size:13px;position:relative;overflow-x:hidden}
+
+/* ===== تم روشن ===== */
+body.light-theme {
+  --bg:#f0f0f5;
+  --bg2:#e8e8f0;
+  --bg3:#dddde8;
+  --card:rgba(255,255,255,0.85);
+  --card-b:rgba(100,80,255,0.12);
+  --card-bh:rgba(100,80,255,0.2);
+  --t1:#1a1a2e;
+  --t2:#4a4a6a;
+  --t3:#7a7a9a;
+  --shadow:0 8px 32px rgba(0,0,0,0.08),0 0 60px rgba(100,80,255,0.02);
+  --glow-color:rgba(100,80,255,0.04);
+  --input-bg:rgba(255,255,255,0.6);
+  --table-hover:rgba(100,80,255,0.04);
+  --border-color:rgba(100,80,255,0.1);
+}
+body.light-theme .stars-bg .star-bg { background:#8888BB; }
+body.light-theme .glow-main { display:none; }
+body.light-theme .stat-card::before { background:radial-gradient(circle,rgba(100,80,255,0.05),transparent 70%); }
+body.light-theme .user-card::before { background:radial-gradient(circle,rgba(100,80,255,0.04),transparent 70%); }
+body.light-theme .settings-card::before { background:radial-gradient(circle,rgba(100,80,255,0.04),transparent 70%); }
+body.light-theme .fi { background:rgba(255,255,255,0.7); }
+body.light-theme .btn-o { background:rgba(0,0,0,0.03); border-color:rgba(100,80,255,0.1); color:var(--t2); }
+body.light-theme .btn-o:hover { background:rgba(100,80,255,0.06); }
+body.light-theme .users-table thead th { background:rgba(100,80,255,0.03); }
+body.light-theme .users-table tbody tr:hover { background:rgba(100,80,255,0.03); }
+body.light-theme .stat-mini { background:rgba(255,255,255,0.8); }
+body.light-theme .conn-card { background:rgba(255,255,255,0.8); }
+body.light-theme .user-card { background:rgba(255,255,255,0.8); }
+body.light-theme .settings-card { background:rgba(255,255,255,0.8); }
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;display:flex;font-size:13px;position:relative;overflow-x:hidden;transition:background .3s,color .3s}
 .stars-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .star-bg{position:absolute;border-radius:50%;background:#fff;animation:twinkleBg 4s ease-in-out infinite}
 @keyframes twinkleBg{0%,100%{opacity:0.1}50%{opacity:0.4}}
 .glow-main{position:fixed;border-radius:50%;filter:blur(200px);z-index:0;pointer-events:none}
-.glow-left{width:600px;height:600px;background:rgba(100,80,255,0.02);top:-300px;left:-200px}
-.glow-right{width:500px;height:500px;background:rgba(167,139,250,0.02);bottom:-200px;right:-100px}
-.sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--card);backdrop-filter:blur(30px);border-left:1px solid var(--card-b);display:flex;flex-direction:column;flex-shrink:0;position:fixed;right:0;top:0;bottom:0;z-index:200;transition:transform .3s;box-shadow:var(--shadow)}
+.glow-left{width:600px;height:600px;background:var(--glow-color);top:-300px;left:-200px}
+.glow-right{width:500px;height:500px;background:var(--glow-color);bottom:-200px;right:-100px}
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--card);backdrop-filter:blur(30px);border-left:1px solid var(--card-b);display:flex;flex-direction:column;flex-shrink:0;position:fixed;right:0;top:0;bottom:0;z-index:200;transition:transform .3s,background .3s;box-shadow:var(--shadow)}
 .logo{display:flex;align-items:center;gap:10px;padding:16px 12px 12px;border-bottom:1px solid var(--card-b)}
 .logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C6BFF,#5B4BD9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 30px rgba(100,80,255,0.15)}
 .logo-name{font-size:13px;font-weight:800;background:linear-gradient(135deg,#A78BFA,#7C6BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -330,12 +369,12 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .nav-wrap{flex:1;overflow-y:auto;padding:6px 0;position:relative;z-index:1}
 .nav-it{display:flex;align-items:center;gap:8px;padding:8px 10px;color:var(--t3);font-size:11px;cursor:pointer;border-right:2px solid transparent;transition:all .2s;margin:1px 4px;border-radius:6px}
 .nav-it i{font-size:14px;width:18px;text-align:center;flex-shrink:0}
-.nav-it:hover{background:rgba(100,80,255,0.05);color:var(--t2)}
-.nav-it.on{background:rgba(100,80,255,0.08);color:var(--t1);border-right-color:var(--accent);font-weight:600;box-shadow:0 0 30px rgba(100,80,255,0.03)}
+.nav-it:hover{background:var(--table-hover);color:var(--t2)}
+.nav-it.on{background:var(--table-hover);color:var(--t1);border-right-color:var(--accent);font-weight:600;box-shadow:0 0 30px rgba(100,80,255,0.03)}
 .sb-foot{padding:10px 12px;border-top:1px solid var(--card-b)}
 .logout-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--red-bg);color:var(--red-t);border-radius:6px;padding:6px;font-size:10px;font-weight:500;font-family:inherit;border:1px solid rgba(239,68,68,0.1);cursor:pointer;width:100%;transition:.2s}
 .logout-btn:hover{background:rgba(239,68,68,0.15)}
-.mob-top{display:none;position:fixed;top:0;right:0;left:0;height:48px;background:var(--card);backdrop-filter:blur(30px);border-bottom:1px solid var(--card-b);z-index:150;align-items:center;justify-content:space-between;padding:0 10px}
+.mob-top{display:none;position:fixed;top:0;right:0;left:0;height:48px;background:var(--card);backdrop-filter:blur(30px);border-bottom:1px solid var(--card-b);z-index:150;align-items:center;justify-content:space-between;padding:0 10px;transition:background .3s}
 .mob-top .ml{display:flex;align-items:center;gap:6px}
 .mob-logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#7C6BFF,#5B4BD9);display:flex;align-items:center;justify-content:center;font-size:13px}
 .mob-title{color:var(--t1);font-size:11px;font-weight:700}
@@ -379,6 +418,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
   display:flex;
   align-items:center;
   gap:8px;
+  transition:background .3s;
 }
 .stat-mini-icon { font-size:16px; }
 .stat-mini-num { font-size:16px; font-weight:800; color:var(--t1); }
@@ -402,12 +442,12 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 }
 .users-table tbody td {
   padding:8px 12px;
-  border-bottom:1px solid rgba(100,80,255,0.02);
+  border-bottom:1px solid var(--border-color);
   color:var(--t1);
   vertical-align:middle;
 }
 .users-table tbody tr:hover {
-  background:rgba(100,80,255,0.02);
+  background:var(--table-hover);
 }
 .users-table .status-badge {
   display:inline-flex;
@@ -457,6 +497,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
   display:flex;
   gap:3px;
   justify-content:center;
+  flex-wrap:wrap;
 }
 .users-table .action-btns .btn {
   padding:2px 6px;
@@ -514,7 +555,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 @keyframes btnGradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .btn-p:hover{transform:translateY(-1px);box-shadow:0 6px 25px rgba(100,80,255,.3)}
 .btn-o{background:rgba(255,255,255,0.02);border:1px solid var(--card-b);color:var(--t2)}
-.btn-o:hover{background:rgba(100,80,255,0.05)}
+.btn-o:hover{background:var(--table-hover)}
 .btn-d{background:var(--red-bg);color:var(--red-t);border:1px solid rgba(239,68,68,.1)}
 .btn-d:hover{background:rgba(239,68,68,.15)}
 .btn-pur{background:rgba(100,80,255,0.08);color:var(--accent);border:1px solid rgba(100,80,255,.1)}
@@ -532,7 +573,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .modal-title i{color:var(--accent);font-size:15px}
 .fg{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
 .fg label{font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:3px}
-.fi{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:rgba(0,0,20,.2);color:var(--t1);font-family:inherit;font-size:10px;outline:none;transition:.2s}
+.fi{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:10px;outline:none;transition:.2s}
 .fi:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(100,80,255,.06)}
 .fi::placeholder{color:var(--t3)}
 select.fi{appearance:none;cursor:pointer}
@@ -544,13 +585,13 @@ select.fi{appearance:none;cursor:pointer}
 .conn-card .label{font-size:8px;color:var(--t3);margin-top:1px}
 .conn-card .conn-info{display:flex;justify-content:space-between;margin-top:4px;font-size:8px;color:var(--t2);gap:3px;flex-wrap:wrap}
 .conn-status-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#34D399;animation:pulse 1.5s infinite;margin-left:3px}
-.settings-card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--card-b);border-radius:var(--radius);padding:14px 16px;max-width:480px;margin-bottom:10px;position:relative;overflow:hidden}
+.settings-card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--card-b);border-radius:var(--radius);padding:14px 16px;max-width:480px;margin-bottom:10px;position:relative;overflow:hidden;transition:background .3s}
 .settings-card::before{content:'';position:absolute;top:-50%;right:-50%;width:150px;height:150px;background:radial-gradient(circle,rgba(100,80,255,0.02),transparent 70%);pointer-events:none}
 .settings-card .title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .settings-card .title i{color:var(--accent)}
 .settings-card .field{margin-bottom:8px}
 .settings-card .field label{font-size:9px;color:var(--t3);display:block;margin-bottom:2px;font-weight:600}
-.settings-card .field input{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:rgba(0,0,20,.2);color:var(--t1);font-family:inherit;font-size:11px;outline:none;transition:.2s}
+.settings-card .field input{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:11px;outline:none;transition:.2s}
 .settings-card .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(100,80,255,.06)}
 .settings-card .btn{width:100%;justify-content:center;margin-top:3px;font-size:11px;padding:6px}
 .settings-card .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-b)}
@@ -796,7 +837,7 @@ select.fi{appearance:none;cursor:pointer}
     <div class="stat-card"><span class="icon">📶</span><div class="number small" id="stat-speed">۰ B/s</div><div class="label">سرعت</div><div class="sub">لحظه‌ای</div></div>
     <div class="stat-card"><span class="icon">👥</span><div class="number" id="stat-users">۰</div><div class="label">کاربران</div><div class="sub" id="stat-users-active">۰ فعال</div></div>
   </div>
-  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:10px 12px;margin-top:4px">
+  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:10px 12px;margin-top:4px;transition:background .3s">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <span style="font-size:11px;font-weight:700;color:var(--t1)">🆕 کاربران اخیر</span>
       <button class="btn btn-sm btn-o" onclick="loadDashboard()"><i class="ti ti-refresh"></i></button>
@@ -826,7 +867,7 @@ select.fi{appearance:none;cursor:pointer}
   </div>
 
   <!-- جدول کاربران -->
-  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(20px);">
+  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(20px);transition:background .3s">
     <div style="overflow-x:auto;">
       <table class="users-table" id="users-table">
         <thead>
@@ -860,7 +901,7 @@ select.fi{appearance:none;cursor:pointer}
 <!-- ===== اینباند ===== -->
 <section class="pg" id="pg-inbound">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-plug"></i> اینباند</div><div class="tb-sub">تنظیمات ورودی</div></div></div>
-  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">
+  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;transition:background .3s">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
       <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:var(--t1)" id="inbound-port">۴۴۳</div><div style="font-size:8px;color:var(--t3)">پورت</div></div>
       <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:var(--t1)" id="inbound-protocol">VLESS</div><div style="font-size:8px;color:var(--t3)">پروتکل</div></div>
@@ -885,6 +926,20 @@ select.fi{appearance:none;cursor:pointer}
 <!-- ===== تنظیمات ===== -->
 <section class="pg" id="pg-settings">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-settings"></i> تنظیمات</div><div class="tb-sub">مدیریت پنل</div></div></div>
+  
+  <!-- انتخاب تم -->
+  <div class="settings-card">
+    <div class="title"><i class="ti ti-color-swatch"></i> تم پنل</div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn" onclick="setTheme('dark')" id="theme-dark-btn" style="flex:1;font-size:11px;padding:6px 12px;background:var(--card);border:1px solid var(--card-b);color:var(--t1);">
+        🌙 تاریک
+      </button>
+      <button class="btn" onclick="setTheme('light')" id="theme-light-btn" style="flex:1;font-size:11px;padding:6px 12px;background:var(--card);border:1px solid var(--card-b);color:var(--t1);">
+        ☀️ روشن
+      </button>
+    </div>
+    <div style="font-size:9px;color:var(--t3);margin-top:6px;">💡 تم فعلی: <span id="current-theme-label">تاریک</span></div>
+  </div>
   
   <div class="settings-card">
     <div class="title"><i class="ti ti-language"></i> زبان پنل</div>
@@ -924,7 +979,7 @@ select.fi{appearance:none;cursor:pointer}
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-notes"></i> لاگ‌ها</div><div class="tb-sub" id="logs-count">۰ لاگ</div></div>
     <div class="tb-right"><button class="btn btn-sm btn-o" onclick="loadLogs()"><i class="ti ti-refresh"></i></button></div>
   </div>
-  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:8px 10px;max-height:400px;overflow-y:auto">
+  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:8px 10px;max-height:400px;overflow-y:auto;transition:background .3s">
     <div id="logs-container" style="font-family:monospace;font-size:9px;color:var(--t2);direction:ltr;text-align:left;line-height:1.5"></div>
   </div>
 </section>
@@ -945,6 +1000,49 @@ select.fi{appearance:none;cursor:pointer}
 </main>
 
 <script>
+// ===== مدیریت تم =====
+let currentTheme = localStorage.getItem('eagle-theme') || 'dark';
+
+function setTheme(theme) {
+    currentTheme = theme;
+    localStorage.setItem('eagle-theme', theme);
+    
+    if (theme === 'light') {
+        document.body.classList.add('light-theme');
+        document.getElementById('current-theme-label').textContent = 'روشن';
+        document.getElementById('theme-dark-btn').className = 'btn btn-o';
+        document.getElementById('theme-light-btn').className = 'btn btn-pur';
+    } else {
+        document.body.classList.remove('light-theme');
+        document.getElementById('current-theme-label').textContent = 'تاریک';
+        document.getElementById('theme-dark-btn').className = 'btn btn-pur';
+        document.getElementById('theme-light-btn').className = 'btn btn-o';
+    }
+    
+    fetch('/api/settings/theme', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({theme: theme})
+    }).catch(() => {});
+}
+
+// بارگذاری تم از سرور
+async function loadThemeFromServer() {
+    try {
+        const r = await fetch('/api/settings');
+        const data = await r.json();
+        if (data.theme) {
+            currentTheme = data.theme;
+            localStorage.setItem('eagle-theme', data.theme);
+            setTheme(data.theme);
+        } else {
+            setTheme(currentTheme);
+        }
+    } catch(e) {
+        setTheme(currentTheme);
+    }
+}
+
 // ===== توابع کمکی =====
 function toast(msg, type='') {
   const t = document.getElementById('toast');
@@ -1148,7 +1246,6 @@ async function loadUsers() {
         safari_ios: 'Safari iOS', random: 'Random', none: 'None'
       }[fp] || fp;
       
-      // محاسبه مدت
       let duration = '∞';
       if (l.expires_at) {
         try {
@@ -1182,7 +1279,9 @@ async function loadUsers() {
         <td style="font-size:10px;color:var(--t2);">${duration}</td>
         <td>
           <div class="action-btns">
-            <button class="btn btn-o btn-sm" onclick="navigator.clipboard.writeText('${esc(l.vless_link)}').then(()=>toast('✅ کپی شد','ok'))" title="کپی لینک"><i class="ti ti-copy"></i></button>
+            <button class="btn btn-o btn-sm" onclick="navigator.clipboard.writeText('${esc(l.vless_link)}').then(()=>toast('✅ کپی لینک','ok'))" title="کپی لینک"><i class="ti ti-copy"></i></button>
+            <button class="btn btn-pur btn-sm" onclick="navigator.clipboard.writeText('${esc(l.sub_url)}').then(()=>toast('✅ کپی ساب','ok'))" title="کپی ساب‌لینک"><i class="ti ti-link"></i></button>
+            <button class="btn btn-amber btn-sm" onclick="resetUsage('${l.uuid}')" title="ریست مصرف"><i class="ti ti-rotate"></i></button>
             <button class="btn btn-pur btn-sm" onclick="openEditModal('${l.uuid}')" title="ویرایش"><i class="ti ti-edit"></i></button>
             <button class="btn btn-d btn-sm" onclick="openDeleteModal('${l.uuid}')" title="حذف"><i class="ti ti-trash"></i></button>
           </div>
@@ -1467,6 +1566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!d.authenticated) location.href = '/login';
   } catch(e) { location.href = '/login'; }
   
+  await loadThemeFromServer();
   setLang(currentLang);
   await loadRGBStatus();
   loadDashboard();
