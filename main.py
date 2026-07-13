@@ -1266,111 +1266,67 @@ function showQR(){{window.open('https://api.qrserver.com/v1/create-qr-code/?size
 
 @app.get("/sub/{uuid}")
 async def subscription_single(request: Request, uuid: str):
-    import base64
-    
-    # تشخیص User-Agent
-    user_agent = request.headers.get("user-agent", "").lower()
-    is_browser = any(b in user_agent for b in [
-        "chrome", "firefox", "safari", "edge", "opera", "brave",
-        "msie", "trident"
-    ])
+    """نمایش صفحه اطلاعات کانفیگ برای همه (کلاینت و مرورگر)"""
     
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
     
     if not link:
-        if is_browser:
-            return HTMLResponse("""
-            <!DOCTYPE html>
-            <html lang="fa" dir="rtl">
-            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>🦅 کاربر یافت نشد</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-            <style>
-            *{margin:0;padding:0;box-sizing:border-box}
-            body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-            .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(59,130,246,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
-            .icon{font-size:64px;margin-bottom:16px}
-            h2{font-size:22px;font-weight:800;margin-bottom:8px}
-            p{color:#6A6A8A;font-size:13px;line-height:1.8}
-            </style>
-            </head>
-            <body>
-            <div class="card">
-                <div class="icon">🦅</div>
-                <h2>کاربر یافت نشد</h2>
-                <p>لینک ساب‌لینک معتبر نیست یا کاربر حذف شده است.</p>
-            </div>
-            </body>
-            </html>
-            """, status_code=404)
-        else:
-            raise HTTPException(status_code=404, detail="user not found")
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🦅 کاربر یافت نشد</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+        <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
+        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(59,130,246,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+        .icon{font-size:64px;margin-bottom:16px}
+        h2{font-size:22px;font-weight:800;margin-bottom:8px}
+        p{color:#6A6A8A;font-size:13px;line-height:1.8}
+        </style>
+        </head>
+        <body>
+        <div class="card">
+            <div class="icon">🦅</div>
+            <h2>کاربر یافت نشد</h2>
+            <p>لینک ساب‌لینک معتبر نیست یا کاربر حذف شده است.</p>
+        </div>
+        </body>
+        </html>
+        """, status_code=404)
     
     if not is_link_allowed(link):
-        if is_browser:
-            return HTMLResponse("""
-            <!DOCTYPE html>
-            <html lang="fa" dir="rtl">
-            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>⛔ کاربر غیرفعال</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-            <style>
-            *{margin:0;padding:0;box-sizing:border-box}
-            body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-            .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
-            .icon{font-size:64px;margin-bottom:16px}
-            h2{font-size:22px;font-weight:800;margin-bottom:8px}
-            p{color:#6A6A8A;font-size:13px;line-height:1.8}
-            .status{color:#F87171}
-            </style>
-            </head>
-            <body>
-            <div class="card">
-                <div class="icon">⛔</div>
-                <h2>کاربر غیرفعال یا منقضی</h2>
-                <p class="status">این کانفیگ فعال نیست یا تاریخ انقضای آن گذشته است.</p>
-            </div>
-            </body>
-            </html>
-            """, status_code=403)
-        else:
-            raise HTTPException(status_code=403, detail="user disabled or expired")
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>⛔ کاربر غیرفعال</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+        <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
+        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+        .icon{font-size:64px;margin-bottom:16px}
+        h2{font-size:22px;font-weight:800;margin-bottom:8px}
+        p{color:#6A6A8A;font-size:13px;line-height:1.8}
+        .status{color:#F87171}
+        </style>
+        </head>
+        <body>
+        <div class="card">
+            <div class="icon">⛔</div>
+            <h2>کاربر غیرفعال یا منقضی</h2>
+            <p class="status">این کانفیگ فعال نیست یا تاریخ انقضای آن گذشته است.</p>
+        </div>
+        </body>
+        </html>
+        """, status_code=403)
     
-    # ===== اگر کلاینت باشد → دانلود کانفیگ =====
-    if not is_browser:
-        host = get_host()
-        label = link.get("label", "کاربر")
-        remark = f"عقاب-{label}"
-        protocol = link.get("protocol", DEFAULT_PROTOCOL)
-        fingerprint = link.get("fingerprint", "chrome")
-        port = link.get("port", 443)
-        
-        vless_link = generate_vless_link(
-            uuid, 
-            host, 
-            remark=remark,
-            protocol=protocol,
-            fingerprint=fingerprint,
-            port=port
-        )
-        
-        content = base64.b64encode(vless_link.encode()).decode()
-        
-        return Response(
-            content=content,
-            media_type="text/plain",
-            headers={
-                "Content-Disposition": f"attachment; filename=config_{uuid[:8]}.txt",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0",
-            }
-        )
-    
-    # ===== اگر مرورگر باشد → صفحه اطلاعات زیبا =====
+    # گرفتن اتصالات فعال
     active_connections_list = []
     for c in connections.values():
         if c.get("uuid") == uuid:
@@ -1527,7 +1483,6 @@ async def public_sub_data(uuid_key: str, request: Request):
 
 # ─── HTML Pages ─────────────────────────────────────────────────────────────
 
-# صفحه لاگین (ساده شده)
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -1586,7 +1541,6 @@ setLang(currentLang);
 </script>
 </body></html>"""
 
-# صفحه داشبورد (ساده شده)
 DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
