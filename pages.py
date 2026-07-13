@@ -294,8 +294,8 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-/* ===== تنظیمات متغیرهای تم ===== */
-:root {
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
   --bg:#0a0a1a;
   --bg2:#12122a;
   --bg3:#1a1a3a;
@@ -320,52 +320,14 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   --sidebar-w:180px;
   --radius:12px;
   --shadow:0 8px 32px rgba(0,0,0,0.5),0 0 60px rgba(100,80,255,0.02);
-  --glow-color:rgba(100,80,255,0.02);
-  --input-bg:rgba(0,0,20,.2);
-  --table-hover:rgba(100,80,255,0.02);
-  --border-color:rgba(100,80,255,0.08);
 }
-
-/* ===== تم روشن ===== */
-body.light-theme {
-  --bg:#f0f0f5;
-  --bg2:#e8e8f0;
-  --bg3:#dddde8;
-  --card:rgba(255,255,255,0.85);
-  --card-b:rgba(100,80,255,0.12);
-  --card-bh:rgba(100,80,255,0.2);
-  --t1:#1a1a2e;
-  --t2:#4a4a6a;
-  --t3:#7a7a9a;
-  --shadow:0 8px 32px rgba(0,0,0,0.08),0 0 60px rgba(100,80,255,0.02);
-  --glow-color:rgba(100,80,255,0.04);
-  --input-bg:rgba(255,255,255,0.6);
-  --table-hover:rgba(100,80,255,0.04);
-  --border-color:rgba(100,80,255,0.1);
-}
-body.light-theme .stars-bg .star-bg { background:#8888BB; }
-body.light-theme .glow-main { display:none; }
-body.light-theme .stat-card::before { background:radial-gradient(circle,rgba(100,80,255,0.05),transparent 70%); }
-body.light-theme .user-card::before { background:radial-gradient(circle,rgba(100,80,255,0.04),transparent 70%); }
-body.light-theme .settings-card::before { background:radial-gradient(circle,rgba(100,80,255,0.04),transparent 70%); }
-body.light-theme .fi { background:rgba(255,255,255,0.7); }
-body.light-theme .btn-o { background:rgba(0,0,0,0.03); border-color:rgba(100,80,255,0.1); color:var(--t2); }
-body.light-theme .btn-o:hover { background:rgba(100,80,255,0.06); }
-body.light-theme .users-table thead th { background:rgba(100,80,255,0.03); }
-body.light-theme .users-table tbody tr:hover { background:rgba(100,80,255,0.03); }
-body.light-theme .stat-mini { background:rgba(255,255,255,0.8); }
-body.light-theme .conn-card { background:rgba(255,255,255,0.8); }
-body.light-theme .user-card { background:rgba(255,255,255,0.8); }
-body.light-theme .settings-card { background:rgba(255,255,255,0.8); }
-
-*{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;display:flex;font-size:13px;position:relative;overflow-x:hidden;transition:background .4s,color .4s}
 .stars-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .star-bg{position:absolute;border-radius:50%;background:#fff;animation:twinkleBg 4s ease-in-out infinite}
 @keyframes twinkleBg{0%,100%{opacity:0.1}50%{opacity:0.4}}
 .glow-main{position:fixed;border-radius:50%;filter:blur(200px);z-index:0;pointer-events:none}
-.glow-left{width:600px;height:600px;background:var(--glow-color);top:-300px;left:-200px;animation:glowFloat 8s ease-in-out infinite}
-.glow-right{width:500px;height:500px;background:var(--glow-color);bottom:-200px;right:-100px;animation:glowFloat 10s ease-in-out infinite reverse}
+.glow-left{width:600px;height:600px;background:rgba(100,80,255,0.02);top:-300px;left:-200px;animation:glowFloat 8s ease-in-out infinite}
+.glow-right{width:500px;height:500px;background:rgba(167,139,250,0.02);bottom:-200px;right:-100px;animation:glowFloat 10s ease-in-out infinite reverse}
 @keyframes glowFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,-30px) scale(1.1)}}
 .sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--card);backdrop-filter:blur(30px);border-left:1px solid var(--card-b);display:flex;flex-direction:column;flex-shrink:0;position:fixed;right:0;top:0;bottom:0;z-index:200;transition:transform .4s cubic-bezier(0.34, 1.56, 0.64, 1),background .4s;box-shadow:var(--shadow)}
 .logo{display:flex;align-items:center;gap:10px;padding:16px 12px 12px;border-bottom:1px solid var(--card-b)}
@@ -376,9 +338,9 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .nav-wrap{flex:1;overflow-y:auto;padding:6px 0;position:relative;z-index:1}
 .nav-it{display:flex;align-items:center;gap:8px;padding:8px 10px;color:var(--t3);font-size:11px;cursor:pointer;border-right:2px solid transparent;transition:all .3s cubic-bezier(0.34, 1.56, 0.64, 1);margin:1px 4px;border-radius:6px}
 .nav-it i{font-size:14px;width:18px;text-align:center;flex-shrink:0;transition:transform .3s}
-.nav-it:hover{background:var(--table-hover);color:var(--t2)}
+.nav-it:hover{background:rgba(100,80,255,0.05);color:var(--t2)}
 .nav-it:hover i{transform:scale(1.1)}
-.nav-it.on{background:var(--table-hover);color:var(--t1);border-right-color:var(--accent);font-weight:600;box-shadow:0 0 30px rgba(100,80,255,0.03)}
+.nav-it.on{background:rgba(100,80,255,0.08);color:var(--t1);border-right-color:var(--accent);font-weight:600;box-shadow:0 0 30px rgba(100,80,255,0.03)}
 .nav-it.on i{color:var(--accent)}
 .sb-foot{padding:10px 12px;border-top:1px solid var(--card-b)}
 .logout-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--red-bg);color:var(--red-t);border-radius:6px;padding:6px;font-size:10px;font-weight:500;font-family:inherit;border:1px solid rgba(239,68,68,0.1);cursor:pointer;width:100%;transition:.3s}
@@ -458,7 +420,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 }
 .users-table tbody td {
   padding:8px 12px;
-  border-bottom:1px solid var(--border-color);
+  border-bottom:1px solid var(--card-b);
   color:var(--t1);
   vertical-align:middle;
 }
@@ -466,7 +428,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
   transition:background .3s;
 }
 .users-table tbody tr:hover {
-  background:var(--table-hover);
+  background:rgba(100,80,255,0.02);
 }
 .users-table .status-badge {
   display:inline-flex;
@@ -580,7 +542,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 @keyframes btnGradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .btn-p:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(100,80,255,.3)}
 .btn-o{background:rgba(255,255,255,0.02);border:1px solid var(--card-b);color:var(--t2)}
-.btn-o:hover{background:var(--table-hover);transform:translateY(-1px)}
+.btn-o:hover{background:rgba(100,80,255,0.05);transform:translateY(-1px)}
 .btn-d{background:var(--red-bg);color:var(--red-t);border:1px solid rgba(239,68,68,.1)}
 .btn-d:hover{background:rgba(239,68,68,.15);transform:translateY(-1px)}
 .btn-pur{background:rgba(100,80,255,0.08);color:var(--accent);border:1px solid rgba(100,80,255,.1)}
@@ -599,7 +561,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .modal-title i{color:var(--accent);font-size:15px}
 .fg{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
 .fg label{font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:3px}
-.fi{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:10px;outline:none;transition:.3s}
+.fi{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:rgba(0,0,20,.2);color:var(--t1);font-family:inherit;font-size:10px;outline:none;transition:.3s}
 .fi:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(100,80,255,.06)}
 .fi::placeholder{color:var(--t3)}
 select.fi{appearance:none;cursor:pointer}
@@ -618,7 +580,7 @@ select.fi{appearance:none;cursor:pointer}
 .settings-card .title i{color:var(--accent)}
 .settings-card .field{margin-bottom:8px}
 .settings-card .field label{font-size:9px;color:var(--t3);display:block;margin-bottom:2px;font-weight:600}
-.settings-card .field input{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:11px;outline:none;transition:.3s}
+.settings-card .field input{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:rgba(0,0,20,.2);color:var(--t1);font-family:inherit;font-size:11px;outline:none;transition:.3s}
 .settings-card .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(100,80,255,.06)}
 .settings-card .btn{width:100%;justify-content:center;margin-top:3px;font-size:11px;padding:6px}
 .settings-card .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-b)}
@@ -663,6 +625,32 @@ select.fi{appearance:none;cursor:pointer}
   .stat-mini-num{font-size:13px}
 }
 @media(min-width:769px){.bottom-nav{display:none !important}}
+
+/* ===== تم روشن ===== */
+body.light-theme {
+  --bg:#f0f0f5;
+  --bg2:#e8e8f0;
+  --bg3:#dddde8;
+  --card:rgba(255,255,255,0.85);
+  --card-b:rgba(100,80,255,0.12);
+  --card-bh:rgba(100,80,255,0.2);
+  --t1:#1a1a2e;
+  --t2:#4a4a6a;
+  --t3:#7a7a9a;
+  --shadow:0 8px 32px rgba(0,0,0,0.08),0 0 60px rgba(100,80,255,0.02);
+}
+body.light-theme .stars-bg .star-bg { background:#8888BB; }
+body.light-theme .glow-main { display:none; }
+body.light-theme .stat-card::before { background:radial-gradient(circle,rgba(100,80,255,0.05),transparent 70%); }
+body.light-theme .fi { background:rgba(255,255,255,0.7); }
+body.light-theme .btn-o { background:rgba(0,0,0,0.03); border-color:rgba(100,80,255,0.1); color:var(--t2); }
+body.light-theme .btn-o:hover { background:rgba(100,80,255,0.06); }
+body.light-theme .users-table thead th { background:rgba(100,80,255,0.03); }
+body.light-theme .users-table tbody tr:hover { background:rgba(100,80,255,0.03); }
+body.light-theme .stat-mini { background:rgba(255,255,255,0.8); }
+body.light-theme .conn-card { background:rgba(255,255,255,0.8); }
+body.light-theme .user-card { background:rgba(255,255,255,0.8); }
+body.light-theme .settings-card { background:rgba(255,255,255,0.8); }
 </style>
 </head>
 <body>
@@ -873,7 +861,7 @@ select.fi{appearance:none;cursor:pointer}
   </div>
 </section>
 
-<!-- ===== کاربران با طراحی جدید ===== -->
+<!-- ===== کاربران ===== -->
 <section class="pg" id="pg-users">
   <div class="topbar">
     <div>
@@ -885,7 +873,7 @@ select.fi{appearance:none;cursor:pointer}
     </div>
   </div>
 
-  <!-- کارت‌های آمار سریع -->
+  <!-- کارت‌های آمار -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
     <div class="stat-mini"><span class="stat-mini-icon">👥</span><span class="stat-mini-num" id="users-total">0</span><span class="stat-mini-label">کل کاربران</span></div>
     <div class="stat-mini"><span class="stat-mini-icon">🟢</span><span class="stat-mini-num" id="users-active">0</span><span class="stat-mini-label">فعال</span></div>
@@ -1053,7 +1041,6 @@ function setTheme(theme) {
     }).catch(() => {});
 }
 
-// بارگذاری تم از سرور
 async function loadThemeFromServer() {
     try {
         const r = await fetch('/api/settings');
@@ -1215,7 +1202,6 @@ async function loadInbound() {
     document.getElementById('inbound-protocol').textContent = (data.protocol || 'vless').toUpperCase();
     document.getElementById('inbound-host').textContent = data.host || '—';
     document.getElementById('inbound-port-setting').value = data.port || 443;
-    loadUsers();
   } catch(e) { console.error(e); }
 }
 
@@ -1232,7 +1218,7 @@ async function updateInbound() {
   } catch(e) { toast('❌ خطا', 'err'); }
 }
 
-// ===== کاربران با جدول جدید =====
+// ===== کاربران =====
 async function loadUsers() {
   try {
     const r = await authF('/api/links');
@@ -1611,9 +1597,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body></html>"""
 
-# ===== صفحه ساب‌لینک =====
+# ===== تابع صفحه ساب‌لینک =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
+    """صفحه HTML زیبا برای نمایش اطلاعات کانفیگ"""
     from datetime import datetime
+    
     used = link.get('used_bytes', 0)
     limit = link.get('limit_bytes', 0)
     active = link.get('active', True)
@@ -1633,9 +1621,11 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
             last_connected_text = dt.strftime("%Y-%m-%d %H:%M")
         except:
             last_connected_text = last_connected[:16]
+    
     percent = 0
     if limit > 0:
         percent = min(100, (used / limit) * 100)
+    
     expires_at = link.get('expires_at')
     if expires_at:
         try:
@@ -1647,9 +1637,11 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
             days_left = 'نامشخص'
     else:
         days_left = 'نامحدود'
+    
     is_allowed = active and not expired
     sub_url = link.get('sub_url', '')
-    def fmt_bytes(b):
+    
+    def fmt_bytes_local(b):
         if not b or b == 0:
             return '0 B'
         if b < 1024:
@@ -1658,9 +1650,15 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
             return f'{b/1024:.1f} KB'
         if b < 1024**3:
             return f'{b/1024**2:.2f} MB'
-        return f'{b/1024**3:.2f} GB'
-    used_fmt = fmt_bytes(used)
-    limit_fmt = 'نامحدود' if limit == 0 else fmt_bytes(limit)
+        if b < 1024**4:
+            return f'{b/1024**3:.2f} GB'
+        return f'{b/1024**4:.2f} TB'
+    
+    used_fmt = fmt_bytes_local(used)
+    limit_fmt = 'نامحدود' if limit == 0 else fmt_bytes_local(limit)
+    
+    # این بخش باید توسط main.py تامین بشه، ولی برای جلوگیری از خطا در pages
+    # از یک متغیر موقت استفاده می‌کنیم
     from main import get_host, generate_vless_link
     host = get_host()
     remark = f"عقاب-{label}"
@@ -1690,26 +1688,60 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-*{{margin:0;padding:0;box-sizing:border-box}}@keyframes fireBG{{0%{{background-position:0% 50%}}25%{{background-position:50% 0%}}50%{{background-position:100% 50%}}75%{{background-position:50% 100%}}100%{{background-position:0% 50%}}}}@keyframes flameFlicker{{0%{{opacity:0.6;transform:scale(1)}}50%{{opacity:1;transform:scale(1.02)}}100%{{opacity:0.6;transform:scale(1)}}}}@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.25}}}}body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;color:#F0EEFF;background:linear-gradient(135deg,#0a0a1a,#1a0a2a,#0a0a2a);}}
-.stars-sub{{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}}.star-sub{{position:absolute;border-radius:50%;background:#fff;animation:twinkleSub 4s ease-in-out infinite}}@keyframes twinkleSub{{0%,100%{{opacity:0.1}}50%{{opacity:0.4}}}}
-.glow-sub{{position:fixed;border-radius:50%;filter:blur(150px);z-index:0;pointer-events:none}}.glow-sub1{{width:350px;height:350px;background:rgba(100,80,255,0.04);top:-120px;right:-60px;animation:glowFloat2 7s ease-in-out infinite}}.glow-sub2{{width:250px;height:250px;background:rgba(167,139,250,0.03);bottom:-60px;left:-40px;animation-delay:2s;animation:glowFloat2 9s ease-in-out infinite reverse}}
+*{{margin:0;padding:0;box-sizing:border-box}}@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.25}}}}
+body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;color:#F0EEFF;background:linear-gradient(135deg,#0a0a1a,#1a0a2a,#0a0a2a);}}
+.stars-sub{{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}}
+.star-sub{{position:absolute;border-radius:50%;background:#fff;animation:twinkleSub 4s ease-in-out infinite}}
+@keyframes twinkleSub{{0%,100%{{opacity:0.1}}50%{{opacity:0.4}}}}
+.glow-sub{{position:fixed;border-radius:50%;filter:blur(150px);z-index:0;pointer-events:none}}
+.glow-sub1{{width:350px;height:350px;background:rgba(100,80,255,0.04);top:-120px;right:-60px;animation:glowFloat2 7s ease-in-out infinite}}
+.glow-sub2{{width:250px;height:250px;background:rgba(167,139,250,0.03);bottom:-60px;left:-40px;animation-delay:2s;animation:glowFloat2 9s ease-in-out infinite reverse}}
 @keyframes glowFloat2{{0%,100%{{transform:translate(0,0) scale(1)}}50%{{transform:translate(20px,-20px) scale(1.05)}}}}
-.card{{position:relative;z-index:10;background:rgba(10,10,30,0.8);backdrop-filter:blur(30px);border:1px solid rgba(100,80,255,0.06);border-radius:20px;padding:24px 22px 20px;max-width:420px;width:100%;box-shadow:0 0 60px rgba(0,0,0,0.4),0 0 80px rgba(100,80,255,0.02);animation:cardIn 0.6s ease;}}@keyframes cardIn{{from{{opacity:0;transform:translateY(20px) scale(0.97)}}to{{opacity:1;transform:translateY(0) scale(1)}}}}
-.brand{{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(100,80,255,0.04);}}.brand-icon{{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C6BFF,#5B4BD9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 30px rgba(100,80,255,0.1);animation:pulseLogo2 3s ease-in-out infinite}}
-@keyframes pulseLogo2{{0%,100%{{box-shadow:0 0 30px rgba(100,80,255,0.1)}}50%{{box-shadow:0 0 50px rgba(100,80,255,0.2)}}}}
-.brand-text .name{{font-size:13px;font-weight:800;background:linear-gradient(135deg,#A78BFA,#7C6BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}.brand-text .sub{{font-size:7px;color:#555577;margin-top:0px}}
-.user-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}}.user-name{{font-size:17px;font-weight:800;color:#F0EEFF;display:flex;align-items:center;gap:4px}}.user-name .fire{{font-size:15px}}
-.status{{display:inline-flex;align-items:center;gap:3px;padding:2px 10px;border-radius:12px;font-size:9px;font-weight:700;}}.status.active{{background:rgba(100,80,255,0.12);color:#A78BFA;border:1px solid rgba(100,80,255,0.08);}}.status.inactive{{background:rgba(239,68,68,0.12);color:#F87171;border:1px solid rgba(239,68,68,0.08);}}
-.uuid-box{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:6px;padding:4px 8px;font-size:8px;font-family:monospace;color:#555577;word-break:break-all;margin:3px 0 8px;cursor:pointer;transition:.3s}}.uuid-box:hover{{background:rgba(100,80,255,0.04);transform:scale(1.01)}}
-.info-grid{{display:grid;gap:5px;margin:8px 0}}.info-item{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.02);border-radius:6px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;transition:.3s}}.info-item:hover{{background:rgba(100,80,255,0.04)}}.info-label{{font-size:9px;color:#8888BB;display:flex;align-items:center;gap:3px}}.info-label i{{font-size:10px;color:#7C6BFF}}.info-value{{font-size:11px;font-weight:700;color:#F0EEFF}}.info-value.used{{color:#A78BFA}}.info-value.proto{{font-size:8px;background:rgba(100,80,255,0.05);padding:1px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.04);}}
-.progress{{margin:8px 0 10px}}.progress-bar{{height:3px;border-radius:3px;background:rgba(100,80,255,0.04);overflow:hidden}}.progress-fill{{height:100%;border-radius:3px;background:linear-gradient(90deg,#7C6BFF,#5B4BD9,#A78BFA);width:{percent:.1f}%;transition:width 1s ease}}.progress-text{{display:flex;justify-content:space-between;font-size:8px;color:#8888BB;margin-top:2px}}.progress-text .pct{{font-weight:700;color:#F0EEFF}}
-.vless-section{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.03);border-radius:8px;padding:8px 10px;margin:8px 0}}.vless-label{{font-size:7px;color:#8888BB;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:4px;margin-bottom:4px}}.vless-label i{{color:#7C6BFF;font-size:10px}}.vless-link{{font-family:monospace;font-size:8px;color:#A78BFA;word-break:break-all;line-height:1.5;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.02);}}
-.actions{{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}}.btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:all .3s cubic-bezier(0.34, 1.56, 0.64, 1);white-space:nowrap;flex:1;justify-content:center}}.btn i{{font-size:11px}}
-.btn-primary{{background:linear-gradient(135deg,#7C6BFF,#5B4BD9);color:#fff;box-shadow:0 3px 15px rgba(100,80,255,0.15)}}.btn-primary:hover{{transform:translateY(-2px);box-shadow:0 6px 25px rgba(100,80,255,0.25)}}
-.btn-secondary{{background:rgba(100,80,255,0.03);border:1px solid rgba(100,80,255,0.04);color:#8888BB}}.btn-secondary:hover{{background:rgba(100,80,255,0.06);color:#F0EEFF;transform:translateY(-2px)}}
-.btn-success{{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.08);color:#34D399}}.btn-success:hover{{background:rgba(16,185,129,0.1);transform:translateY(-2px)}}
-.footer{{margin-top:12px;padding-top:10px;border-top:1px solid rgba(100,80,255,0.02);text-align:center;font-size:7px;color:#555577}}.footer .eagle{{color:#7C6BFF;font-weight:700}}
-.toast{{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(10,10,30,0.9);backdrop-filter:blur(20px);border:1px solid rgba(100,80,255,0.08);color:#F0EEFF;border-radius:8px;padding:6px 14px;font-size:10px;opacity:0;transition:all .4s;z-index:999;pointer-events:none;display:flex;align-items:center;gap:4px;box-shadow:0 8px 30px rgba(0,0,0,0.3)}}.toast.show{{opacity:1;transform:translateX(-50%) translateY(0)}}.toast.ok{{border-color:rgba(16,185,129,0.15);color:#34D399}}
+.card{{position:relative;z-index:10;background:rgba(10,10,30,0.8);backdrop-filter:blur(30px);border:1px solid rgba(100,80,255,0.06);border-radius:20px;padding:24px 22px 20px;max-width:420px;width:100%;box-shadow:0 0 60px rgba(0,0,0,0.4),0 0 80px rgba(100,80,255,0.02);animation:cardIn 0.6s ease;}}
+@keyframes cardIn{{from{{opacity:0;transform:translateY(20px) scale(0.97)}}to{{opacity:1;transform:translateY(0) scale(1)}}}}
+.brand{{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(100,80,255,0.04);}}
+.brand-icon{{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C6BFF,#5B4BD9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 30px rgba(100,80,255,0.1);}}
+.brand-text .name{{font-size:13px;font-weight:800;background:linear-gradient(135deg,#A78BFA,#7C6BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
+.brand-text .sub{{font-size:7px;color:#555577;margin-top:0px}}
+.user-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}}
+.user-name{{font-size:17px;font-weight:800;color:#F0EEFF;display:flex;align-items:center;gap:4px}}
+.user-name .fire{{font-size:15px}}
+.status{{display:inline-flex;align-items:center;gap:3px;padding:2px 10px;border-radius:12px;font-size:9px;font-weight:700;}}
+.status.active{{background:rgba(100,80,255,0.12);color:#A78BFA;border:1px solid rgba(100,80,255,0.08);}}
+.status.inactive{{background:rgba(239,68,68,0.12);color:#F87171;border:1px solid rgba(239,68,68,0.08);}}
+.uuid-box{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:6px;padding:4px 8px;font-size:8px;font-family:monospace;color:#555577;word-break:break-all;margin:3px 0 8px;cursor:pointer;transition:.3s}}
+.uuid-box:hover{{background:rgba(100,80,255,0.04);transform:scale(1.01)}}
+.info-grid{{display:grid;gap:5px;margin:8px 0}}
+.info-item{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.02);border-radius:6px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;transition:.3s}}
+.info-item:hover{{background:rgba(100,80,255,0.04)}}
+.info-label{{font-size:9px;color:#8888BB;display:flex;align-items:center;gap:3px}}
+.info-label i{{font-size:10px;color:#7C6BFF}}
+.info-value{{font-size:11px;font-weight:700;color:#F0EEFF}}
+.info-value.used{{color:#A78BFA}}
+.info-value.proto{{font-size:8px;background:rgba(100,80,255,0.05);padding:1px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.04);}}
+.progress{{margin:8px 0 10px}}
+.progress-bar{{height:3px;border-radius:3px;background:rgba(100,80,255,0.04);overflow:hidden}}
+.progress-fill{{height:100%;border-radius:3px;background:linear-gradient(90deg,#7C6BFF,#5B4BD9,#A78BFA);width:{percent:.1f}%;transition:width 1s ease}}
+.progress-text{{display:flex;justify-content:space-between;font-size:8px;color:#8888BB;margin-top:2px}}
+.progress-text .pct{{font-weight:700;color:#F0EEFF}}
+.vless-section{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.03);border-radius:8px;padding:8px 10px;margin:8px 0}}
+.vless-label{{font-size:7px;color:#8888BB;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:4px;margin-bottom:4px}}
+.vless-label i{{color:#7C6BFF;font-size:10px}}
+.vless-link{{font-family:monospace;font-size:8px;color:#A78BFA;word-break:break-all;line-height:1.5;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.02);}}
+.actions{{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}}
+.btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:all .3s;white-space:nowrap;flex:1;justify-content:center}}
+.btn i{{font-size:11px}}
+.btn-primary{{background:linear-gradient(135deg,#7C6BFF,#5B4BD9);color:#fff;box-shadow:0 3px 15px rgba(100,80,255,0.15)}}
+.btn-primary:hover{{transform:translateY(-2px);box-shadow:0 6px 25px rgba(100,80,255,0.25)}}
+.btn-secondary{{background:rgba(100,80,255,0.03);border:1px solid rgba(100,80,255,0.04);color:#8888BB}}
+.btn-secondary:hover{{background:rgba(100,80,255,0.06);color:#F0EEFF;transform:translateY(-2px)}}
+.btn-success{{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.08);color:#34D399}}
+.btn-success:hover{{background:rgba(16,185,129,0.1);transform:translateY(-2px)}}
+.footer{{margin-top:12px;padding-top:10px;border-top:1px solid rgba(100,80,255,0.02);text-align:center;font-size:7px;color:#555577}}
+.footer .eagle{{color:#7C6BFF;font-weight:700}}
+.toast{{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(10,10,30,0.9);backdrop-filter:blur(20px);border:1px solid rgba(100,80,255,0.08);color:#F0EEFF;border-radius:8px;padding:6px 14px;font-size:10px;opacity:0;transition:all .4s;z-index:999;pointer-events:none;display:flex;align-items:center;gap:4px;box-shadow:0 8px 30px rgba(0,0,0,0.3)}}
+.toast.show{{opacity:1;transform:translateX(-50%) translateY(0)}}
+.toast.ok{{border-color:rgba(16,185,129,0.15);color:#34D399}}
 @media(max-width:400px){{.card{{padding:16px 14px 14px}}.user-name{{font-size:15px}}.brand-icon{{width:30px;height:30px;font-size:14px}}.info-item{{padding:4px 8px}}.btn{{font-size:8px;padding:4px 8px}}}}
 </style>
 </head>
@@ -1743,5 +1775,14 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     <div class="actions"><button class="btn btn-primary" onclick="copyVless()"><i class="ti ti-copy"></i> کپی</button><button class="btn btn-success" onclick="copySub()"><i class="ti ti-link"></i> ساب</button><button class="btn btn-secondary" onclick="showQR()"><i class="ti ti-qrcode"></i> QR</button></div>
     <div class="footer"><span class="eagle">🪐</span> پنل عقاب</div>
 </div>
-<script>const vless=`{new_vless_link}`;const subUrl=`{sub_url}`;const uuid=`{uuid}`;function toast(msg,type=''){{const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');setTimeout(()=>t.classList.remove('show'),2000);}}function copyVless(){{navigator.clipboard.writeText(vless).then(()=>toast('✅ کپی شد','ok'));}}function copySub(){{navigator.clipboard.writeText(subUrl).then(()=>toast('✅ کپی شد','ok'));}}function copyUUID(){{navigator.clipboard.writeText(uuid).then(()=>toast('✅ کپی شد','ok'));}}function showQR(){{window.open('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data='+encodeURIComponent(vless),'_blank');}}</script>
+<script>
+const vless=`{new_vless_link}`;
+const subUrl=`{sub_url}`;
+const uuid=`{uuid}`;
+function toast(msg,type=''){{const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');setTimeout(()=>t.classList.remove('show'),2000);}}
+function copyVless(){{navigator.clipboard.writeText(vless).then(()=>toast('✅ کپی شد','ok'));}}
+function copySub(){{navigator.clipboard.writeText(subUrl).then(()=>toast('✅ کپی شد','ok'));}}
+function copyUUID(){{navigator.clipboard.writeText(uuid).then(()=>toast('✅ کپی شد','ok'));}}
+function showQR(){{window.open('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data='+encodeURIComponent(vless),'_blank');}}
+</script>
 </body></html>"""
