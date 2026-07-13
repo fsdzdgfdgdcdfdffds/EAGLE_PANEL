@@ -85,7 +85,9 @@ TELEGRAM_SESSIONS: dict = {}
 TELEGRAM_SESSIONS_LOCK = asyncio.Lock()
 CACHE_USERS = {"data": [], "timestamp": 0, "ttl": 3}
 
-# ─── Functions ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# ===== Functions =====
+# ─────────────────────────────────────────────────────────────────────────────
 
 def now_ir() -> datetime:
     return datetime.now(IRAN_TZ)
@@ -179,7 +181,7 @@ async def remove_device_connection(uuid: str, client_ip: str):
             if not device_connections[uuid]:
                 del device_connections[uuid]
 
-# ─── Telegram Functions (سریع) ─────────────────────────────────────────────
+# ─── Telegram Functions ──────────────────────────────────────────────────────
 
 async def tg_send(chat_id, text, kb=None):
     token = SETTINGS.get("telegram_bot_token", "")
@@ -303,9 +305,7 @@ async def shutdown():
     if http_client:
         await http_client.aclose()
 
-# ===================================================================
-# ===== API ENDPOINTS (کوتاه شده) =====
-# ===================================================================
+# ─── API ENDPOINTS (خلاصه) ──────────────────────────────────────────────────
 
 @app.post("/api/settings/language")
 async def set_language(req: Request, _=Depends(require_auth)):
@@ -869,7 +869,7 @@ async def info_page(uuid: str, req: Request):
                  "vless_link": vless_links[0] if vless_links else "", "sub_url": f"https://{host}/sub/{uuid}"}
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
 
-# ─── ===== BAT TELEGRAM (فوق‌العاده سریع) ===== ──────────────────────────
+# ─── ===== BAT TELEGRAM (نسخه بدون باگ) ===== ─────────────────────────────
 
 @app.post("/webhook/telegram")
 async def telegram_webhook(req: Request):
@@ -883,6 +883,14 @@ async def telegram_webhook(req: Request):
     asyncio.create_task(process_tg_update(body))
     return {"ok": True}
 
+def clear_session(chat_id: str):
+    """پاک کردن سشن کاربر"""
+    async def _clear():
+        async with TELEGRAM_SESSIONS_LOCK:
+            if str(chat_id) in TELEGRAM_SESSIONS:
+                del TELEGRAM_SESSIONS[str(chat_id)]
+    asyncio.create_task(_clear())
+
 async def process_tg_update(body: dict):
     try:
         msg = body.get("message")
@@ -891,8 +899,10 @@ async def process_tg_update(body: dict):
             chat_id = msg.get("chat", {}).get("id")
             text = msg.get("text", "").strip()
             username = msg.get("from", {}).get("username", "کاربر")
+            
             if text.startswith("/"):
                 if text == "/start":
+                    clear_session(str(chat_id))
                     await send_main_menu(chat_id, username)
                 elif text == "/new":
                     await start_new_user(chat_id)
@@ -974,7 +984,6 @@ async def handle_user_step(chat_id, text, session):
         await tg_send(chat_id, f"✅ نام <b>{data['label']}</b> ذخیره شد!\n📊 حجم را انتخاب کنید:", kb)
 
     elif step == "quota":
-        # کاربر عدد دلخواه وارد کرده
         try:
             quota = float(text)
             if quota < 0:
@@ -983,7 +992,7 @@ async def handle_user_step(chat_id, text, session):
             data["quota"] = quota
             async with TELEGRAM_SESSIONS_LOCK:
                 TELEGRAM_SESSIONS[str(chat_id)]["step"] = "days"
-            await tg_send(chat_id, f"✅ {quota}GB\n📅 تعداد روز انقضا را وارد کنید:")
+            await tg_send(chat_id, f"✅ {quota}GB\n📅 تعداد روز انقضا را وارد کنید (مثلاً 30):")
         except ValueError:
             await tg_send(chat_id, "❌ عدد معتبر وارد کنید (مثلاً 10)")
 
@@ -1005,75 +1014,79 @@ async def handle_user_step(chat_id, text, session):
         except ValueError:
             await tg_send(chat_id, "❌ عدد روز معتبر وارد کنید (مثلاً 30)")
 
-    elif step == "fingerprint":
-        # کاربر با دکمه انتخاب میکنه، اینجا اجرا نمیشه
-        pass
-
 async def finish_create_user(chat_id, data):
-    label = data.get("label", "کاربر")
-    quota = data.get("quota", 2)
-    days = data.get("days", 30)
-    fp = data.get("fingerprint", "chrome")
+    try:
+        label = data.get("label", "کاربر")
+        quota = data.get("quota", 2)
+        days = data.get("days", 30)
+        fp = data.get("fingerprint", "chrome")
 
-    uid = generate_uuid()
-    async with LINKS_LOCK:
-        LINKS[uid] = {"label": label, "limit_bytes": int(quota * 1024**3) if quota > 0 else 0,
-                      "used_bytes": 0, "created_at": datetime.now().isoformat(), "active": True,
-                      "expires_at": (datetime.now() + timedelta(days=days)).isoformat(),
-                      "note": "ساخته شده از بات", "is_default": False, "sub_id": None,
-                      "protocol": DEFAULT_PROTOCOL, "max_devices": 1, "fingerprint": fp,
-                      "password_hash": None, "ports": [443]}
+        uid = generate_uuid()
+        async with LINKS_LOCK:
+            LINKS[uid] = {"label": label, "limit_bytes": int(quota * 1024**3) if quota > 0 else 0,
+                          "used_bytes": 0, "created_at": datetime.now().isoformat(), "active": True,
+                          "expires_at": (datetime.now() + timedelta(days=days)).isoformat(),
+                          "note": "ساخته شده از بات", "is_default": False, "sub_id": None,
+                          "protocol": DEFAULT_PROTOCOL, "max_devices": 1, "fingerprint": fp,
+                          "password_hash": None, "ports": [443]}
 
-    await save_state()
-    log_activity("link", f"کاربر {label} از بات ساخته شد", "ok")
+        await save_state()
+        log_activity("link", f"کاربر {label} از بات ساخته شد", "ok")
 
-    host = get_host()
-    sub_url = f"https://{host}/sub/{uid}"
-    vless_link = generate_vless_link(uid, host, remark=f"عقاب-{label}", fingerprint=fp, port=443)
+        host = get_host()
+        sub_url = f"https://{host}/sub/{uid}"
+        vless_link = generate_vless_link(uid, host, remark=f"عقاب-{label}", fingerprint=fp, port=443)
 
-    async with TELEGRAM_SESSIONS_LOCK:
-        if str(chat_id) in TELEGRAM_SESSIONS:
-            del TELEGRAM_SESSIONS[str(chat_id)]
+        # پاک کردن سشن
+        clear_session(str(chat_id))
 
-    kb = [[{"text": "📝 کاربر دیگر", "callback_data": "new_user"}, {"text": "🏠 منو", "callback_data": "main_menu"}]]
-    await tg_send(chat_id,
-        f"✅ <b>کاربر {label} ساخته شد!</b>\n\n"
-        f"📊 حجم: {fmt_bytes(int(quota * 1024**3)) if quota > 0 else 'نامحدود'}\n"
-        f"📅 انقضا: {days} روز\n"
-        f"🖐️ FP: {fp}\n"
-        f"🔗 ساب: <code>{sub_url}</code>\n"
-        f"🔗 کانفیگ: <code>{vless_link}</code>", kb)
+        kb = [[{"text": "📝 کاربر دیگر", "callback_data": "new_user"}, {"text": "🏠 منو", "callback_data": "main_menu"}]]
+        await tg_send(chat_id,
+            f"✅ <b>کاربر {label} ساخته شد!</b>\n\n"
+            f"📊 حجم: {fmt_bytes(int(quota * 1024**3)) if quota > 0 else 'نامحدود'}\n"
+            f"📅 انقضا: {days} روز\n"
+            f"🖐️ FP: {fp}\n"
+            f"🔗 ساب: <code>{sub_url}</code>\n"
+            f"🔗 کانفیگ: <code>{vless_link}</code>", kb)
+    except Exception as e:
+        logger.error(f"Finish create error: {e}")
+        await tg_send(chat_id, "❌ خطا در ساخت کاربر! لطفاً دوباره /new را بزنید.")
+        clear_session(str(chat_id))
 
 async def finish_edit_user(chat_id, data):
-    uid = data.get("uid")
-    label = data.get("label")
-    quota = data.get("quota")
-    days = data.get("days")
-    fp = data.get("fingerprint")
+    try:
+        uid = data.get("uid")
+        label = data.get("label")
+        quota = data.get("quota")
+        days = data.get("days")
+        fp = data.get("fingerprint")
 
-    async with LINKS_LOCK:
-        if uid not in LINKS:
-            await tg_send(chat_id, "❌ کاربر یافت نشد!")
-            return
-        link = LINKS[uid]
-        link["label"] = label
-        link["limit_bytes"] = int(quota * 1024**3) if quota > 0 else 0
-        link["expires_at"] = (datetime.now() + timedelta(days=days)).isoformat()
-        link["fingerprint"] = fp
-        link["active"] = True
+        async with LINKS_LOCK:
+            if uid not in LINKS:
+                await tg_send(chat_id, "❌ کاربر یافت نشد!")
+                return
+            link = LINKS[uid]
+            link["label"] = label
+            link["limit_bytes"] = int(quota * 1024**3) if quota > 0 else 0
+            link["expires_at"] = (datetime.now() + timedelta(days=days)).isoformat()
+            link["fingerprint"] = fp
+            link["active"] = True
 
-    await save_state()
-    log_activity("link", f"کاربر {label} ویرایش شد", "ok")
+        await save_state()
+        log_activity("link", f"کاربر {label} ویرایش شد", "ok")
 
-    async with TELEGRAM_SESSIONS_LOCK:
-        if str(chat_id) in TELEGRAM_SESSIONS:
-            del TELEGRAM_SESSIONS[str(chat_id)]
+        clear_session(str(chat_id))
 
-    await tg_send(chat_id, f"✅ <b>کاربر {label} ویرایش شد!</b>",
-                  [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
+        await tg_send(chat_id, f"✅ <b>کاربر {label} ویرایش شد!</b>",
+                      [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
+    except Exception as e:
+        logger.error(f"Finish edit error: {e}")
+        await tg_send(chat_id, "❌ خطا در ویرایش کاربر!")
+        clear_session(str(chat_id))
 
 async def handle_callback(chat_id, data, username):
     if data == "main_menu":
+        clear_session(str(chat_id))
         await send_main_menu(chat_id, username)
 
     elif data == "new_user":
@@ -1157,6 +1170,7 @@ async def handle_callback(chat_id, data, username):
         await tg_send(chat_id, "❌ گزینه نامعتبر!")
 
 async def start_new_user(chat_id):
+    clear_session(str(chat_id))
     async with TELEGRAM_SESSIONS_LOCK:
         TELEGRAM_SESSIONS[str(chat_id)] = {"action": "creating_user", "step": "label", "data": {}}
     await tg_send(chat_id, "📝 نام کاربری را وارد کنید:", [[{"text": "❌ انصراف", "callback_data": "main_menu"}]])
