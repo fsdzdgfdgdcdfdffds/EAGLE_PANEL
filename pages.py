@@ -1224,9 +1224,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body></html>"""
 
-# ===== تابع صفحه ساب‌لینک =====
+# ===== صفحه ساب‌لینک جدید با طراحی کامل =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
-    """صفحه HTML زیبا برای نمایش اطلاعات کانفیگ"""
+    """صفحه HTML کامل با طراحی شیک و حرفه‌ای مثل عکس‌ها"""
+    
     from datetime import datetime
     
     used = link.get('used_bytes', 0)
@@ -1239,63 +1240,128 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     protocol = link.get('protocol', 'vless-ws')
     ports = link.get('ports', [443])
     active_connections = link.get('active_connections', 0)
-    active_connections_list = link.get('active_connections_list', [])
-    last_connected = link.get('last_connected_at')
     user_ip = link.get('user_ip', 'نامشخص')
     percent = link.get('percent', 0)
     days_left = link.get('days_left', 'نامحدود')
     used_fmt = link.get('used_fmt', '0 B')
     limit_fmt = link.get('limit_fmt', 'نامحدود')
     vless_links = link.get('vless_links', [])
-    vless_link = vless_links[0] if vless_links else ""
     sub_url = link.get('sub_url', '')
     is_allowed = active and not expired
-    max_devices = link.get('max_devices', 0)
-    last_connected_text = "—"
-    if last_connected:
+    created_at = link.get('created_at', '')
+    
+    # محاسبه تاریخ ایجاد
+    created_text = "—"
+    if created_at:
         try:
-            dt = datetime.fromisoformat(last_connected)
-            last_connected_text = dt.strftime("%Y-%m-%d %H:%M")
+            dt = datetime.fromisoformat(created_at)
+            created_text = dt.strftime("%Y/%m/%d")
         except:
-            last_connected_text = last_connected[:16]
+            created_text = created_at[:10]
     
-    conns_html = ""
-    if active_connections > 0:
-        conns_html = f"""
-        <div style="background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:10px;padding:8px 10px;margin:8px 0">
-            <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:9px;color:#8888BB">
-                <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#34D399;animation:pulse 1.5s infinite"></span>
-                <span style="font-weight:700;color:#34D399;font-size:9px">{active_connections} دستگاه متصل</span>
+    # محاسبه مصرف باقی‌مانده
+    remaining = 0
+    if limit > 0:
+        remaining = limit - used
+        if remaining < 0:
+            remaining = 0
+    remaining_fmt = fmt_bytes(remaining) if remaining > 0 else '۰'
+    
+    # لیست پروتکل‌ها برای نمایش
+    protocol_names = {
+        'vless-ws': 'VLESS · WS',
+        'xhttp-packet-up': 'XHTTP · packet-up',
+        'xhttp-stream-up': 'XHTTP · stream-up',
+        'xhttp-stream-one': 'XHTTP ULTRA',
+    }
+    
+    # ساخت لیست کانفیگ‌ها (حداکثر 4 تا)
+    config_items = []
+    proto_display_names = [
+        'VLESS · WS',
+        'XHTTP · packet-up', 
+        'XHTTP · stream-up',
+        'XHTTP ULTRA'
+    ]
+    
+    for i in range(min(4, len(vless_links))):
+        link_str = vless_links[i]
+        port = ports[i] if i < len(ports) else 443
+        config_items.append({
+            'link': link_str,
+            'proto': proto_display_names[i] if i < len(proto_display_names) else f'Port {port}',
+            'port': port
+        })
+    
+    # ساخت بخش راهنمای اتصال
+    guide_html = '''
+    <div style="background:rgba(100,80,255,0.02);border-radius:10px;padding:10px 12px;margin-top:12px;border:1px solid rgba(100,80,255,0.04);">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <span style="font-size:12px;">📱</span>
+            <span style="font-size:10px;font-weight:600;color:var(--t1);">راهنمای اتصال</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div style="background:rgba(100,80,255,0.02);border-radius:6px;padding:4px 6px;border:1px solid rgba(100,80,255,0.02);">
+                <div style="font-size:7px;color:#8888BB;font-weight:600;">📱 Android</div>
+                <div style="font-size:6px;color:#555577;margin-top:1px;">Nekoray · v2rayNG · Streisand · V2Box · Hiddify</div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:3px">"""
-        for conn in active_connections_list[:10]:
-            ip = conn.get('ip', 'نامشخص')
-            conns_html += f"""<span style="font-family:monospace;font-size:8px;background:rgba(100,80,255,0.04);border:1px solid rgba(100,80,255,0.04);padding:1px 6px;border-radius:3px;color:#8888BB">🔵 {ip}</span>"""
-        if len(active_connections_list) > 10:
-            conns_html += f"""<span style="font-family:monospace;font-size:8px;background:rgba(100,80,255,0.02);padding:1px 6px;border-radius:3px;color:#555577">+{len(active_connections_list)-10}</span>"""
-        conns_html += "</div></div>"
-    else:
-        conns_html = f"""<div style="background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:10px;padding:6px 10px;margin:8px 0;text-align:center"><span style="font-size:9px;color:#555577">🔴 بدون اتصال فعال</span></div>"""
+            <div style="background:rgba(100,80,255,0.02);border-radius:6px;padding:4px 6px;border:1px solid rgba(100,80,255,0.02);">
+                <div style="font-size:7px;color:#8888BB;font-weight:600;">🍏 iOS</div>
+                <div style="font-size:6px;color:#555577;margin-top:1px;">Streisand · V2Box · Hiddify</div>
+            </div>
+            <div style="background:rgba(100,80,255,0.02);border-radius:6px;padding:4px 6px;border:1px solid rgba(100,80,255,0.02);">
+                <div style="font-size:7px;color:#8888BB;font-weight:600;">🪟 Windows</div>
+                <div style="font-size:6px;color:#555577;margin-top:1px;">Nekoray · v2rayN · Hiddify</div>
+            </div>
+            <div style="background:rgba(100,80,255,0.02);border-radius:6px;padding:4px 6px;border:1px solid rgba(100,80,255,0.02);">
+                <div style="font-size:7px;color:#8888BB;font-weight:600;">🐧 Linux</div>
+                <div style="font-size:6px;color:#555577;margin-top:1px;">Nekoray · Hiddify</div>
+            </div>
+            <div style="background:rgba(100,80,255,0.02);border-radius:6px;padding:4px 6px;border:1px solid rgba(100,80,255,0.02);grid-column:span 2;">
+                <div style="font-size:7px;color:#8888BB;font-weight:600;">🍎 macOS</div>
+                <div style="font-size:6px;color:#555577;margin-top:1px;">Nekoray · Hiddify · Streisand</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;justify-content:center;">
+            <span style="font-size:6px;color:#555577;">طراحی شده توسط</span>
+            <span style="font-size:6px;color:#7C6BFF;font-weight:600;">🪐 پنل عقاب</span>
+        </div>
+    </div>
+    '''
     
-    # ساخت لینک‌های کانفیگ
-    vless_links_html = ""
-    if len(vless_links) > 1:
-        vless_links_html = "<div style='margin-top:6px;font-size:8px;color:#8888BB'>"
-        for i, link_str in enumerate(vless_links[:5]):
-            port = ports[i] if i < len(ports) else 443
-            vless_links_html += f"<div style='font-family:monospace;font-size:7px;color:#A78BFA;word-break:break-all;padding:2px 4px;background:rgba(0,0,0,0.1);border-radius:3px;margin-bottom:2px;'>🔌 پورت {port}</div>"
-        if len(vless_links) > 5:
-            vless_links_html += f"<div style='font-size:7px;color:#555577'>+{len(vless_links)-5} کانفیگ دیگر</div>"
-        vless_links_html += "</div>"
-    
-    return f"""<!DOCTYPE html>
+    return f'''<!DOCTYPE html>
 <html lang="fa" dir="rtl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>🪐 {label}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🪐 {label}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-*{{margin:0;padding:0;box-sizing:border-box}}@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.25}}}}
-body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;color:#F0EEFF;background:linear-gradient(135deg,#0a0a1a,#1a0a2a,#0a0a2a);}}
+*{{margin:0;padding:0;box-sizing:border-box}}
+:root{{
+  --bg:#0a0a1a;
+  --card:rgba(10,10,30,0.75);
+  --card-b:rgba(100,80,255,0.08);
+  --accent:#7C6BFF;
+  --accent2:#A78BFA;
+  --accent3:#5B4BD9;
+  --t1:#F0EEFF;
+  --t2:#8888BB;
+  --t3:#555577;
+  --green:#10B981;
+  --green-bg:rgba(16,185,129,0.08);
+  --green-t:#34D399;
+  --red:#EF4444;
+  --red-bg:rgba(239,68,68,0.08);
+  --red-t:#F87171;
+  --amber:#F59E0B;
+  --amber-bg:rgba(245,158,11,0.08);
+  --amber-t:#FCD34D;
+}}
+@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.25}}}}
+body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;color:#F0EEFF;background:linear-gradient(135deg,#0a0a1a,#1a0a2a,#0a0a2a);position:relative;overflow-x:hidden}}
 .stars-sub{{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}}
 .star-sub{{position:absolute;border-radius:50%;background:#fff;animation:twinkleSub 4s ease-in-out infinite}}
 @keyframes twinkleSub{{0%,100%{{opacity:0.1}}50%{{opacity:0.4}}}}
@@ -1303,52 +1369,75 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .glow-sub1{{width:350px;height:350px;background:rgba(100,80,255,0.04);top:-120px;right:-60px;animation:glowFloat2 7s ease-in-out infinite}}
 .glow-sub2{{width:250px;height:250px;background:rgba(167,139,250,0.03);bottom:-60px;left:-40px;animation-delay:2s;animation:glowFloat2 9s ease-in-out infinite reverse}}
 @keyframes glowFloat2{{0%,100%{{transform:translate(0,0) scale(1)}}50%{{transform:translate(20px,-20px) scale(1.05)}}}}
-.card{{position:relative;z-index:10;background:rgba(10,10,30,0.8);backdrop-filter:blur(30px);border:1px solid rgba(100,80,255,0.06);border-radius:20px;padding:24px 22px 20px;max-width:420px;width:100%;box-shadow:0 0 60px rgba(0,0,0,0.4),0 0 80px rgba(100,80,255,0.02);animation:cardIn 0.6s ease;}}
-@keyframes cardIn{{from{{opacity:0;transform:translateY(20px) scale(0.97)}}to{{opacity:1;transform:translateY(0) scale(1)}}}}
-.brand{{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(100,80,255,0.04);}}
-.brand-icon{{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C6BFF,#5B4BD9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 30px rgba(100,80,255,0.1);}}
-.brand-text .name{{font-size:13px;font-weight:800;background:linear-gradient(135deg,#A78BFA,#7C6BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
-.brand-text .sub{{font-size:7px;color:#555577;margin-top:0px}}
-.user-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}}
-.user-name{{font-size:17px;font-weight:800;color:#F0EEFF;display:flex;align-items:center;gap:4px}}
-.user-name .fire{{font-size:15px}}
-.status{{display:inline-flex;align-items:center;gap:3px;padding:2px 10px;border-radius:12px;font-size:9px;font-weight:700;}}
-.status.active{{background:rgba(100,80,255,0.12);color:#A78BFA;border:1px solid rgba(100,80,255,0.08);}}
-.status.inactive{{background:rgba(239,68,68,0.12);color:#F87171;border:1px solid rgba(239,68,68,0.08);}}
-.uuid-box{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:6px;padding:4px 8px;font-size:8px;font-family:monospace;color:#555577;word-break:break-all;margin:3px 0 8px;cursor:pointer;transition:.3s}}
-.uuid-box:hover{{background:rgba(100,80,255,0.04);transform:scale(1.01)}}
-.info-grid{{display:grid;gap:5px;margin:8px 0}}
-.info-item{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.02);border-radius:6px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;transition:.3s}}
-.info-item:hover{{background:rgba(100,80,255,0.04)}}
-.info-label{{font-size:9px;color:#8888BB;display:flex;align-items:center;gap:3px}}
-.info-label i{{font-size:10px;color:#7C6BFF}}
-.info-value{{font-size:11px;font-weight:700;color:#F0EEFF}}
-.info-value.used{{color:#A78BFA}}
-.info-value.proto{{font-size:8px;background:rgba(100,80,255,0.05);padding:1px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.04);}}
-.progress{{margin:8px 0 10px}}
-.progress-bar{{height:3px;border-radius:3px;background:rgba(100,80,255,0.04);overflow:hidden}}
-.progress-fill{{height:100%;border-radius:3px;background:linear-gradient(90deg,#7C6BFF,#5B4BD9,#A78BFA);width:{percent:.1f}%;transition:width 1s ease}}
-.progress-text{{display:flex;justify-content:space-between;font-size:8px;color:#8888BB;margin-top:2px}}
-.progress-text .pct{{font-weight:700;color:#F0EEFF}}
-.vless-section{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.03);border-radius:8px;padding:8px 10px;margin:8px 0}}
-.vless-label{{font-size:7px;color:#8888BB;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:4px;margin-bottom:4px}}
-.vless-label i{{color:#7C6BFF;font-size:10px}}
-.vless-link{{font-family:monospace;font-size:8px;color:#A78BFA;word-break:break-all;line-height:1.5;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.02);}}
-.actions{{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}}
-.btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:all .3s;white-space:nowrap;flex:1;justify-content:center}}
-.btn i{{font-size:11px}}
-.btn-primary{{background:linear-gradient(135deg,#7C6BFF,#5B4BD9);color:#fff;box-shadow:0 3px 15px rgba(100,80,255,0.15)}}
-.btn-primary:hover{{transform:translateY(-2px);box-shadow:0 6px 25px rgba(100,80,255,0.25)}}
-.btn-secondary{{background:rgba(100,80,255,0.03);border:1px solid rgba(100,80,255,0.04);color:#8888BB}}
-.btn-secondary:hover{{background:rgba(100,80,255,0.06);color:#F0EEFF;transform:translateY(-2px)}}
-.btn-success{{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.08);color:#34D399}}
-.btn-success:hover{{background:rgba(16,185,129,0.1);transform:translateY(-2px)}}
-.footer{{margin-top:12px;padding-top:10px;border-top:1px solid rgba(100,80,255,0.02);text-align:center;font-size:7px;color:#555577}}
-.footer .eagle{{color:#7C6BFF;font-weight:700}}
-.toast{{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(10,10,30,0.9);backdrop-filter:blur(20px);border:1px solid rgba(100,80,255,0.08);color:#F0EEFF;border-radius:8px;padding:6px 14px;font-size:10px;opacity:0;transition:all .4s;z-index:999;pointer-events:none;display:flex;align-items:center;gap:4px;box-shadow:0 8px 30px rgba(0,0,0,0.3)}}
+.card{{position:relative;z-index:10;background:var(--card);backdrop-filter:blur(30px);border:1px solid var(--card-b);border-radius:16px;padding:18px 16px 14px;max-width:400px;width:100%;box-shadow:0 0 60px rgba(0,0,0,0.3),0 0 80px rgba(100,80,255,0.02);animation:cardIn 0.5s ease}}
+@keyframes cardIn{{from{{opacity:0;transform:translateY(15px) scale(0.97)}}to{{opacity:1;transform:translateY(0) scale(1)}}}}
+.header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(100,80,255,0.04)}}
+.header-left{{display:flex;align-items:center;gap:8px}}
+.header-icon{{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#7C6BFF,#5B4BD9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;box-shadow:0 0 20px rgba(100,80,255,0.1)}}
+.header-title{{font-size:12px;font-weight:700;color:var(--t1);line-height:1.2}}
+.header-title small{{display:block;font-size:7px;color:var(--t3);font-weight:400}}
+.header-badge{{font-size:8px;padding:2px 8px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}}
+.header-badge.active{{background:var(--green-bg);color:var(--green-t)}}
+.header-badge.inactive{{background:var(--red-bg);color:var(--red-t)}}
+.dot{{display:inline-block;width:5px;height:5px;border-radius:50%}}
+.dot.green{{background:var(--green-t);animation:pulse 1.5s infinite}}
+.dot.red{{background:var(--red-t)}}
+
+.usage-card{{background:rgba(100,80,255,0.02);border-radius:10px;padding:12px 12px 10px;margin:6px 0 8px;border:1px solid rgba(100,80,255,0.03);position:relative;overflow:hidden}}
+.usage-card::before{{content:'';position:absolute;top:-50%;right:-50%;width:120px;height:120px;background:radial-gradient(circle,rgba(100,80,255,0.02),transparent 70%);pointer-events:none}}
+.usage-title{{font-size:8px;color:var(--t3);font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:4px}}
+.usage-title i{{color:var(--accent);font-size:9px}}
+.usage-circle{{display:flex;align-items:center;gap:12px}}
+.circle-container{{position:relative;width:64px;height:64px;flex-shrink:0}}
+.circle-container svg{{transform:rotate(-90deg);width:64px;height:64px}}
+.circle-bg{{fill:none;stroke:rgba(100,80,255,0.06);stroke-width:6}}
+.circle-fill{{fill:none;stroke:url(#grad);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s ease;stroke-dasharray:{2*3.14159*28};stroke-dashoffset:{2*3.14159*28*(1 - (percent/100))}}}
+.circle-center{{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}}
+.circle-center .gb{{font-size:16px;font-weight:800;color:var(--t1);line-height:1}}
+.circle-center .label{{font-size:6px;color:var(--t3)}}
+.usage-stats{{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:4px}}
+.usage-stat{{background:rgba(100,80,255,0.02);border-radius:6px;padding:4px 6px;text-align:center}}
+.usage-stat .num{{font-size:11px;font-weight:700;color:var(--t1);display:block}}
+.usage-stat .num.used{{color:#A78BFA}}
+.usage-stat .num.remain{{color:#34D399}}
+.usage-stat .lbl{{font-size:6px;color:var(--t3)}}
+.usage-bar{{margin-top:6px;height:2px;border-radius:2px;background:rgba(100,80,255,0.04);overflow:hidden}}
+.usage-bar .fill{{height:100%;border-radius:2px;background:linear-gradient(90deg,#7C6BFF,#5B4BD9,#A78BFA);width:{percent:.1f}%;transition:width 1s ease}}
+
+.config-list{{margin:6px 0}}
+.config-item{{display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:6px;background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.02);margin-bottom:3px;transition:.3s;cursor:pointer}}
+.config-item:hover{{background:rgba(100,80,255,0.04);border-color:rgba(100,80,255,0.06)}}
+.config-item .proto{{font-size:9px;font-weight:600;color:var(--t2);display:flex;align-items:center;gap:4px}}
+.config-item .proto i{{font-size:8px;color:var(--accent)}}
+.config-item .action{{font-size:8px;color:var(--t3);background:rgba(100,80,255,0.03);padding:1px 6px;border-radius:4px;cursor:pointer;transition:.3s}}
+.config-item .action:hover{{background:rgba(100,80,255,0.08);color:var(--t1)}}
+
+.info-grid{{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0}}
+.info-item{{background:rgba(100,80,255,0.02);border-radius:6px;padding:4px 6px;display:flex;justify-content:space-between;align-items:center}}
+.info-item .lbl{{font-size:6px;color:var(--t3);display:flex;align-items:center;gap:2px}}
+.info-item .lbl i{{font-size:7px;color:var(--accent)}}
+.info-item .val{{font-size:9px;font-weight:600;color:var(--t1)}}
+.info-item .val.small{{font-size:7px}}
+
+.actions{{display:flex;gap:4px;margin:6px 0}}
+.btn{{font-family:inherit;font-size:8px;font-weight:600;border-radius:6px;padding:4px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:all .3s;white-space:nowrap;justify-content:center;flex:1}}
+.btn i{{font-size:9px}}
+.btn-primary{{background:linear-gradient(135deg,#7C6BFF,#5B4BD9);color:#fff;box-shadow:0 2px 10px rgba(100,80,255,0.15)}}
+.btn-primary:hover{{transform:translateY(-1px);box-shadow:0 4px 20px rgba(100,80,255,0.25)}}
+.btn-secondary{{background:rgba(100,80,255,0.03);border:1px solid rgba(100,80,255,0.04);color:var(--t2)}}
+.btn-secondary:hover{{background:rgba(100,80,255,0.06);color:var(--t1);transform:translateY(-1px)}}
+.btn-success{{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.06);color:#34D399}}
+.btn-success:hover{{background:rgba(16,185,129,0.1);transform:translateY(-1px)}}
+
+.footer{{margin-top:8px;padding-top:6px;border-top:1px solid rgba(100,80,255,0.02);display:flex;justify-content:space-between;align-items:center}}
+.footer .text{{font-size:6px;color:var(--t3)}}
+.footer .eagle{{color:#7C6BFF;font-weight:600}}
+
+.toast{{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--card);backdrop-filter:blur(20px);border:1px solid rgba(100,80,255,0.08);color:#F0EEFF;border-radius:8px;padding:5px 12px;font-size:9px;opacity:0;transition:all .4s;z-index:999;pointer-events:none;display:flex;align-items:center;gap:4px;box-shadow:0 8px 30px rgba(0,0,0,0.3)}}
 .toast.show{{opacity:1;transform:translateX(-50%) translateY(0)}}
 .toast.ok{{border-color:rgba(16,185,129,0.15);color:#34D399}}
-@media(max-width:400px){{.card{{padding:16px 14px 14px}}.user-name{{font-size:15px}}.brand-icon{{width:30px;height:30px;font-size:14px}}.info-item{{padding:4px 8px}}.btn{{font-size:8px;padding:4px 8px}}}}
+
+@media(max-width:400px){{.card{{padding:14px 12px 10px}}.circle-container{{width:52px;height:52px}}.circle-container svg{{width:52px;height:52px}}.circle-center .gb{{font-size:13px}}.usage-stat .num{{font-size:10px}}}}
 </style>
 </head>
 <body>
@@ -1361,36 +1450,104 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 </div>
 <div class="glow-sub glow-sub1"></div><div class="glow-sub glow-sub2"></div>
 <div class="toast" id="toast"></div>
+
 <div class="card">
-    <div class="brand"><div class="brand-icon">🪐</div><div class="brand-text"><div class="name">پنل عقاب</div><div class="sub">اطلاعات اشتراک</div></div></div>
-    <div class="user-header"><div class="user-name"><span class="fire">🪐</span> {label}</div><span class="status {'active' if is_allowed else 'inactive'}"><i class="ti {'ti-circle-check' if is_allowed else 'ti-circle-x'}"></i>{'فعال' if is_allowed else 'غیرفعال'}</span></div>
-    <div class="uuid-box" onclick="copyUUID()">🔑 {uuid}</div>
-    {conns_html}
+    <!-- هدر -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-icon">🪐</div>
+            <div class="header-title">
+                {label}
+                <small>@{label}</small>
+            </div>
+        </div>
+        <span class="header-badge {'active' if is_allowed else 'inactive'}">
+            <span class="dot {'green' if is_allowed else 'red'}"></span>
+            {'فعال' if is_allowed else 'غیرفعال'}
+        </span>
+    </div>
+
+    <!-- کارت مصرف -->
+    <div class="usage-card">
+        <div class="usage-title"><i class="ti ti-database"></i> مصرف دیتا</div>
+        <div class="usage-circle">
+            <div class="circle-container">
+                <svg viewBox="0 0 64 64">
+                    <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#7C6BFF"/>
+                        <stop offset="50%" stop-color="#5B4BD9"/>
+                        <stop offset="100%" stop-color="#A78BFA"/>
+                    </linearGradient></defs>
+                    <circle class="circle-bg" cx="32" cy="32" r="28"/>
+                    <circle class="circle-fill" cx="32" cy="32" r="28" style="stroke-dashoffset:{2*3.14159*28*(1 - (percent/100))}"/>
+                </svg>
+                <div class="circle-center">
+                    <span class="gb">{used_fmt.split()[0] if used_fmt.split() else '0'}</span>
+                    <span class="label">GB</span>
+                </div>
+            </div>
+            <div class="usage-stats">
+                <div class="usage-stat"><span class="num used">{used_fmt}</span><span class="lbl">مصرف شده</span></div>
+                <div class="usage-stat"><span class="num remain">{remaining_fmt if remaining_fmt else '۰'}</span><span class="lbl">باقی مانده</span></div>
+                <div class="usage-stat" style="grid-column:span 2;"><span class="num" style="font-size:10px;color:var(--t2);">{limit_fmt}</span><span class="lbl">سقف حجم</span></div>
+            </div>
+        </div>
+        <div class="usage-bar"><div class="fill" style="width:{percent:.1f}%"></div></div>
+    </div>
+
+    <!-- لیست کانفیگ‌ها -->
+    <div class="config-list">
+        {''.join(f'''
+        <div class="config-item" onclick="copyConfig('{esc(item['link'])}')">
+            <span class="proto"><i class="ti ti-plug"></i> {item['proto']}</span>
+            <span class="action"><i class="ti ti-copy"></i> کپی</span>
+        </div>
+        ''' for item in config_items)}
+    </div>
+
+    <!-- اطلاعات اضافی -->
     <div class="info-grid">
-        <div class="info-item"><span class="info-label"><i class="ti ti-database"></i> مصرف</span><span class="info-value used">{used_fmt}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-package"></i> سهمیه</span><span class="info-value">{limit_fmt}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-calendar"></i> باقیمانده</span><span class="info-value">{days_left}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-devices"></i> دستگاه</span><span class="info-value">{max_devices if max_devices > 0 else '∞'}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-clock"></i> آخرین اتصال</span><span class="info-value" style="font-size:9px;">{last_connected_text}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-ip"></i> IP</span><span class="info-value proto">{user_ip}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-fingerprint"></i> FP</span><span class="info-value proto">{fingerprint}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-settings"></i> پروتکل</span><span class="info-value proto">{protocol}</span></div>
+        <div class="info-item"><span class="lbl"><i class="ti ti-calendar"></i> ایجاد</span><span class="val small">{created_text}</span></div>
+        <div class="info-item"><span class="lbl"><i class="ti ti-clock"></i> باقیمانده</span><span class="val small">{days_left}</span></div>
+        <div class="info-item"><span class="lbl"><i class="ti ti-devices"></i> دستگاه</span><span class="val small">{max_devices if max_devices > 0 else '∞'}</span></div>
+        <div class="info-item"><span class="lbl"><i class="ti ti-ip"></i> IP</span><span class="val small">{user_ip}</span></div>
     </div>
-    <div class="progress"><div class="progress-bar"><div class="progress-fill" style="width:{percent:.1f}%"></div></div><div class="progress-text"><span>میزان مصرف</span><span class="pct">{percent:.1f}%</span></div></div>
-    <div class="vless-section"><div class="vless-label"><i class="ti ti-link"></i> لینک کانفیگ</div><div class="vless-link" id="vless-link">{vless_link}</div>
-    {vless_links_html}
+
+    <!-- دکمه‌ها -->
+    <div class="actions">
+        <button class="btn btn-primary" onclick="copySub()"><i class="ti ti-link"></i> کپی ساب</button>
+        <button class="btn btn-success" onclick="copyAll()"><i class="ti ti-copy"></i> کپی همه</button>
     </div>
-    <div class="actions"><button class="btn btn-primary" onclick="copyVless()"><i class="ti ti-copy"></i> کپی</button><button class="btn btn-success" onclick="copySub()"><i class="ti ti-link"></i> ساب</button><button class="btn btn-secondary" onclick="showQR()"><i class="ti ti-qrcode"></i> QR</button></div>
-    <div class="footer"><span class="eagle">🪐</span> پنل عقاب</div>
+
+    <!-- راهنما -->
+    {guide_html}
+
+    <!-- فوتر -->
+    <div class="footer">
+        <span class="text">Telegram · @ansooyefilter</span>
+        <span class="text"><span class="eagle">🪐</span> پنل عقاب</span>
+    </div>
 </div>
+
 <script>
-const vless=`{vless_link}`;
-const subUrl=`{sub_url}`;
-const uuid=`{uuid}`;
-function toast(msg,type=''){{const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');setTimeout(()=>t.classList.remove('show'),2000);}}
-function copyVless(){{navigator.clipboard.writeText(vless).then(()=>toast('✅ کپی شد','ok'));}}
-function copySub(){{navigator.clipboard.writeText(subUrl).then(()=>toast('✅ کپی شد','ok'));}}
-function copyUUID(){{navigator.clipboard.writeText(uuid).then(()=>toast('✅ کپی شد','ok'));}}
-function showQR(){{window.open('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data='+encodeURIComponent(vless),'_blank');}}
+const subUrl = '{sub_url}';
+const configs = [{','.join(f'"{esc(item['link'])}"' for item in config_items)}];
+const allConfigs = configs.join('\\n');
+
+function toast(msg, type='') {{ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(type?' '+type:''); setTimeout(()=>t.classList.remove('show'),2000); }}
+
+function copySub() {{ navigator.clipboard.writeText(subUrl).then(()=>toast('✅ ساب‌لینک کپی شد','ok')); }}
+
+function copyAll() {{ 
+    if (allConfigs) {{ 
+        navigator.clipboard.writeText(allConfigs).then(()=>toast('✅ همه کانفیگ‌ها کپی شد','ok')); 
+    }} else {{ 
+        toast('❌ کانفیگی وجود ندارد','err'); 
+    }}
+}}
+
+function copyConfig(link) {{ 
+    navigator.clipboard.writeText(link).then(()=>toast('✅ کانفیگ کپی شد','ok')); 
+}}
 </script>
 </body></html>"""
