@@ -15,8 +15,6 @@ import socket
 import base64
 from io import BytesIO
 import httpx
-import random
-import re
 
 from fastapi import FastAPI, Request, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response, HTMLResponse, JSONResponse, RedirectResponse
@@ -25,16 +23,11 @@ import uvicorn
 import logging
 
 # ─── تنظیمات ──────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("Eagle-Gateway")
 
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
-# ─── کانفیگ ──────────────────────────────────────────────────────────────────
 CONFIG = {
     "port": int(os.environ.get("PORT", 8000)),
     "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
@@ -42,34 +35,20 @@ CONFIG = {
     "admin_password": os.environ.get("ADMIN_PASSWORD", "123456"),
 }
 
-# ─── App ──────────────────────────────────────────────────────────────────────
 app = FastAPI(title="🪐 Eagle Gateway v10 Pro", docs_url=None, redoc_url=None)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # ─── State ────────────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 DATA_FILE = DATA_DIR / "eagle_state.json"
 SAVE_LOCK = asyncio.Lock()
 
-# ─── In-Memory State ─────────────────────────────────────────────────────────
 LINKS: dict = {}
 LINKS_LOCK = asyncio.Lock()
 SUBS: dict = {}
 SUBS_LOCK = asyncio.Lock()
 connections: dict = {}
-stats = {
-    "total_bytes": 0,
-    "total_requests": 0,
-    "total_errors": 0,
-    "start_time": time.time(),
-}
+stats = {"total_bytes": 0, "total_requests": 0, "total_errors": 0, "start_time": time.time()}
 error_logs: deque = deque(maxlen=50)
 activity_logs: deque = deque(maxlen=200)
 hourly_traffic: dict = defaultdict(int)
@@ -85,44 +64,28 @@ AUTH = {"password_hash": hashlib.sha256(f"{CONFIG['admin_password']}{CONFIG['sec
 SESSIONS: dict = {}
 SESSIONS_LOCK = asyncio.Lock()
 
-# ─── Settings ──────────────────────────────────────────────────────────────────
 SETTINGS: dict = {
-    "rgb_mode": False,
-    "default_protocol": "vless-ws",
-    "default_port": 443,
-    "inbound_port": 443,
-    "language": "fa",
-    "theme": "dark",
-    "telegram_bot_token": "",
-    "telegram_chat_id": "",
+    "rgb_mode": False, "default_protocol": "vless-ws", "default_port": 443,
+    "inbound_port": 443, "language": "fa", "theme": "dark",
+    "telegram_bot_token": "", "telegram_chat_id": "",
 }
 
 PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
 DEFAULT_PROTOCOL = "vless-ws"
-
 DEFAULT_PORTS = [443, 8443, 2053, 2096, 2087, 2083, 8080]
 
 FINGERPRINTS = {
-    "chrome": "🌐 Chrome",
-    "firefox": "🦊 Firefox",
-    "safari": "🧭 Safari",
-    "edge": "🌊 Edge",
-    "ios": "📱 iOS",
-    "android": "🤖 Android",
-    "safari_ios": "🍏 Safari iOS",
-    "random": "🎲 Random",
-    "none": "🚫 None"
+    "chrome": "🌐 Chrome", "firefox": "🦊 Firefox", "safari": "🧭 Safari",
+    "edge": "🌊 Edge", "ios": "📱 iOS", "android": "🤖 Android",
+    "safari_ios": "🍏 Safari iOS", "random": "🎲 Random", "none": "🚫 None"
 }
 
-# ─── Telegram Session ─────────────────────────────────────────────────────────
+# ─── Telegram ─────────────────────────────────────────────────────────────────
 TELEGRAM_SESSIONS: dict = {}
 TELEGRAM_SESSIONS_LOCK = asyncio.Lock()
-TELEGRAM_PENDING: dict = {}  # برای پاسخ به callback_query
-TELEGRAM_PENDING_LOCK = asyncio.Lock()
+CACHE_USERS = {"data": [], "timestamp": 0, "ttl": 5}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ===== Functions =====
-# ─────────────────────────────────────────────────────────────────────────────
+# ─── Functions ─────────────────────────────────────────────────────────────────
 
 def now_ir() -> datetime:
     return datetime.now(IRAN_TZ)
@@ -152,17 +115,11 @@ def fmt_bytes(b: int) -> str:
 
 def client_ip(request: Request) -> str:
     fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-    return request.client.host if request.client else "نامشخص"
+    return fwd.split(",")[0].strip() if fwd else request.client.host if request.client else "نامشخص"
 
 def uptime() -> str:
     secs = int(time.time() - stats["start_time"])
-    h, m, s = secs // 3600, (secs % 3600) // 60, secs % 60
-    return f"{h:02d}:{m:02d}:{s:02d}"
+    return f"{secs//3600:02d}:{(secs%3600)//60:02d}:{secs%60:02d}"
 
 def parse_size_to_bytes(value: float, unit: str) -> int:
     unit = unit.upper()
@@ -180,7 +137,7 @@ def is_link_expired(link: dict) -> bool:
         return False
     try:
         return datetime.now() > datetime.fromisoformat(exp)
-    except Exception:
+    except:
         return False
 
 def is_link_allowed(link: dict | None) -> bool:
@@ -195,138 +152,86 @@ def is_link_allowed(link: dict | None) -> bool:
         return False
     return True
 
-def generate_vless_link(uuid: str, host: str, remark: str = "", protocol: str = DEFAULT_PROTOCOL, 
-                        fingerprint: str = "chrome", port: int = 443, 
-                        sni: str = None) -> str:
+def generate_vless_link(uuid: str, host: str, remark: str = "", protocol: str = DEFAULT_PROTOCOL,
+                        fingerprint: str = "chrome", port: int = 443, sni: str = None) -> str:
     if not remark:
         remark = "عقاب"
-    
-    if not sni:
-        sni = host
-    
+    sni = sni or host
     if protocol == "vless-ws":
         path = f"/ws/{uuid}"
-        params = {
-            "encryption": "none",
-            "security": "tls",
-            "type": "ws",
-            "host": host,
-            "path": path,
-            "sni": sni,
-            "fp": fingerprint,
-            "alpn": "h2,http/1.1",
-        }
+        params = {"encryption": "none", "security": "tls", "type": "ws", "host": host,
+                  "path": path, "sni": sni, "fp": fingerprint, "alpn": "h2,http/1.1"}
     else:
         mode = protocol.replace("xhttp-", "")
         path = f"/xhttp-siz10/{mode}/{uuid}"
-        params = {
-            "encryption": "none",
-            "security": "tls",
-            "type": "xhttp",
-            "mode": mode,
-            "host": host,
-            "path": path,
-            "sni": sni,
-            "fp": fingerprint,
-            "alpn": "h2,http/1.1",
-        }
+        params = {"encryption": "none", "security": "tls", "type": "xhttp", "mode": mode,
+                  "host": host, "path": path, "sni": sni, "fp": fingerprint, "alpn": "h2,http/1.1"}
     query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
     return f"vless://{uuid}@{host}:{port}?{query}#{quote(remark)}"
 
 def log_activity(kind: str, message: str, level: str = "info"):
-    activity_logs.append({
-        "kind": kind,
-        "level": level,
-        "message": message,
-        "time": datetime.now().isoformat(),
-    })
+    activity_logs.append({"kind": kind, "level": level, "message": message, "time": datetime.now().isoformat()})
 
 async def remove_device_connection(uuid: str, client_ip: str):
     async with DEVICE_CONNECTIONS_LOCK:
-        if uuid in device_connections:
-            if client_ip in device_connections[uuid]:
-                device_connections[uuid].remove(client_ip)
-                if not device_connections[uuid]:
-                    del device_connections[uuid]
+        if uuid in device_connections and client_ip in device_connections[uuid]:
+            device_connections[uuid].remove(client_ip)
+            if not device_connections[uuid]:
+                del device_connections[uuid]
 
-# ─── Telegram Functions ──────────────────────────────────────────────────────
+# ─── Telegram Functions (سریع) ─────────────────────────────────────────────
 
-async def send_telegram_message(chat_id, message, keyboard=None):
-    """ارسال پیام به تلگرام (سریع)"""
+async def tg_send(chat_id, text, kb=None):
+    """ارسال پیام سریع به تلگرام"""
     token = SETTINGS.get("telegram_bot_token", "")
     if not token:
         return False
-    
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-    }
-    if keyboard:
-        payload["reply_markup"] = json.dumps({"inline_keyboard": keyboard})
-    
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
+    if kb:
+        payload["reply_markup"] = json.dumps({"inline_keyboard": kb})
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=3.0) as client:
             r = await client.post(url, json=payload)
             return r.status_code == 200
-    except Exception as e:
-        logger.error(f"Telegram send error: {e}")
+    except:
         return False
 
-async def send_telegram_document(chat_id, content, filename):
-    """ارسال فایل به تلگرام"""
+async def tg_doc(chat_id, content, filename):
     token = SETTINGS.get("telegram_bot_token", "")
     if not token:
         return False
-    
     url = f"https://api.telegram.org/bot{token}/sendDocument"
-    files = {"document": (filename, BytesIO(content.encode()), "text/plain")}
-    data = {"chat_id": chat_id}
-    
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.post(url, data=data, files=files)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(url, data={"chat_id": chat_id}, files={"document": (filename, BytesIO(content.encode()), "text/plain")})
             return r.status_code == 200
-    except Exception as e:
-        logger.error(f"Telegram document send error: {e}")
+    except:
         return False
 
-async def answer_callback(callback_id):
-    """پاسخ به callback_query (سریع)"""
+async def tg_answer(cb_id):
     token = SETTINGS.get("telegram_bot_token", "")
     if not token:
         return
-    
-    url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.post(url, json={"callback_query_id": callback_id})
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            await client.post(f"https://api.telegram.org/bot{token}/answerCallbackQuery", json={"callback_query_id": cb_id})
     except:
         pass
 
-async def setup_telegram_webhook():
-    """تنظیم WebHook"""
+async def setup_webhook():
     token = SETTINGS.get("telegram_bot_token", "")
     if not token:
         return
-    
     host = get_host()
-    webhook_url = f"https://{host}/webhook/telegram"
-    url = f"https://api.telegram.org/bot{token}/setWebhook"
-    
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(url, json={"url": webhook_url})
-            if r.status_code == 200:
-                logger.info(f"✅ Telegram webhook set to {webhook_url}")
-            else:
-                logger.warning(f"⚠️ Telegram webhook failed: {r.text}")
-    except Exception as e:
-        logger.warning(f"⚠️ Telegram webhook error: {e}")
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(f"https://api.telegram.org/bot{token}/setWebhook", json={"url": f"https://{host}/webhook/telegram"})
+            logger.info("✅ Webhook set")
+    except:
+        pass
 
-# ─── Session Functions ──────────────────────────────────────────────────────
+# ─── Session ──────────────────────────────────────────────────────────────────
 
 async def create_session() -> str:
     token = secrets.token_urlsafe(32)
@@ -339,78 +244,59 @@ async def is_valid_session(token: str | None) -> bool:
         return False
     async with SESSIONS_LOCK:
         exp = SESSIONS.get(token)
-        if exp is None:
-            return False
-        if exp < time.time():
+        if exp is None or exp < time.time():
             SESSIONS.pop(token, None)
             return False
         return True
 
 async def destroy_session(token: str | None):
-    if not token:
-        return
-    async with SESSIONS_LOCK:
-        SESSIONS.pop(token, None)
+    if token:
+        async with SESSIONS_LOCK:
+            SESSIONS.pop(token, None)
 
 async def require_auth(request: Request):
-    token = request.cookies.get(SESSION_COOKIE)
-    if not await is_valid_session(token):
+    if not await is_valid_session(request.cookies.get(SESSION_COOKIE)):
         raise HTTPException(status_code=401, detail="unauthorized")
-    return token
+    return request.cookies.get(SESSION_COOKIE)
 
-# ─── State Persistence ──────────────────────────────────────────────────────
+# ─── State ────────────────────────────────────────────────────────────────────
 
 async def load_state():
     global LINKS, SUBS, AUTH, SETTINGS
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         if DATA_FILE.exists():
-            async with aiofiles.open(DATA_FILE, "r", encoding="utf-8") as f:
-                raw = await f.read()
-            data = json.loads(raw)
+            async with aiofiles.open(DATA_FILE, "r") as f:
+                data = json.loads(await f.read())
             LINKS.update(data.get("links", {}))
             SUBS.update(data.get("subs", {}))
-            if "password_hash" in data:
-                AUTH["password_hash"] = data["password_hash"]
-            if "settings" in data:
-                SETTINGS.update(data["settings"])
-            if "daily_traffic" in data:
-                daily_traffic.update(data["daily_traffic"])
-            logger.info(f"📂 State loaded: {len(LINKS)} links, {len(SUBS)} subs")
+            AUTH["password_hash"] = data.get("password_hash", AUTH["password_hash"])
+            SETTINGS.update(data.get("settings", {}))
+            daily_traffic.update(data.get("daily_traffic", {}))
+            logger.info(f"📂 Loaded: {len(LINKS)} links")
     except Exception as e:
-        logger.warning(f"Could not load state: {e}")
+        logger.warning(f"Load state error: {e}")
 
 async def save_state():
     async with SAVE_LOCK:
         try:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
-            data = {
-                "links": dict(LINKS),
-                "subs": dict(SUBS),
-                "password_hash": AUTH["password_hash"],
-                "settings": SETTINGS,
-                "daily_traffic": dict(daily_traffic),
-                "saved_at": datetime.now().isoformat(),
-            }
-            tmp = DATA_FILE.with_suffix(".tmp")
-            async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
+            data = {"links": dict(LINKS), "subs": dict(SUBS), "password_hash": AUTH["password_hash"],
+                    "settings": SETTINGS, "daily_traffic": dict(daily_traffic), "saved_at": datetime.now().isoformat()}
+            async with aiofiles.open(DATA_FILE, "w") as f:
                 await f.write(json.dumps(data, ensure_ascii=False, indent=2))
-            tmp.replace(DATA_FILE)
         except Exception as e:
-            logger.warning(f"Could not save state: {e}")
+            logger.warning(f"Save error: {e}")
 
-# ─── Startup / Shutdown ─────────────────────────────────────────────────────
+# ─── Startup ─────────────────────────────────────────────────────────────────
 
 @app.on_event("startup")
 async def startup():
     global http_client
-    limits = httpx.Limits(max_connections=500, max_keepalive_connections=100)
-    timeout = httpx.Timeout(30.0, connect=10.0)
-    http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
+    http_client = httpx.AsyncClient(timeout=10.0)
     await load_state()
-    await setup_telegram_webhook()
-    log_activity("system", "🪐 Eagle Gateway v10 Pro راه‌اندازی شد", "ok")
-    logger.info(f"🪐 Eagle Gateway v10 Pro started on port {CONFIG['port']}")
+    await setup_webhook()
+    logger.info(f"🪐 Eagle Gateway started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -418,51 +304,46 @@ async def shutdown():
     if http_client:
         await http_client.aclose()
 
-# ─── API: Settings ─────────────────────────────────────────────────────────
+# ===================================================================
+# ===== API ENDPOINTS (کوتاه شده برای کاهش حجم) =====
+# ===================================================================
 
 @app.post("/api/settings/language")
-async def set_language(request: Request, _=Depends(require_auth)):
-    body = await request.json()
+async def set_language(req: Request, _=Depends(require_auth)):
+    body = await req.json()
     lang = body.get("language", "fa")
     if lang in ["fa", "en"]:
         SETTINGS["language"] = lang
         await save_state()
-        return {"ok": True, "language": lang}
-    raise HTTPException(status_code=400, detail="زبان نامعتبر")
+        return {"ok": True}
+    raise HTTPException(400, "زبان نامعتبر")
 
 @app.get("/api/language")
 async def get_language():
     return {"language": SETTINGS.get("language", "fa")}
 
 @app.post("/api/settings/theme")
-async def set_theme(request: Request, _=Depends(require_auth)):
-    body = await request.json()
+async def set_theme(req: Request, _=Depends(require_auth)):
+    body = await req.json()
     theme = body.get("theme", "dark")
     if theme in ["dark", "light"]:
         SETTINGS["theme"] = theme
         await save_state()
-        return {"ok": True, "theme": theme}
-    raise HTTPException(status_code=400, detail="تم نامعتبر")
+        return {"ok": True}
+    raise HTTPException(400, "تم نامعتبر")
 
 @app.post("/api/change-password")
-async def change_password(request: Request, _=Depends(require_auth)):
-    body = await request.json()
-    old = body.get("old_password", "").strip()
-    new = body.get("new_password", "").strip()
-    
+async def change_password(req: Request, _=Depends(require_auth)):
+    body = await req.json()
+    old, new = body.get("old_password", "").strip(), body.get("new_password", "").strip()
     if not old or not new or len(new) < 4:
         raise HTTPException(400, "رمز جدید حداقل 4 کاراکتر")
-    
     if hash_password(old) != AUTH["password_hash"]:
         raise HTTPException(403, "رمز فعلی اشتباه")
-    
     AUTH["password_hash"] = hash_password(new)
     CONFIG["admin_password"] = new
     os.environ["ADMIN_PASSWORD"] = new
-    
     await save_state()
-    log_activity("settings", "رمز پنل تغییر کرد", "ok")
-    
     return {"ok": True}
 
 @app.get("/api/settings")
@@ -470,131 +351,79 @@ async def get_settings(_=Depends(require_auth)):
     return SETTINGS
 
 @app.post("/api/settings/rgb")
-async def toggle_rgb(request: Request, _=Depends(require_auth)):
-    body = await request.json()
+async def toggle_rgb(req: Request, _=Depends(require_auth)):
+    body = await req.json()
     SETTINGS["rgb_mode"] = bool(body.get("enabled", False))
     await save_state()
     return {"rgb_mode": SETTINGS["rgb_mode"]}
 
-# ─── API: Telegram Settings ───────────────────────────────────────────────
-
 @app.post("/api/settings/telegram")
-async def set_telegram_settings(request: Request, _=Depends(require_auth)):
-    body = await request.json()
-    token = body.get("token", "").strip()
-    chat_id = body.get("chat_id", "").strip()
-    
-    if token:
-        SETTINGS["telegram_bot_token"] = token
-    if chat_id:
-        SETTINGS["telegram_chat_id"] = chat_id
-    
+async def set_telegram(req: Request, _=Depends(require_auth)):
+    body = await req.json()
+    if body.get("token"):
+        SETTINGS["telegram_bot_token"] = body["token"].strip()
+    if body.get("chat_id"):
+        SETTINGS["telegram_chat_id"] = body["chat_id"].strip()
     await save_state()
-    await setup_telegram_webhook()
-    log_activity("settings", "تنظیمات تلگرام به‌روزرسانی شد", "ok")
-    return {"ok": True, "message": "تنظیمات تلگرام ذخیره شد"}
+    await setup_webhook()
+    return {"ok": True}
 
 @app.post("/api/telegram/test")
-async def test_telegram(request: Request, _=Depends(require_auth)):
-    chat_id = SETTINGS.get("telegram_chat_id", "")
+async def test_telegram(_=Depends(require_auth)):
+    chat_id = SETTINGS.get("telegram_chat_id")
     if not chat_id:
-        return {"ok": False, "message": "Chat ID تنظیم نشده است"}
-    
-    message = "✅ <b>تست اتصال</b>\n\nاین پیام برای تست ارسال شد.\nزمان: " + now_ir().strftime("%Y-%m-%d %H:%M:%S")
-    result = await send_telegram_message(chat_id, message)
-    if result:
-        return {"ok": True, "message": "پیام تست با موفقیت ارسال شد"}
-    else:
-        return {"ok": False, "message": "خطا در ارسال پیام"}
+        return {"ok": False, "message": "Chat ID تنظیم نشده"}
+    result = await tg_send(chat_id, "✅ تست اتصال موفق!")
+    return {"ok": result, "message": "ارسال شد" if result else "خطا"}
 
 @app.get("/api/telegram/status")
 async def get_telegram_status(_=Depends(require_auth)):
-    token = SETTINGS.get("telegram_bot_token", "")
-    chat_id = SETTINGS.get("telegram_chat_id", "")
-    return {
-        "active": bool(token and chat_id),
-        "has_token": bool(token),
-        "has_chat_id": bool(chat_id),
-        "token_preview": token[:10] + "..." if len(token) > 10 else token,
-        "chat_id": chat_id,
-    }
-
-# ─── API: Dashboard Stats ──────────────────────────────────────────────────
+    token, chat_id = SETTINGS.get("telegram_bot_token", ""), SETTINGS.get("telegram_chat_id", "")
+    return {"active": bool(token and chat_id), "has_token": bool(token), "has_chat_id": bool(chat_id),
+            "token_preview": token[:10] + "..." if len(token) > 10 else token, "chat_id": chat_id}
 
 @app.get("/api/dashboard/stats")
 async def dashboard_stats(_=Depends(require_auth)):
-    disk_usage = psutil.disk_usage('/')
-    
+    disk = psutil.disk_usage('/')
+    speed = 0
     if len(hourly_traffic) > 0:
-        last_hour = sum(list(hourly_traffic.values())[-6:])
-        speed = last_hour / 21600
-    else:
-        speed = 0
-    
-    today_key = now_ir().strftime("%Y-%m-%d")
-    today_traffic = daily_traffic.get(today_key, 0)
-    
+        speed = sum(list(hourly_traffic.values())[-6:]) / 21600
+    today = daily_traffic.get(now_ir().strftime("%Y-%m-%d"), 0)
     return {
-        "traffic": {
-            "total": stats["total_bytes"],
-            "total_fmt": fmt_bytes(stats["total_bytes"]),
-            "today": today_traffic,
-            "today_fmt": fmt_bytes(today_traffic)
-        },
-        "requests": stats["total_requests"],
-        "uptime": uptime(),
-        "disk": {
-            "total": disk_usage.total,
-            "used": disk_usage.used,
-            "free": disk_usage.free,
-            "total_fmt": fmt_bytes(disk_usage.total),
-            "used_fmt": fmt_bytes(disk_usage.used),
-            "free_fmt": fmt_bytes(disk_usage.free),
-            "percent": disk_usage.percent
-        },
+        "traffic": {"total": stats["total_bytes"], "total_fmt": fmt_bytes(stats["total_bytes"]),
+                    "today": today, "today_fmt": fmt_bytes(today)},
+        "requests": stats["total_requests"], "uptime": uptime(),
+        "disk": {"total": disk.total, "used": disk.used, "free": disk.free,
+                 "total_fmt": fmt_bytes(disk.total), "used_fmt": fmt_bytes(disk.used), "free_fmt": fmt_bytes(disk.free),
+                 "percent": disk.percent},
         "connections": len(connections),
-        "speed": {
-            "download": speed,
-            "download_fmt": fmt_bytes(speed) + "/s" if speed > 0 else "0 B/s"
-        },
-        "links_count": len(LINKS),
-        "active_links": sum(1 for l in LINKS.values() if is_link_allowed(l))
+        "speed": {"download": speed, "download_fmt": fmt_bytes(speed) + "/s" if speed > 0 else "0 B/s"},
+        "links_count": len(LINKS), "active_links": sum(1 for l in LINKS.values() if is_link_allowed(l))
     }
-
-# ─── API: Inbound ────────────────────────────────────────────────────────────
 
 @app.get("/api/inbound")
 async def get_inbound(_=Depends(require_auth)):
-    return {
-        "port": SETTINGS.get("inbound_port", 443),
-        "protocol": SETTINGS.get("default_protocol", "vless"),
-        "host": get_host(),
-        "is_active": True
-    }
+    return {"port": SETTINGS.get("inbound_port", 443), "protocol": SETTINGS.get("default_protocol", "vless"),
+            "host": get_host(), "is_active": True}
 
 @app.post("/api/inbound")
-async def update_inbound(request: Request, _=Depends(require_auth)):
-    body = await request.json()
+async def update_inbound(req: Request, _=Depends(require_auth)):
+    body = await req.json()
     port = body.get("port", 443)
     if port < 1 or port > 65535:
-        raise HTTPException(status_code=400, detail="پورت نامعتبر")
+        raise HTTPException(400, "پورت نامعتبر")
     SETTINGS["inbound_port"] = port
     await save_state()
-    return {"ok": True, "port": port}
-
-# ─── API: Links ─────────────────────────────────────────────────────────────
+    return {"ok": True}
 
 @app.post("/api/links")
-async def create_link(request: Request, _=Depends(require_auth)):
-    body = await request.json()
-    label = (body.get("label") or "لینک جدید").strip()[:60]
-    lv = float(body.get("limit_value") or 0)
-    lu = body.get("limit_unit") or "GB"
-    limit_bytes = 0 if lv <= 0 else parse_size_to_bytes(lv, lu)
-    exp_days = int(body.get("expires_days") or 0)
+async def create_link(req: Request, _=Depends(require_auth)):
+    body = await req.json()
+    label = (body.get("label") or "کاربر").strip()[:60]
+    quota = float(body.get("limit_value") or 0)
+    limit_bytes = 0 if quota <= 0 else parse_size_to_bytes(quota, "GB")
+    exp_days = int(body.get("expires_days") or 30)
     expires_at = (datetime.now() + timedelta(days=exp_days)).isoformat() if exp_days > 0 else None
-    note = (body.get("note") or "").strip()[:200]
-    sub_id = body.get("sub_id") or None
     protocol = body.get("protocol") or DEFAULT_PROTOCOL
     if protocol not in PROTOCOLS:
         protocol = DEFAULT_PROTOCOL
@@ -602,132 +431,65 @@ async def create_link(request: Request, _=Depends(require_auth)):
     fingerprint = body.get("fingerprint", "chrome")
     if fingerprint not in FINGERPRINTS:
         fingerprint = "chrome"
-    config_password = body.get("password", "").strip()
-    password_hash = hash_password(config_password) if config_password else None
-    
+    password_hash = hash_password(body.get("password", "").strip()) if body.get("password") else None
     ports = body.get("ports", [443])
-    if isinstance(ports, list) and len(ports) > 0:
-        ports = [p for p in ports if isinstance(p, int) and 1 <= p <= 65535]
-    else:
+    if not isinstance(ports, list) or not ports:
         ports = [443]
-    if not ports:
-        ports = [443]
+    ports = [p for p in ports if isinstance(p, int) and 1 <= p <= 65535] or [443]
 
     uid = generate_uuid()
     async with LINKS_LOCK:
-        LINKS[uid] = {
-            "label": label,
-            "limit_bytes": limit_bytes,
-            "used_bytes": 0,
-            "created_at": datetime.now().isoformat(),
-            "active": True,
-            "expires_at": expires_at,
-            "note": note,
-            "is_default": False,
-            "sub_id": sub_id,
-            "protocol": protocol,
-            "max_devices": max_devices,
-            "fingerprint": fingerprint,
-            "password_hash": password_hash,
-            "ports": ports,
-        }
-
-    if sub_id:
-        async with SUBS_LOCK:
-            if sub_id in SUBS:
-                ids = SUBS[sub_id].setdefault("link_ids", [])
-                if uid not in ids:
-                    ids.append(uid)
-
+        LINKS[uid] = {"label": label, "limit_bytes": limit_bytes, "used_bytes": 0,
+                      "created_at": datetime.now().isoformat(), "active": True,
+                      "expires_at": expires_at, "note": "", "is_default": False, "sub_id": None,
+                      "protocol": protocol, "max_devices": max_devices, "fingerprint": fingerprint,
+                      "password_hash": password_hash, "ports": ports}
     asyncio.create_task(save_state())
-    log_activity("link", f"کانفیگ «{label}» ساخته شد با {len(ports)} پورت", "ok")
+    log_activity("link", f"کانفیگ «{label}» ساخته شد", "ok")
     host = get_host()
-    
-    remark = f"عقاب-{label}"
-    main_link = generate_vless_link(uid, host, remark=remark, protocol=protocol, fingerprint=fingerprint, port=ports[0])
-    
-    link_data = {
-        "uuid": uid,
-        **LINKS[uid],
-        "has_password": password_hash is not None,
-        "vless_link": main_link,
-        "sub_url": f"https://{host}/sub/{uid}",
-        "warning_config": "",
-    }
-    
-    return link_data
+    main_link = generate_vless_link(uid, host, remark=f"عقاب-{label}", protocol=protocol, fingerprint=fingerprint, port=ports[0])
+    return {"uuid": uid, **LINKS[uid], "has_password": password_hash is not None,
+            "vless_link": main_link, "sub_url": f"https://{host}/sub/{uid}"}
 
 @app.get("/api/links")
 async def list_links(_=Depends(require_auth)):
     host = get_host()
     async with LINKS_LOCK:
-        snap = dict(LINKS)
-    
-    result = []
-    for uid, d in snap.items():
-        proto = d.get("protocol", DEFAULT_PROTOCOL)
-        fp = d.get("fingerprint", "chrome")
-        ports = d.get("ports", [443])
-        first_port = ports[0] if ports else 443
-        label = d.get("label", "کاربر")
-        remark = f"عقاب-{label}"
-        
-        last_connected = None
-        for c in connections.values():
-            if c.get("uuid") == uid:
-                if not last_connected or c.get("connected_at") > last_connected:
+        result = []
+        for uid, d in LINKS.items():
+            ports = d.get("ports", [443])
+            first_port = ports[0] if ports else 443
+            active = d.get("active", True) and not is_link_expired(d)
+            last_connected = None
+            for c in connections.values():
+                if c.get("uuid") == uid and (not last_connected or c.get("connected_at") > last_connected):
                     last_connected = c.get("connected_at")
-        
-        active = d.get("active", True) and not is_link_expired(d)
-        
-        result.append({
-            "uuid": uid,
-            **d,
-            "protocol": proto,
-            "fingerprint": fp,
-            "ports": ports,
-            "max_devices": d.get("max_devices", 0),
-            "expired": is_link_expired(d),
-            "has_password": d.get("password_hash") is not None,
-            "port": first_port,
-            "last_connected_at": last_connected,
-            "vless_link": generate_vless_link(uid, host, remark=remark, protocol=proto, fingerprint=fp, port=first_port),
-            "sub_url": f"https://{host}/sub/{uid}",
-            "warning_config": "",
-        })
-    result.sort(key=lambda x: x["created_at"], reverse=True)
-    return {"links": result}
+            result.append({"uuid": uid, **d, "ports": ports, "expired": is_link_expired(d),
+                           "has_password": d.get("password_hash") is not None,
+                           "last_connected_at": last_connected, "vless_link": generate_vless_link(
+                               uid, host, remark=f"عقاب-{d.get('label','کاربر')}",
+                               protocol=d.get("protocol", DEFAULT_PROTOCOL),
+                               fingerprint=d.get("fingerprint", "chrome"), port=first_port),
+                           "sub_url": f"https://{host}/sub/{uid}"})
+        result.sort(key=lambda x: x["created_at"], reverse=True)
+        return {"links": result}
 
 @app.patch("/api/links/{uid}")
-async def update_link(uid: str, request: Request, _=Depends(require_auth)):
-    body = await request.json()
-    
+async def update_link(uid: str, req: Request, _=Depends(require_auth)):
+    body = await req.json()
     async with LINKS_LOCK:
         if uid not in LINKS:
-            raise HTTPException(status_code=404, detail="link not found")
+            raise HTTPException(404, "link not found")
         link = LINKS[uid]
-        
         if link.get("password_hash"):
-            password = body.get("password", "").strip()
-            if not password:
-                raise HTTPException(status_code=403, detail="برای ویرایش این کانفیگ رمز آن را وارد کنید")
-            if hash_password(password) != link["password_hash"]:
-                raise HTTPException(status_code=403, detail="رمز کانفیگ اشتباه است")
-        
-        old_sub = link.get("sub_id")
-        
-        if "active" in body:
-            link["active"] = bool(body["active"])
+            pw = body.get("password", "").strip()
+            if not pw or hash_password(pw) != link["password_hash"]:
+                raise HTTPException(403, "رمز کانفیگ اشتباه است")
         if "label" in body:
             link["label"] = str(body["label"])[:60]
-        if "note" in body:
-            link["note"] = str(body["note"])[:200]
-        if "reset_usage" in body and body["reset_usage"]:
-            link["used_bytes"] = 0
         if "limit_value" in body:
-            lv = float(body.get("limit_value") or 0)
-            lu = body.get("limit_unit") or "GB"
-            link["limit_bytes"] = 0 if lv <= 0 else parse_size_to_bytes(lv, lu)
+            lv = float(body["limit_value"] or 0)
+            link["limit_bytes"] = 0 if lv <= 0 else parse_size_to_bytes(lv, "GB")
         if "expires_days" in body:
             ed = int(body["expires_days"] or 0)
             link["expires_at"] = (datetime.now() + timedelta(days=ed)).isoformat() if ed > 0 else None
@@ -735,286 +497,143 @@ async def update_link(uid: str, request: Request, _=Depends(require_auth)):
             link["max_devices"] = int(body["max_devices"])
         if "fingerprint" in body and body["fingerprint"] in FINGERPRINTS:
             link["fingerprint"] = body["fingerprint"]
-        if "protocol" in body and body["protocol"] in PROTOCOLS:
-            link["protocol"] = body["protocol"]
+        if "active" in body:
+            link["active"] = bool(body["active"])
+        if "reset_usage" in body and body["reset_usage"]:
+            link["used_bytes"] = 0
         if "ports" in body and isinstance(body["ports"], list):
             ports = [p for p in body["ports"] if isinstance(p, int) and 1 <= p <= 65535]
             if ports:
                 link["ports"] = ports
-        new_sub = body.get("sub_id", "UNCHANGED")
-        if new_sub != "UNCHANGED":
-            link["sub_id"] = new_sub or None
-
-    if new_sub != "UNCHANGED":
-        async with SUBS_LOCK:
-            if old_sub and old_sub in SUBS:
-                ids = SUBS[old_sub].get("link_ids", [])
-                if uid in ids:
-                    ids.remove(uid)
-            if new_sub and new_sub in SUBS:
-                ids = SUBS[new_sub].setdefault("link_ids", [])
-                if uid not in ids:
-                    ids.append(uid)
-
     asyncio.create_task(save_state())
-    log_activity("link", f"کانفیگ «{link['label']}» ویرایش شد", "info")
     return {"ok": True}
 
 @app.delete("/api/links/{uid}")
-async def delete_link(uid: str, request: Request, _=Depends(require_auth)):
-    body = await request.json()
-    password = body.get("password", "").strip()
-    
+async def delete_link(uid: str, req: Request, _=Depends(require_auth)):
+    body = await req.json()
     async with LINKS_LOCK:
         if uid not in LINKS:
-            raise HTTPException(status_code=404, detail="link not found")
+            raise HTTPException(404, "link not found")
         link = LINKS[uid]
-        
         if link.get("password_hash"):
-            if not password:
-                raise HTTPException(status_code=403, detail="برای حذف این کانفیگ رمز آن را وارد کنید")
-            if hash_password(password) != link["password_hash"]:
-                raise HTTPException(status_code=403, detail="رمز کانفیگ اشتباه است")
-        
+            pw = body.get("password", "").strip()
+            if not pw or hash_password(pw) != link["password_hash"]:
+                raise HTTPException(403, "رمز کانفیگ اشتباه است")
         label = link.get("label", uid)
-        sub_id = link.get("sub_id")
         del LINKS[uid]
-    
-    if sub_id:
-        async with SUBS_LOCK:
-            if sub_id in SUBS:
-                ids = SUBS[sub_id].get("link_ids", [])
-                if uid in ids:
-                    ids.remove(uid)
-    
     asyncio.create_task(save_state())
     log_activity("link", f"کانفیگ «{label}» حذف شد", "err")
-    
-    return {"ok": True, "deleted": uid}
-
-# ─── API: Stats & Connections ──────────────────────────────────────────────
+    return {"ok": True}
 
 @app.get("/stats")
 async def get_stats(_=Depends(require_auth)):
     async with LINKS_LOCK:
-        snap = dict(LINKS)
-    
-    top_user = None
-    top_usage = 0
-    for uid, link in snap.items():
-        used = link.get("used_bytes", 0)
-        if used > top_usage:
-            top_usage = used
-            top_user = {
-                "uuid": uid,
-                "label": link.get("label", "نامشخص"),
-                "used_bytes": used,
-                "used_fmt": fmt_bytes(used)
-            }
-    
-    return {
-        "active_connections": len(connections),
-        "total_traffic_mb": round(stats["total_bytes"] / (1024 ** 2), 2),
-        "total_requests": stats["total_requests"],
-        "total_errors": stats["total_errors"],
-        "uptime": uptime(),
-        "timestamp": datetime.now().isoformat(),
-        "hourly": dict(hourly_traffic),
-        "recent_errors": list(error_logs)[-10:],
-        "links_count": len(snap),
-        "active_links": sum(1 for l in snap.values() if is_link_allowed(l)),
-        "expired_links": sum(1 for l in snap.values() if is_link_expired(l)),
-        "subs_count": len(SUBS),
-        "top_user": top_user,
-    }
+        return {"active_connections": len(connections), "total_traffic_mb": round(stats["total_bytes"] / (1024**2), 2),
+                "total_requests": stats["total_requests"], "total_errors": stats["total_errors"],
+                "uptime": uptime(), "links_count": len(LINKS),
+                "active_links": sum(1 for l in LINKS.values() if is_link_allowed(l))}
 
 @app.get("/api/connections")
 async def get_connections(_=Depends(require_auth)):
     async with LINKS_LOCK:
         snap = dict(LINKS)
-
-    grouped: dict[str, dict] = {}
-    for conn_id, c in connections.items():
+    grouped = {}
+    for c in connections.values():
         ip = c.get("ip", "نامشخص")
         link = snap.get(c.get("uuid"))
         label = link.get("label") if link else "نامشخص"
-        g = grouped.get(ip)
-        if g is None:
-            g = {
-                "ip": ip,
-                "sessions": 0,
-                "bytes": 0,
-                "labels": set(),
-                "transports": set(),
-                "first_connected_at": c.get("connected_at"),
-                "last_connected_at": c.get("connected_at"),
-            }
-            grouped[ip] = g
+        if ip not in grouped:
+            grouped[ip] = {"ip": ip, "sessions": 0, "bytes": 0, "labels": set(), "first_connected_at": c.get("connected_at"),
+                           "last_connected_at": c.get("connected_at")}
+        g = grouped[ip]
         g["sessions"] += 1
         g["bytes"] += c.get("bytes", 0)
         g["labels"].add(label)
-        g["transports"].add(c.get("transport", "vless-ws"))
-        ca = c.get("connected_at")
-        if ca:
-            if not g["first_connected_at"] or ca < g["first_connected_at"]:
-                g["first_connected_at"] = ca
-            if not g["last_connected_at"] or ca > g["last_connected_at"]:
-                g["last_connected_at"] = ca
-
-    result = []
-    for ip, g in grouped.items():
-        result.append({
-            "ip": ip,
-            "sessions": g["sessions"],
-            "labels": sorted(g["labels"]),
-            "label": " · ".join(sorted(g["labels"])) if g["labels"] else "نامشخص",
-            "transports": sorted(g["transports"]),
-            "bytes": g["bytes"],
-            "bytes_fmt": fmt_bytes(g["bytes"]),
-            "connected_at": g["first_connected_at"],
-            "last_connected_at": g["last_connected_at"],
-        })
+        if c.get("connected_at"):
+            if not g["first_connected_at"] or c["connected_at"] < g["first_connected_at"]:
+                g["first_connected_at"] = c["connected_at"]
+            if not g["last_connected_at"] or c["connected_at"] > g["last_connected_at"]:
+                g["last_connected_at"] = c["connected_at"]
+    result = [{"ip": ip, "sessions": g["sessions"], "labels": sorted(g["labels"]),
+               "label": " · ".join(sorted(g["labels"])) if g["labels"] else "نامشخص",
+               "bytes": g["bytes"], "bytes_fmt": fmt_bytes(g["bytes"]),
+               "connected_at": g["first_connected_at"], "last_connected_at": g["last_connected_at"]}
+              for ip, g in grouped.items()]
     result.sort(key=lambda x: x.get("last_connected_at") or "", reverse=True)
-
-    return {
-        "connections": result,
-        "count": len(result),
-        "raw_count": len(connections),
-    }
-
-# ─── Auth Endpoints ────────────────────────────────────────────────────────
+    return {"connections": result, "count": len(result)}
 
 @app.post("/api/login")
-async def api_login(request: Request):
-    body = await request.json()
-    ip = client_ip(request)
-    password = body.get("password", "")
-    remember = body.get("remember", False)
-    
-    if hash_password(str(password)) != AUTH["password_hash"]:
-        log_activity("auth", f"تلاش ورود ناموفق از {ip}", "err")
-        raise HTTPException(status_code=401, detail="رمز عبور اشتباه است")
-    
+async def api_login(req: Request):
+    body = await req.json()
+    if hash_password(str(body.get("password", ""))) != AUTH["password_hash"]:
+        raise HTTPException(401, "رمز عبور اشتباه است")
     token = await create_session()
-    log_activity("auth", f"ورود موفق به پنل از {ip}", "ok")
-    
-    max_age = SESSION_TTL if remember else None
     resp = JSONResponse({"ok": True})
-    resp.set_cookie(SESSION_COOKIE, token, max_age=max_age, httponly=True, samesite="lax", path="/")
+    resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL if body.get("remember") else None, httponly=True, samesite="lax", path="/")
     return resp
 
 @app.post("/api/logout")
-async def api_logout(request: Request):
-    await destroy_session(request.cookies.get(SESSION_COOKIE))
+async def api_logout(req: Request):
+    await destroy_session(req.cookies.get(SESSION_COOKIE))
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(SESSION_COOKIE, path="/")
     return resp
 
 @app.get("/api/me")
-async def api_me(request: Request):
-    return {"authenticated": await is_valid_session(request.cookies.get(SESSION_COOKIE))}
-
-# ─── API: Activity Logs ───────────────────────────────────────────────────────
+async def api_me(req: Request):
+    return {"authenticated": await is_valid_session(req.cookies.get(SESSION_COOKIE))}
 
 @app.get("/api/activity")
-async def get_activity_logs(_=Depends(require_auth)):
-    limit = 100
-    logs = list(activity_logs)[-limit:]
-    return {"logs": logs}
-
-# ─── Backup ────────────────────────────────────────────────────────────────────
+async def get_activity(_=Depends(require_auth)):
+    return {"logs": list(activity_logs)[-100:]}
 
 @app.get("/api/backup")
 async def get_backup(_=Depends(require_auth)):
     async with LINKS_LOCK:
-        links = dict(LINKS)
-    async with SUBS_LOCK:
-        subs = dict(SUBS)
-    return {
-        "links": links,
-        "subs": subs,
-        "password_hash": AUTH["password_hash"],
-        "settings": SETTINGS,
-        "daily_traffic": dict(daily_traffic),
-        "exported_at": datetime.now().isoformat(),
-        "version": "10.0"
-    }
+        return {"links": dict(LINKS), "subs": dict(SUBS), "password_hash": AUTH["password_hash"],
+                "settings": SETTINGS, "daily_traffic": dict(daily_traffic), "version": "10.0"}
 
 @app.post("/api/backup/restore")
-async def restore_backup(request: Request, _=Depends(require_auth)):
-    try:
-        body = await request.json()
-        
-        if "links" in body and isinstance(body["links"], dict):
-            async with LINKS_LOCK:
-                LINKS.clear()
-                for uid, link_data in body["links"].items():
-                    if not isinstance(link_data, dict):
-                        continue
-                    LINKS[uid] = link_data
-        
-        if "subs" in body and isinstance(body["subs"], dict):
-            async with SUBS_LOCK:
-                SUBS.clear()
-                for sid, sub_data in body["subs"].items():
-                    if not isinstance(sub_data, dict):
-                        continue
-                    SUBS[sid] = sub_data
-        
-        if "password_hash" in body:
-            AUTH["password_hash"] = body["password_hash"]
-        
-        if "settings" in body and isinstance(body["settings"], dict):
-            SETTINGS.update(body["settings"])
-        
-        if "daily_traffic" in body and isinstance(body["daily_traffic"], dict):
-            daily_traffic.update(body["daily_traffic"])
-        
-        await save_state()
-        log_activity("backup", "بکاپ بازیابی شد", "ok")
-        return {"ok": True, "message": "بکاپ با موفقیت بازیابی شد"}
-    except Exception as e:
-        logger.error(f"Backup restore error: {e}")
-        raise HTTPException(status_code=400, detail=f"خطا در بازیابی بکاپ: {str(e)}")
+async def restore_backup(req: Request, _=Depends(require_auth)):
+    body = await req.json()
+    if "links" in body:
+        async with LINKS_LOCK:
+            LINKS.clear()
+            for uid, data in body["links"].items():
+                if isinstance(data, dict):
+                    LINKS[uid] = data
+    if "settings" in body:
+        SETTINGS.update(body["settings"])
+    await save_state()
+    return {"ok": True}
 
-# ─── VLESS WebSocket Tunnel ────────────────────────────────────────────────
+# ─── WebSocket Tunnel ──────────────────────────────────────────────────────
 
 RELAY_BUF = 512 * 1024
 
-def _ws_client_ip(ws: WebSocket) -> str:
+def _ws_ip(ws):
     fwd = ws.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    real_ip = ws.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-    return ws.client.host if ws.client else "نامشخص"
+    return fwd.split(",")[0].strip() if fwd else ws.client.host if ws.client else "نامشخص"
 
 async def check_device_limit(uuid: str, client_ip: str) -> bool:
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
-        if not link:
-            return False
-        max_devices = link.get("max_devices", 0)
-        if max_devices == 0:
+        if not link or link.get("max_devices", 0) == 0:
             return True
-    
+        max_devices = link["max_devices"]
     async with DEVICE_CONNECTIONS_LOCK:
-        current_ips = device_connections.get(uuid, [])
-        if client_ip in current_ips:
+        current = device_connections.get(uuid, [])
+        if client_ip in current:
             return True
-        if len(current_ips) >= max_devices:
+        if len(current) >= max_devices:
             return False
-        if uuid not in device_connections:
-            device_connections[uuid] = []
-        device_connections[uuid].append(client_ip)
+        device_connections.setdefault(uuid, []).append(client_ip)
         return True
 
 async def parse_vless_header(chunk: bytes):
     if len(chunk) < 24:
         raise ValueError("chunk too small")
-    pos = 1
-    pos += 16
+    pos = 1 + 16
     addon_len = chunk[pos]
     pos += 1 + addon_len
     command = chunk[pos]
@@ -1042,437 +661,23 @@ async def parse_vless_header(chunk: bytes):
 async def check_and_use(uid: str, n: int) -> bool:
     async with LINKS_LOCK:
         link = LINKS.get(uid)
-        if link is None:
-            return False
-        if not is_link_allowed(link):
+        if not link or not is_link_allowed(link):
             return False
         link["used_bytes"] = link.get("used_bytes", 0) + n
         stats["total_bytes"] = stats.get("total_bytes", 0) + n
         hourly_traffic[now_ir().strftime("%H:00")] = hourly_traffic.get(now_ir().strftime("%H:00"), 0) + n
-        today_key = now_ir().strftime("%Y-%m-%d")
-        daily_traffic[today_key] = daily_traffic.get(today_key, 0) + n
-        
+        daily_traffic[now_ir().strftime("%Y-%m-%d")] = daily_traffic.get(now_ir().strftime("%Y-%m-%d"), 0) + n
         limit = link.get("limit_bytes", 0)
         used = link.get("used_bytes", 0)
         if limit > 0 and used / limit > 0.8 and not link.get("alert_80"):
             link["alert_80"] = True
-            log_activity("warning", f"⚠️ مصرف کانفیگ {link.get('label')} به 80% رسید", "warn")
-            await send_telegram_alert(link.get('label'), used, limit)
-        
+            log_activity("warning", f"⚠️ مصرف {link.get('label')} به 80% رسید", "warn")
+            chat_id = SETTINGS.get("telegram_chat_id")
+            if chat_id:
+                await tg_send(chat_id, f"⚠️ هشدار مصرف!\nکاربر: {link.get('label')}\nمصرف: {fmt_bytes(used)} / {fmt_bytes(limit)}")
         return True
 
-async def send_telegram_alert(label: str, used: int, limit: int):
-    chat_id = SETTINGS.get("telegram_chat_id", "")
-    if not chat_id:
-        return
-    
-    percent = (used / limit) * 100 if limit > 0 else 0
-    message = f"""⚠️ <b>هشدار مصرف!</b>
-
-📌 کاربر: <b>{label}</b>
-📊 مصرف: <b>{fmt_bytes(used)}</b> از <b>{fmt_bytes(limit)}</b>
-📈 درصد: <b>{percent:.1f}%</b>"""
-
-    await send_telegram_message(chat_id, message)
-
-# ─── ===== بخش بات تلگرام (بهینه شده) ===== ──────────────────────────────────
-
-@app.post("/webhook/telegram")
-async def telegram_webhook(request: Request):
-    """WebHook تلگرام (بهینه)"""
-    token = SETTINGS.get("telegram_bot_token", "")
-    if not token:
-        return {"ok": False}
-    
-    try:
-        body = await request.json()
-    except:
-        return {"ok": False}
-    
-    # پردازش در پس‌زمینه
-    asyncio.create_task(process_telegram_update(body))
-    return {"ok": True}
-
-async def process_telegram_update(body: dict):
-    """پردازش آپدیت تلگرام در پس‌زمینه"""
-    try:
-        message = body.get("message")
-        callback_query = body.get("callback_query")
-        
-        if message:
-            chat_id = message.get("chat", {}).get("id")
-            text = message.get("text", "").strip()
-            user = message.get("from", {})
-            username = user.get("username", "کاربر")
-            
-            if text.startswith("/"):
-                if text == "/start":
-                    await send_main_menu(chat_id, username)
-                elif text == "/new":
-                    await start_new_user(chat_id)
-                elif text == "/list":
-                    await send_user_list(chat_id)
-                elif text.startswith("/config"):
-                    parts = text.split()
-                    if len(parts) > 1:
-                        await send_user_config(chat_id, parts[1])
-                    else:
-                        await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /config xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-                elif text.startswith("/renew"):
-                    parts = text.split()
-                    if len(parts) > 1:
-                        await renew_user(chat_id, parts[1])
-                    else:
-                        await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /renew xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-                elif text.startswith("/delete"):
-                    parts = text.split()
-                    if len(parts) > 1:
-                        await delete_user(chat_id, parts[1])
-                    else:
-                        await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /delete xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-                else:
-                    await send_telegram_message(chat_id, "❌ دستور نامعتبر!\n/start برای منو")
-            else:
-                # پیام متنی - ساخت کاربر
-                await handle_text_message(chat_id, text, username)
-        
-        elif callback_query:
-            chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
-            data = callback_query.get("data", "")
-            username = callback_query.get("from", {}).get("username", "کاربر")
-            callback_id = callback_query.get("id")
-            
-            # پاسخ سریع به callback
-            await answer_callback(callback_id)
-            
-            await handle_callback(chat_id, data, username)
-    
-    except Exception as e:
-        logger.error(f"Telegram process error: {e}")
-
-async def send_main_menu(chat_id, username):
-    keyboard = [
-        [{"text": "📝 ساخت کاربر جدید", "callback_data": "new_user"}],
-        [{"text": "📊 لیست کاربران", "callback_data": "list_users"}],
-        [{"text": "📥 دریافت کانفیگ", "callback_data": "get_config"}],
-        [{"text": "🔄 تمدید کاربر", "callback_data": "renew_user"}],
-        [{"text": "❌ حذف کاربر", "callback_data": "delete_user"}],
-        [{"text": "ℹ️ راهنما", "callback_data": "help"}]
-    ]
-    
-    message = f"""🪐 <b>به پنل عقاب خوش آمدید!</b>
-
-👤 کاربر: <b>@{username}</b>
-📅 تاریخ: {now_ir().strftime("%Y-%m-%d %H:%M")}
-
-از منوی زیر انتخاب کنید:"""
-    
-    await send_telegram_message(chat_id, message, keyboard)
-
-async def handle_text_message(chat_id, text, username):
-    """پردازش پیام متنی - ساخت کاربر"""
-    async with TELEGRAM_SESSIONS_LOCK:
-        session = TELEGRAM_SESSIONS.get(str(chat_id))
-    
-    if session and session.get("action") == "creating_user":
-        await handle_create_user_step(chat_id, text, session)
-    else:
-        await send_telegram_message(chat_id, "❌ لطفاً از دکمه‌ها استفاده کنید یا /start را بزنید.")
-
-async def handle_create_user_step(chat_id, text, session):
-    step = session.get("step", "label")
-    data = session.get("data", {})
-    
-    if step == "label":
-        if len(text) < 2:
-            await send_telegram_message(chat_id, "❌ نام باید حداقل ۲ کاراکتر باشد.")
-            return
-        
-        data["label"] = text.strip()
-        
-        async with TELEGRAM_SESSIONS_LOCK:
-            TELEGRAM_SESSIONS[str(chat_id)]["step"] = "quota"
-            TELEGRAM_SESSIONS[str(chat_id)]["data"] = data
-        
-        keyboard = [
-            [{"text": "1 GB", "callback_data": "quota_1"}, {"text": "2 GB", "callback_data": "quota_2"}],
-            [{"text": "5 GB", "callback_data": "quota_5"}, {"text": "10 GB", "callback_data": "quota_10"}],
-            [{"text": "نامحدود", "callback_data": "quota_0"}, {"text": "❌ انصراف", "callback_data": "main_menu"}]
-        ]
-        
-        await send_telegram_message(chat_id, f"✅ نام <b>{data['label']}</b> ذخیره شد!\nحجم را انتخاب کنید:", keyboard)
-    
-    elif step == "quota":
-        try:
-            quota = float(text.strip())
-            if quota < 0:
-                raise ValueError
-            data["quota"] = quota
-            await finish_create_user(chat_id, data)
-        except:
-            await send_telegram_message(chat_id, "❌ لطفاً از دکمه‌ها استفاده کنید.")
-
-async def finish_create_user(chat_id, data):
-    label = data.get("label", "کاربر")
-    quota = data.get("quota", 2)
-    
-    uid = generate_uuid()
-    async with LINKS_LOCK:
-        LINKS[uid] = {
-            "label": label,
-            "limit_bytes": int(quota * 1024**3) if quota > 0 else 0,
-            "used_bytes": 0,
-            "created_at": datetime.now().isoformat(),
-            "active": True,
-            "expires_at": (datetime.now() + timedelta(days=30)).isoformat(),
-            "note": f"ساخته شده از بات",
-            "is_default": False,
-            "sub_id": None,
-            "protocol": DEFAULT_PROTOCOL,
-            "max_devices": 1,
-            "fingerprint": "chrome",
-            "password_hash": None,
-            "ports": [443],
-        }
-    
-    await save_state()
-    log_activity("link", f"کانفیگ «{label}» از طریق بات ساخته شد", "ok")
-    
-    host = get_host()
-    sub_url = f"https://{host}/sub/{uid}"
-    vless_link = generate_vless_link(uid, host, remark=f"عقاب-{label}", fingerprint="chrome", port=443)
-    
-    async with TELEGRAM_SESSIONS_LOCK:
-        if str(chat_id) in TELEGRAM_SESSIONS:
-            del TELEGRAM_SESSIONS[str(chat_id)]
-    
-    await send_telegram_message(chat_id,
-        f"✅ <b>کاربر {label} ساخته شد!</b>\n\n"
-        f"🔹 UUID: <code>{uid}</code>\n"
-        f"📊 حجم: {fmt_bytes(int(quota * 1024**3)) if quota > 0 else 'نامحدود'}\n"
-        f"📅 انقضا: 30 روز\n"
-        f"🔗 ساب: <code>{sub_url}</code>\n"
-        f"🔗 کانفیگ: <code>{vless_link}</code>",
-        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
-    )
-
-async def handle_callback(chat_id, data, username):
-    if data == "main_menu":
-        await send_main_menu(chat_id, username)
-    
-    elif data == "new_user":
-        await start_new_user(chat_id)
-    
-    elif data == "list_users":
-        await send_user_list(chat_id)
-    
-    elif data == "get_config":
-        await show_user_list_for_config(chat_id)
-    
-    elif data == "renew_user":
-        await show_user_list_for_renew(chat_id)
-    
-    elif data == "delete_user":
-        await show_user_list_for_delete(chat_id)
-    
-    elif data == "help":
-        await send_telegram_message(chat_id,
-            "🪐 <b>راهنما</b>\n\n"
-            "📌 /start - منو\n"
-            "📌 /new - ساخت کاربر\n"
-            "📌 /list - لیست کاربران\n"
-            "📌 /config [UUID] - کانفیگ\n"
-            "📌 /renew [UUID] - تمدید\n"
-            "📌 /delete [UUID] - حذف")
-    
-    elif data.startswith("quota_"):
-        quota = float(data.replace("quota_", ""))
-        async with TELEGRAM_SESSIONS_LOCK:
-            session = TELEGRAM_SESSIONS.get(str(chat_id))
-            if session and session.get("action") == "creating_user":
-                session["data"]["quota"] = quota
-                await finish_create_user(chat_id, session["data"])
-            else:
-                await send_telegram_message(chat_id, "❌ لطفاً /new را بزنید.")
-    
-    elif data.startswith("select_config_"):
-        uuid = data.replace("select_config_", "")
-        await send_user_config(chat_id, uuid)
-    
-    elif data.startswith("select_renew_"):
-        uuid = data.replace("select_renew_", "")
-        await renew_user(chat_id, uuid)
-    
-    elif data.startswith("select_delete_"):
-        uuid = data.replace("select_delete_", "")
-        await delete_user(chat_id, uuid)
-    
-    elif data.startswith("list_page_"):
-        page = int(data.replace("list_page_", ""))
-        await send_user_list(chat_id, page)
-    
-    else:
-        await send_telegram_message(chat_id, "❌ گزینه نامعتبر!")
-
-async def start_new_user(chat_id):
-    async with TELEGRAM_SESSIONS_LOCK:
-        TELEGRAM_SESSIONS[str(chat_id)] = {"action": "creating_user", "step": "label", "data": {}}
-    
-    await send_telegram_message(chat_id,
-        "📝 <b>ساخت کاربر جدید</b>\n\nلطفاً <b>نام کاربری</b> را وارد کنید:",
-        [[{"text": "❌ انصراف", "callback_data": "main_menu"}]]
-    )
-
-async def send_user_list(chat_id, page=0):
-    async with LINKS_LOCK:
-        users = list(LINKS.items())
-    
-    if not users:
-        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
-        return
-    
-    per_page = 5
-    total = (len(users) + per_page - 1) // per_page
-    start = page * per_page
-    end = min(start + per_page, len(users))
-    
-    msg = f"📊 کاربران ({page+1}/{total})\n\n"
-    for uid, link in users[start:end]:
-        label = link.get("label", "بدون نام")
-        used = link.get("used_bytes", 0)
-        limit = link.get("limit_bytes", 0)
-        active = link.get("active", True) and not is_link_expired(link)
-        
-        msg += f"• <b>{label}</b>\n"
-        msg += f"  مصرف: {fmt_bytes(used)} / {fmt_bytes(limit) if limit > 0 else '∞'}\n"
-        msg += f"  وضعیت: {'🟢 فعال' if active else '🔴 غیرفعال'}\n"
-        msg += f"  UUID: <code>{uid[:8]}...</code>\n\n"
-    
-    kb = []
-    nav = []
-    if page > 0:
-        nav.append({"text": "⬅️", "callback_data": f"list_page_{page-1}"})
-    if page < total - 1:
-        nav.append({"text": "➡️", "callback_data": f"list_page_{page+1}"})
-    if nav:
-        kb.append(nav)
-    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(chat_id, msg, kb)
-
-async def show_user_list_for_config(chat_id):
-    async with LINKS_LOCK:
-        users = list(LINKS.items())[:10]
-    
-    if not users:
-        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
-        return
-    
-    kb = []
-    for uid, link in users:
-        kb.append([{"text": f"📥 {link.get('label', 'بدون نام')}", "callback_data": f"select_config_{uid}"}])
-    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(chat_id, "📥 کاربر را انتخاب کنید:", kb)
-
-async def show_user_list_for_renew(chat_id):
-    async with LINKS_LOCK:
-        users = list(LINKS.items())[:10]
-    
-    if not users:
-        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
-        return
-    
-    kb = []
-    for uid, link in users:
-        kb.append([{"text": f"🔄 {link.get('label', 'بدون نام')}", "callback_data": f"select_renew_{uid}"}])
-    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(chat_id, "🔄 کاربر را برای تمدید انتخاب کنید:", kb)
-
-async def show_user_list_for_delete(chat_id):
-    async with LINKS_LOCK:
-        users = list(LINKS.items())[:10]
-    
-    if not users:
-        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
-        return
-    
-    kb = []
-    for uid, link in users:
-        kb.append([{"text": f"❌ {link.get('label', 'بدون نام')}", "callback_data": f"select_delete_{uid}"}])
-    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(chat_id, "❌ کاربر را برای حذف انتخاب کنید:", kb)
-
-async def send_user_config(chat_id, uuid):
-    async with LINKS_LOCK:
-        link = LINKS.get(uuid)
-    
-    if not link:
-        await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
-        return
-    
-    host = get_host()
-    label = link.get("label", "کاربر")
-    ports = link.get("ports", [443])
-    
-    vless_links = []
-    for port in ports:
-        vless_links.append(generate_vless_link(uuid, host, remark=label, fingerprint="chrome", port=port))
-    
-    content = "\n\n".join(vless_links)
-    await send_telegram_document(chat_id, content, f"config_{uuid[:8]}.txt")
-    
-    await send_telegram_message(chat_id,
-        f"🔗 ساب‌لینک: <code>https://{host}/sub/{uuid}</code>",
-        [[{"text": "🏠 منو", "callback_data": "main_menu"}]]
-    )
-
-async def renew_user(chat_id, uuid):
-    async with LINKS_LOCK:
-        link = LINKS.get(uuid)
-    
-    if not link:
-        await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
-        return
-    
-    if link.get("expires_at"):
-        try:
-            exp = datetime.fromisoformat(link["expires_at"])
-            link["expires_at"] = (exp + timedelta(days=30)).isoformat()
-        except:
-            link["expires_at"] = (datetime.now() + timedelta(days=30)).isoformat()
-    else:
-        link["expires_at"] = (datetime.now() + timedelta(days=30)).isoformat()
-    
-    if link.get("limit_bytes", 0) > 0:
-        link["limit_bytes"] += 5 * 1024**3
-    
-    link["active"] = True
-    await save_state()
-    
-    await send_telegram_message(chat_id,
-        f"✅ <b>{link.get('label')}</b> تمدید شد!\n"
-        f"📅 انقضا: {link['expires_at'][:16]}\n"
-        f"📊 حجم: {fmt_bytes(link.get('limit_bytes', 0))}",
-        [[{"text": "🏠 منو", "callback_data": "main_menu"}]]
-    )
-
-async def delete_user(chat_id, uuid):
-    async with LINKS_LOCK:
-        if uuid not in LINKS:
-            await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
-            return
-        label = LINKS[uuid].get("label", "بدون نام")
-        del LINKS[uuid]
-    
-    await save_state()
-    await send_telegram_message(chat_id, f"✅ <b>{label}</b> حذف شد!", [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
-
-# ─── ادامه WebSocket Tunnel ──────────────────────────────────────────────
-
-async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: str, uid: str):
+async def relay_ws_to_tcp(ws, writer, conn_id, uid):
     try:
         while True:
             msg = await ws.receive()
@@ -1482,7 +687,7 @@ async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: 
             if not data:
                 continue
             if not await check_and_use(uid, len(data)):
-                await ws.close(code=1008, reason="quota/disabled/unknown")
+                await ws.close(code=1008, reason="quota/disabled")
                 break
             stats["total_requests"] = stats.get("total_requests", 0) + 1
             if conn_id in connections:
@@ -1490,15 +695,15 @@ async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: 
             writer.write(data)
             if writer.transport.get_write_buffer_size() > RELAY_BUF:
                 await writer.drain()
-    except (WebSocketDisconnect, Exception):
+    except:
         pass
     finally:
         try:
             writer.write_eof()
-        except Exception:
+        except:
             pass
 
-async def relay_tcp_to_ws(ws: WebSocket, reader: asyncio.StreamReader, conn_id: str, uid: str):
+async def relay_tcp_to_ws(ws, reader, conn_id, uid):
     first = True
     try:
         while True:
@@ -1506,54 +711,35 @@ async def relay_tcp_to_ws(ws: WebSocket, reader: asyncio.StreamReader, conn_id: 
             if not data:
                 break
             if not await check_and_use(uid, len(data)):
-                await ws.close(code=1008, reason="quota/disabled/unknown")
+                await ws.close(code=1008, reason="quota/disabled")
                 break
             if conn_id in connections:
                 connections[conn_id]["bytes"] = connections[conn_id].get("bytes", 0) + len(data)
             payload = (b"\x00\x00" + data) if first else data
             first = False
             await ws.send_bytes(payload)
-    except Exception:
+    except:
         pass
 
 @app.websocket("/ws/{uuid}")
 async def websocket_tunnel(ws: WebSocket, uuid: str):
     await ws.accept()
-
-    client_ip = _ws_client_ip(ws)
-    
+    client_ip = _ws_ip(ws)
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
-
     if not link:
-        logger.warning(f"🚫 WS rejected uuid={uuid[:8]}… (user not found)")
         await ws.close(code=1008, reason="user not found")
         return
-
     if not is_link_allowed(link):
-        logger.warning(f"🚫 WS rejected uuid={uuid[:8]}… (not allowed)")
         await ws.close(code=1008, reason="not authorized")
         return
-
-    max_devices = link.get("max_devices", 0)
-    if max_devices > 0:
-        if not await check_device_limit(uuid, client_ip):
-            logger.warning(f"🚫 Device limit exceeded for {uuid[:8]}… (max: {max_devices})")
-            await ws.close(code=1008, reason="device limit exceeded")
-            return
+    if link.get("max_devices", 0) > 0 and not await check_device_limit(uuid, client_ip):
+        await ws.close(code=1008, reason="device limit exceeded")
+        return
 
     conn_id = secrets.token_urlsafe(6)
-    connections[conn_id] = {
-        "uuid": uuid,
-        "ip": client_ip,
-        "transport": "vless-ws",
-        "connected_at": datetime.now().isoformat(),
-        "bytes": 0,
-    }
-    
-    logger.info(f"✅ WS [{conn_id}] uuid={uuid[:8]}… ip={client_ip} total={len(connections)}")
-    log_activity("connection", f"اتصال جدید از {client_ip} (کانفیگ {link.get('label','?')})", "info")
-    
+    connections[conn_id] = {"uuid": uuid, "ip": client_ip, "transport": "vless-ws",
+                            "connected_at": datetime.now().isoformat(), "bytes": 0}
     writer = None
 
     try:
@@ -1563,427 +749,532 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         first_chunk = first_msg.get("bytes") or (first_msg.get("text") or "").encode()
         if not first_chunk:
             return
-
         command, address, port, payload = await parse_vless_header(first_chunk)
-
         if not await check_and_use(uuid, len(first_chunk)):
             await ws.close(code=1008, reason="quota/disabled")
             return
-
         stats["total_requests"] = stats.get("total_requests", 0) + 1
         if conn_id in connections:
             connections[conn_id]["bytes"] = connections[conn_id].get("bytes", 0) + len(first_chunk)
-        logger.info(f"➡️  [{conn_id}] → {address}:{port}")
 
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(address, port),
-            timeout=10.0
-        )
-        sock = writer.transport.get_extra_info('socket')
-        if sock:
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024*1024)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024*1024)
-
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(address, port), timeout=10.0)
+        if writer:
+            sock = writer.transport.get_extra_info('socket')
+            if sock:
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         if payload:
             writer.write(payload)
             await writer.drain()
 
         done, pending = await asyncio.wait(
-            {
-                asyncio.create_task(relay_ws_to_tcp(ws, writer, conn_id, uuid)),
-                asyncio.create_task(relay_tcp_to_ws(ws, reader, conn_id, uuid)),
-            },
-            return_when=asyncio.FIRST_COMPLETED,
+            {asyncio.create_task(relay_ws_to_tcp(ws, writer, conn_id, uuid)),
+             asyncio.create_task(relay_tcp_to_ws(ws, reader, conn_id, uuid))},
+            return_when=asyncio.FIRST_COMPLETED
         )
         for t in pending:
             t.cancel()
             try:
                 await t
-            except asyncio.CancelledError:
+            except:
                 pass
-
         asyncio.create_task(save_state())
-
-    except WebSocketDisconnect:
+    except:
         pass
-    except asyncio.TimeoutError:
-        stats["total_errors"] = stats.get("total_errors", 0) + 1
-        error_logs.append({"error": "connection timeout", "time": datetime.now().isoformat()})
-    except Exception as exc:
-        stats["total_errors"] = stats.get("total_errors", 0) + 1
-        error_logs.append({"error": str(exc), "time": datetime.now().isoformat()})
-        logger.error(f"WS error [{conn_id}]: {exc}")
     finally:
         if writer:
             try:
                 writer.close()
                 await writer.wait_closed()
-            except Exception:
+            except:
                 pass
         connections.pop(conn_id, None)
         await remove_device_connection(uuid, client_ip)
-        logger.info(f"🔌 WS closed [{conn_id}] total={len(connections)}")
 
 # ─── Subscriptions ─────────────────────────────────────────────────────────
 
 @app.get("/sub/{uuid}")
-async def subscription_single(request: Request, uuid: str):
+async def subscription_single(req: Request, uuid: str):
     import base64
-    
-    user_agent = request.headers.get("user-agent", "").lower()
-    is_browser = any(b in user_agent for b in [
-        "chrome", "firefox", "safari", "edge", "opera", "brave",
-        "msie", "trident"
-    ])
-    
+    ua = req.headers.get("user-agent", "").lower()
+    is_browser = any(b in ua for b in ["chrome", "firefox", "safari", "edge", "opera", "brave", "msie", "trident"])
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
-    
     if not link:
         if is_browser:
-            return HTMLResponse("""
-            <!DOCTYPE html>
-            <html lang="fa" dir="rtl">
-            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>🦅 کاربر یافت نشد</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-            <style>
-            *{margin:0;padding:0;box-sizing:border-box}
-            body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-            .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(59,130,246,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
-            .icon{font-size:64px;margin-bottom:16px}
-            h2{font-size:22px;font-weight:800;margin-bottom:8px}
-            p{color:#6A6A8A;font-size:13px;line-height:1.8}
-            </style>
-            </head>
-            <body>
-            <div class="card">
-                <div class="icon">🦅</div>
-                <h2>کاربر یافت نشد</h2>
-                <p>لینک ساب‌لینک معتبر نیست یا کاربر حذف شده است.</p>
-            </div>
-            </body>
-            </html>
-            """, status_code=404)
-        else:
-            raise HTTPException(status_code=404, detail="user not found")
-    
+            return HTMLResponse("""<html><body><h1>کاربر یافت نشد</h1></body></html>""", status_code=404)
+        raise HTTPException(404, "user not found")
     if not is_link_allowed(link):
         if is_browser:
-            return HTMLResponse("""
-            <!DOCTYPE html>
-            <html lang="fa" dir="rtl">
-            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>⛔ کاربر غیرفعال</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-            <style>
-            *{margin:0;padding:0;box-sizing:border-box}
-            body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-            .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
-            .icon{font-size:64px;margin-bottom:16px}
-            h2{font-size:22px;font-weight:800;margin-bottom:8px}
-            p{color:#6A6A8A;font-size:13px;line-height:1.8}
-            .status{color:#F87171}
-            </style>
-            </head>
-            <body>
-            <div class="card">
-                <div class="icon">⛔</div>
-                <h2>کاربر غیرفعال یا منقضی</h2>
-                <p class="status">این کانفیگ فعال نیست یا تاریخ انقضای آن گذشته است.</p>
-            </div>
-            </body>
-            </html>
-            """, status_code=403)
-        else:
-            raise HTTPException(status_code=403, detail="user disabled or expired")
-    
+            return HTMLResponse("""<html><body><h1>کاربر غیرفعال</h1></body></html>""", status_code=403)
+        raise HTTPException(403, "user disabled or expired")
     host = get_host()
-    label = link.get("label", "کاربر")
-    protocol = link.get("protocol", DEFAULT_PROTOCOL)
-    fingerprint = link.get("fingerprint", "chrome")
     ports = link.get("ports", [443])
-    limit_bytes = link.get("limit_bytes", 0)
-    used_bytes = link.get("used_bytes", 0)
-    expires_at = link.get("expires_at")
-    
-    percent = 0
-    if limit_bytes > 0:
-        percent = min(100, (used_bytes / limit_bytes) * 100)
-    
-    days_left = "نامحدود"
-    if expires_at:
-        try:
-            exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-            days = (exp_date - datetime.now().astimezone()).days
-            days_left = f"{days} روز" if days > 0 else "منقضی"
-        except:
-            days_left = "نامشخص"
-    
-    user_ip = "نامشخص"
-    for c in connections.values():
-        if c.get("uuid") == uuid:
-            user_ip = c.get("ip", "نامشخص")
-            break
-    
     vless_links = []
-    for i, port in enumerate(ports):
-        remark = f"{label}-p{port}" if len(ports) > 1 else label
-        vless_links.append(generate_vless_link(
-            uuid, host, remark=remark, protocol=protocol, 
-            fingerprint=fingerprint, port=port
-        ))
-    
+    for port in ports:
+        remark = f"{link.get('label','کاربر')}-p{port}" if len(ports) > 1 else link.get('label', 'کاربر')
+        vless_links.append(generate_vless_link(uuid, host, remark=remark,
+                                               protocol=link.get("protocol", DEFAULT_PROTOCOL),
+                                               fingerprint=link.get("fingerprint", "chrome"), port=port))
     if not is_browser:
-        userinfo = f"upload=0&download={used_bytes}&total={limit_bytes}"
-        if expires_at:
-            try:
-                exp_ts = int(datetime.fromisoformat(expires_at.replace('Z', '+00:00')).timestamp())
+        userinfo = f"upload=0&download={link.get('used_bytes',0)}&total={link.get('limit_bytes',0)}"
+        try:
+            if link.get("expires_at"):
+                exp_ts = int(datetime.fromisoformat(link["expires_at"].replace('Z', '+00:00')).timestamp())
                 userinfo += f"&expire={exp_ts}"
-            except:
-                pass
-        
-        content = "\n".join(vless_links)
-        content_b64 = base64.b64encode(content.encode()).decode()
-        
-        return Response(
-            content=content_b64,
-            media_type="text/plain",
-            headers={
-                "Content-Disposition": f"attachment; filename=config_{uuid[:8]}.txt",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0",
-                "profile-title": quote(label),
-                "profile-update-interval": "12",
-                "profile-web-page-url": f"https://{host}/info/{uuid}",
-                "Subscription-Userinfo": userinfo,
-            }
-        )
-    
+        except:
+            pass
+        content = base64.b64encode("\n".join(vless_links).encode()).decode()
+        return Response(content=content, media_type="text/plain",
+                        headers={"Subscription-Userinfo": userinfo,
+                                 "profile-title": quote(link.get("label", "کاربر")),
+                                 "profile-update-interval": "12"})
     from pages import get_sub_page_html
-    
-    active_connections_list = []
-    for c in connections.values():
-        if c.get("uuid") == uuid:
-            active_connections_list.append(c)
-    
-    active_connections_count = len(active_connections_list)
-    
-    last_connected = None
-    for c in connections.values():
-        if c.get("uuid") == uuid:
-            if not last_connected or c.get("connected_at") > last_connected:
-                last_connected = c.get("connected_at")
-    
-    link_data = {
-        **link,
-        "expired": is_link_expired(link),
-        "active_connections": active_connections_count,
-        "active_connections_list": active_connections_list,
-        "last_connected_at": last_connected,
-        "vless_links": vless_links,
-        "vless_link": vless_links[0] if vless_links else "",
-        "sub_url": f"https://{host}/sub/{uuid}",
-        "user_ip": user_ip,
-        "percent": percent,
-        "days_left": days_left,
-        "used_fmt": fmt_bytes(used_bytes),
-        "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
-    }
-    
+    active_conns = [c for c in connections.values() if c.get("uuid") == uuid]
+    link_data = {**link, "expired": is_link_expired(link), "active_connections": len(active_conns),
+                 "active_connections_list": active_conns, "vless_links": vless_links,
+                 "vless_link": vless_links[0] if vless_links else "", "sub_url": f"https://{host}/sub/{uuid}"}
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
 
 @app.get("/sub-all")
 async def subscription_all(_=Depends(require_auth)):
+    import base64
     host = get_host()
     async with LINKS_LOCK:
         lines = []
         for uid, d in LINKS.items():
             if is_link_allowed(d):
-                fp = d.get("fingerprint", "chrome")
-                ports = d.get("ports", [443])
-                label = d.get("label", "کاربر")
-                remark_base = f"عقاب-{label}"
-                for i, port in enumerate(ports):
-                    remark = f"{remark_base}-p{port}" if len(ports) > 1 else remark_base
-                    lines.append(generate_vless_link(uid, host, remark=remark, protocol=d.get("protocol", DEFAULT_PROTOCOL), fingerprint=fp, port=port))
-    content = base64.b64encode("\n".join(lines).encode()).decode()
-    return Response(content=content, media_type="text/plain")
+                for port in d.get("ports", [443]):
+                    lines.append(generate_vless_link(uid, host,
+                                 remark=f"عقاب-{d.get('label','کاربر')}",
+                                 protocol=d.get("protocol", DEFAULT_PROTOCOL),
+                                 fingerprint=d.get("fingerprint", "chrome"), port=port))
+    return Response(content=base64.b64encode("\n".join(lines).encode()).decode(), media_type="text/plain")
 
 @app.get("/info/{uuid}")
-async def info_page(uuid: str, request: Request):
+async def info_page(uuid: str, req: Request):
     from pages import get_sub_page_html
-    
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
-    
     if not link:
-        return HTMLResponse("""
-        <!DOCTYPE html>
-        <html lang="fa" dir="rtl">
-        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>🦅 کاربر یافت نشد</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-        <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(59,130,246,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
-        .icon{font-size:64px;margin-bottom:16px}
-        h2{font-size:22px;font-weight:800;margin-bottom:8px}
-        p{color:#6A6A8A;font-size:13px;line-height:1.8}
-        </style>
-        </head>
-        <body>
-        <div class="card">
-            <div class="icon">🦅</div>
-            <h2>کاربر یافت نشد</h2>
-            <p>لینک اطلاعات معتبر نیست یا کاربر حذف شده است.</p>
-        </div>
-        </body>
-        </html>
-        """, status_code=404)
-    
+        return HTMLResponse("""<html><body><h1>کاربر یافت نشد</h1></body></html>""", status_code=404)
     if not is_link_allowed(link):
-        return HTMLResponse("""
-        <!DOCTYPE html>
-        <html lang="fa" dir="rtl">
-        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>⛔ کاربر غیرفعال</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-        <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
-        .icon{font-size:64px;margin-bottom:16px}
-        h2{font-size:22px;font-weight:800;margin-bottom:8px}
-        p{color:#6A6A8A;font-size:13px;line-height:1.8}
-        .status{color:#F87171}
-        </style>
-        </head>
-        <body>
-        <div class="card">
-            <div class="icon">⛔</div>
-            <h2>کاربر غیرفعال یا منقضی</h2>
-            <p class="status">این کانفیگ فعال نیست یا تاریخ انقضای آن گذشته است.</p>
-        </div>
-        </body>
-        </html>
-        """, status_code=403)
-    
+        return HTMLResponse("""<html><body><h1>کاربر غیرفعال</h1></body></html>""", status_code=403)
     host = get_host()
-    label = link.get("label", "کاربر")
-    protocol = link.get("protocol", DEFAULT_PROTOCOL)
-    fingerprint = link.get("fingerprint", "chrome")
     ports = link.get("ports", [443])
-    limit_bytes = link.get("limit_bytes", 0)
-    used_bytes = link.get("used_bytes", 0)
-    expires_at = link.get("expires_at")
-    max_devices = link.get("max_devices", 0)
-    
-    percent = 0
-    if limit_bytes > 0:
-        percent = min(100, (used_bytes / limit_bytes) * 100)
-    
-    days_left = "نامحدود"
-    if expires_at:
-        try:
-            exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-            days = (exp_date - datetime.now().astimezone()).days
-            days_left = f"{days} روز" if days > 0 else "منقضی"
-        except:
-            days_left = "نامشخص"
-    
-    user_ip = "نامشخص"
-    for c in connections.values():
-        if c.get("uuid") == uuid:
-            user_ip = c.get("ip", "نامشخص")
-            break
-    
-    vless_links = []
-    for i, port in enumerate(ports):
-        remark = f"{label}-p{port}" if len(ports) > 1 else label
-        vless_links.append(generate_vless_link(
-            uuid, host, remark=remark, protocol=protocol, 
-            fingerprint=fingerprint, port=port
-        ))
-    
-    active_connections_list = []
-    for c in connections.values():
-        if c.get("uuid") == uuid:
-            active_connections_list.append(c)
-    active_connections_count = len(active_connections_list)
-    
-    last_connected = None
-    for c in connections.values():
-        if c.get("uuid") == uuid:
-            if not last_connected or c.get("connected_at") > last_connected:
-                last_connected = c.get("connected_at")
-    
-    link_data = {
-        **link,
-        "expired": is_link_expired(link),
-        "active_connections": active_connections_count,
-        "active_connections_list": active_connections_list,
-        "last_connected_at": last_connected,
-        "vless_links": vless_links,
-        "vless_link": vless_links[0] if vless_links else "",
-        "sub_url": f"https://{host}/sub/{uuid}",
-        "user_ip": user_ip,
-        "percent": percent,
-        "days_left": days_left,
-        "used_fmt": fmt_bytes(used_bytes),
-        "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
-        "max_devices": max_devices,
-    }
-    
+    vless_links = [generate_vless_link(uuid, host, remark=f"{link.get('label','کاربر')}-p{port}" if len(ports) > 1 else link.get('label','کاربر'),
+                                       protocol=link.get("protocol", DEFAULT_PROTOCOL),
+                                       fingerprint=link.get("fingerprint", "chrome"), port=port) for port in ports]
+    active_conns = [c for c in connections.values() if c.get("uuid") == uuid]
+    link_data = {**link, "expired": is_link_expired(link), "active_connections": len(active_conns),
+                 "active_connections_list": active_conns, "vless_links": vless_links,
+                 "vless_link": vless_links[0] if vless_links else "", "sub_url": f"https://{host}/sub/{uuid}"}
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
+
+# ─── ===== BAT TELEGRAM (فوق‌العاده سریع) ===== ──────────────────────────
+
+@app.post("/webhook/telegram")
+async def telegram_webhook(req: Request):
+    token = SETTINGS.get("telegram_bot_token", "")
+    if not token:
+        return {"ok": False}
+    try:
+        body = await req.json()
+    except:
+        return {"ok": False}
+    asyncio.create_task(process_tg_update(body))
+    return {"ok": True}
+
+async def process_tg_update(body: dict):
+    try:
+        msg = body.get("message")
+        cb = body.get("callback_query")
+        if msg:
+            chat_id = msg.get("chat", {}).get("id")
+            text = msg.get("text", "").strip()
+            username = msg.get("from", {}).get("username", "کاربر")
+            if text.startswith("/"):
+                if text == "/start":
+                    await send_main_menu(chat_id, username)
+                elif text == "/new":
+                    await start_new_user(chat_id)
+                elif text == "/list":
+                    await send_user_list(chat_id)
+                elif text == "/edit":
+                    await show_user_list_for_edit(chat_id)
+                elif text.startswith("/config"):
+                    parts = text.split()
+                    if len(parts) > 1:
+                        await send_user_config(chat_id, parts[1])
+                    else:
+                        await tg_send(chat_id, "❌ UUID را وارد کنید: /config UUID")
+                elif text.startswith("/renew"):
+                    parts = text.split()
+                    if len(parts) > 1:
+                        await renew_user(chat_id, parts[1])
+                    else:
+                        await tg_send(chat_id, "❌ UUID را وارد کنید: /renew UUID")
+                elif text.startswith("/delete"):
+                    parts = text.split()
+                    if len(parts) > 1:
+                        await delete_user(chat_id, parts[1])
+                    else:
+                        await tg_send(chat_id, "❌ UUID را وارد کنید: /delete UUID")
+                else:
+                    await tg_send(chat_id, "❌ دستور نامعتبر!\n/start منو", [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
+            else:
+                await handle_text_msg(chat_id, text, username)
+        elif cb:
+            chat_id = cb.get("message", {}).get("chat", {}).get("id")
+            data = cb.get("data", "")
+            username = cb.get("from", {}).get("username", "کاربر")
+            cb_id = cb.get("id")
+            await tg_answer(cb_id)
+            await handle_callback(chat_id, data, username)
+    except Exception as e:
+        logger.error(f"TG error: {e}")
+
+async def send_main_menu(chat_id, username):
+    kb = [[{"text": "📝 ساخت کاربر جدید", "callback_data": "new_user"}],
+          [{"text": "📊 لیست کاربران", "callback_data": "list_users"}],
+          [{"text": "✏️ ویرایش کاربر", "callback_data": "edit_user"}],
+          [{"text": "📥 دریافت کانفیگ", "callback_data": "get_config"}],
+          [{"text": "🔄 تمدید کاربر", "callback_data": "renew_user"}],
+          [{"text": "❌ حذف کاربر", "callback_data": "delete_user"}]]
+    await tg_send(chat_id, f"🪐 <b>پنل عقاب</b>\n👤 {username}\n📅 {now_ir().strftime('%Y-%m-%d %H:%M')}", kb)
+
+async def handle_text_msg(chat_id, text, username):
+    async with TELEGRAM_SESSIONS_LOCK:
+        session = TELEGRAM_SESSIONS.get(str(chat_id))
+    if session and session.get("action") in ["creating_user", "editing_user"]:
+        await handle_user_step(chat_id, text, session)
+    else:
+        await tg_send(chat_id, "❌ از دکمه‌ها استفاده کنید یا /start", [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
+
+async def handle_user_step(chat_id, text, session):
+    action = session.get("action")
+    step = session.get("step", "label")
+    data = session.get("data", {})
+    is_edit = action == "editing_user"
+
+    if step == "label":
+        if len(text) < 2:
+            await tg_send(chat_id, "❌ نام باید حداقل ۲ کاراکتر باشد.")
+            return
+        data["label"] = text.strip()
+        async with TELEGRAM_SESSIONS_LOCK:
+            TELEGRAM_SESSIONS[str(chat_id)]["step"] = "quota"
+            TELEGRAM_SESSIONS[str(chat_id)]["data"] = data
+        kb = [[{"text": "1GB", "callback_data": "quota_1"}, {"text": "2GB", "callback_data": "quota_2"},
+               {"text": "5GB", "callback_data": "quota_5"}],
+              [{"text": "10GB", "callback_data": "quota_10"}, {"text": "20GB", "callback_data": "quota_20"},
+               {"text": "50GB", "callback_data": "quota_50"}],
+              [{"text": "∞ نامحدود", "callback_data": "quota_0"}, {"text": "✏️ عدد دلخواه", "callback_data": "quota_custom"}],
+              [{"text": "❌ انصراف", "callback_data": "main_menu"}]]
+        await tg_send(chat_id, f"✅ نام <b>{data['label']}</b> ذخیره شد!\nحجم را انتخاب کنید:", kb)
+
+    elif step == "quota":
+        if text.isdigit() or (text.replace('.', '').isdigit() and '.' in text):
+            quota = float(text)
+            if quota < 0:
+                await tg_send(chat_id, "❌ عدد منفی مجاز نیست.")
+                return
+            data["quota"] = quota
+            async with TELEGRAM_SESSIONS_LOCK:
+                TELEGRAM_SESSIONS[str(chat_id)]["step"] = "days"
+        else:
+            await tg_send(chat_id, "❌ عدد معتبر وارد کنید.")
+            return
+
+    elif step == "days":
+        try:
+            days = int(text)
+            if days <= 0:
+                raise ValueError
+            data["days"] = days
+            async with TELEGRAM_SESSIONS_LOCK:
+                TELEGRAM_SESSIONS[str(chat_id)]["step"] = "fingerprint"
+            kb = [[{"text": "🌐 Chrome", "callback_data": "fp_chrome"}, {"text": "🦊 Firefox", "callback_data": "fp_firefox"}],
+                  [{"text": "🧭 Safari", "callback_data": "fp_safari"}, {"text": "📱 iOS", "callback_data": "fp_ios"}],
+                  [{"text": "🤖 Android", "callback_data": "fp_android"}, {"text": "🎲 Random", "callback_data": "fp_random"}]]
+            await tg_send(chat_id, f"✅ {days} روز\nفینگرپرینت را انتخاب کنید:", kb)
+        except:
+            await tg_send(chat_id, "❌ عدد روز معتبر وارد کنید (مثلاً 30)")
+
+    elif step == "fingerprint":
+        fp_map = {"chrome": "chrome", "firefox": "firefox", "safari": "safari", "ios": "ios", "android": "android",
+                  "random": "random", "none": "none"}
+        fp = fp_map.get(text, "chrome")
+        data["fingerprint"] = fp
+        if is_edit:
+            async with TELEGRAM_SESSIONS_LOCK:
+                TELEGRAM_SESSIONS[str(chat_id)]["step"] = "finish"
+            await finish_edit_user(chat_id, data)
+        else:
+            await finish_create_user(chat_id, data)
+
+async def finish_create_user(chat_id, data):
+    label = data.get("label", "کاربر")
+    quota = data.get("quota", 2)
+    days = data.get("days", 30)
+    fp = data.get("fingerprint", "chrome")
+
+    uid = generate_uuid()
+    async with LINKS_LOCK:
+        LINKS[uid] = {"label": label, "limit_bytes": int(quota * 1024**3) if quota > 0 else 0,
+                      "used_bytes": 0, "created_at": datetime.now().isoformat(), "active": True,
+                      "expires_at": (datetime.now() + timedelta(days=days)).isoformat(),
+                      "note": "ساخته شده از بات", "is_default": False, "sub_id": None,
+                      "protocol": DEFAULT_PROTOCOL, "max_devices": 1, "fingerprint": fp,
+                      "password_hash": None, "ports": [443]}
+
+    await save_state()
+    log_activity("link", f"کاربر {label} از بات ساخته شد", "ok")
+
+    host = get_host()
+    sub_url = f"https://{host}/sub/{uid}"
+    vless_link = generate_vless_link(uid, host, remark=f"عقاب-{label}", fingerprint=fp, port=443)
+
+    async with TELEGRAM_SESSIONS_LOCK:
+        if str(chat_id) in TELEGRAM_SESSIONS:
+            del TELEGRAM_SESSIONS[str(chat_id)]
+
+    kb = [[{"text": "📝 کاربر دیگر", "callback_data": "new_user"}, {"text": "🏠 منو", "callback_data": "main_menu"}]]
+    await tg_send(chat_id,
+        f"✅ <b>کاربر {label} ساخته شد!</b>\n\n"
+        f"📊 حجم: {fmt_bytes(int(quota * 1024**3)) if quota > 0 else 'نامحدود'}\n"
+        f"📅 انقضا: {days} روز\n"
+        f"🖐️ FP: {fp}\n"
+        f"🔗 ساب: <code>{sub_url}</code>\n"
+        f"🔗 کانفیگ: <code>{vless_link}</code>", kb)
+
+async def finish_edit_user(chat_id, data):
+    uid = data.get("uid")
+    label = data.get("label")
+    quota = data.get("quota")
+    days = data.get("days")
+    fp = data.get("fingerprint")
+
+    async with LINKS_LOCK:
+        if uid not in LINKS:
+            await tg_send(chat_id, "❌ کاربر یافت نشد!")
+            return
+        link = LINKS[uid]
+        link["label"] = label
+        link["limit_bytes"] = int(quota * 1024**3) if quota > 0 else 0
+        link["expires_at"] = (datetime.now() + timedelta(days=days)).isoformat()
+        link["fingerprint"] = fp
+        link["active"] = True
+
+    await save_state()
+    log_activity("link", f"کاربر {label} ویرایش شد", "ok")
+
+    async with TELEGRAM_SESSIONS_LOCK:
+        if str(chat_id) in TELEGRAM_SESSIONS:
+            del TELEGRAM_SESSIONS[str(chat_id)]
+
+    await tg_send(chat_id, f"✅ <b>کاربر {label} ویرایش شد!</b>",
+                  [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
+
+async def handle_callback(chat_id, data, username):
+    if data == "main_menu":
+        await send_main_menu(chat_id, username)
+
+    elif data == "new_user":
+        await start_new_user(chat_id)
+
+    elif data == "list_users":
+        await send_user_list(chat_id)
+
+    elif data == "edit_user":
+        await show_user_list_for_edit(chat_id)
+
+    elif data == "get_config":
+        await show_user_list_for_config(chat_id)
+
+    elif data == "renew_user":
+        await show_user_list_for_renew(chat_id)
+
+    elif data == "delete_user":
+        await show_user_list_for_delete(chat_id)
+
+    elif data.startswith("quota_"):
+        val = data.replace("quota_", "")
+        if val == "custom":
+            async with TELEGRAM_SESSIONS_LOCK:
+                session = TELEGRAM_SESSIONS.get(str(chat_id))
+                if session:
+                    session["step"] = "quota"
+            await tg_send(chat_id, "✏️ عدد حجم را به GB وارد کنید:")
+            return
+        quota = float(val)
+        async with TELEGRAM_SESSIONS_LOCK:
+            session = TELEGRAM_SESSIONS.get(str(chat_id))
+            if session:
+                session["data"]["quota"] = quota
+                session["step"] = "days"
+        await tg_send(chat_id, f"✅ {quota}GB\n📅 تعداد روز انقضا را وارد کنید:")
+
+    elif data.startswith("fp_"):
+        fp = data.replace("fp_", "")
+        async with TELEGRAM_SESSIONS_LOCK:
+            session = TELEGRAM_SESSIONS.get(str(chat_id))
+            if session:
+                session["data"]["fingerprint"] = fp
+                if session.get("action") == "editing_user":
+                    await finish_edit_user(chat_id, session["data"])
+                else:
+                    await finish_create_user(chat_id, session["data"])
+
+    elif data.startswith("select_edit_"):
+        uid = data.replace("select_edit_", "")
+        async with TELEGRAM_SESSIONS_LOCK:
+            TELEGRAM_SESSIONS[str(chat_id)] = {"action": "editing_user", "step": "label", "data": {"uid": uid}}
+        await tg_send(chat_id, "✏️ نام جدید را وارد کنید:", [[{"text": "❌ انصراف", "callback_data": "main_menu"}]])
+
+    elif data.startswith("select_config_"):
+        await send_user_config(chat_id, data.replace("select_config_", ""))
+
+    elif data.startswith("select_renew_"):
+        await renew_user(chat_id, data.replace("select_renew_", ""))
+
+    elif data.startswith("select_delete_"):
+        await delete_user(chat_id, data.replace("select_delete_", ""))
+
+    elif data.startswith("list_page_"):
+        await send_user_list(chat_id, int(data.replace("list_page_", "")))
+
+    else:
+        await tg_send(chat_id, "❌ گزینه نامعتبر!")
+
+async def start_new_user(chat_id):
+    async with TELEGRAM_SESSIONS_LOCK:
+        TELEGRAM_SESSIONS[str(chat_id)] = {"action": "creating_user", "step": "label", "data": {}}
+    await tg_send(chat_id, "📝 نام کاربری را وارد کنید:", [[{"text": "❌ انصراف", "callback_data": "main_menu"}]])
+
+async def get_cached_users():
+    if time.time() - CACHE_USERS["timestamp"] < CACHE_USERS["ttl"]:
+        return CACHE_USERS["data"]
+    async with LINKS_LOCK:
+        users = list(LINKS.items())
+    CACHE_USERS["data"] = users
+    CACHE_USERS["timestamp"] = time.time()
+    return users
+
+async def send_user_list(chat_id, page=0):
+    users = await get_cached_users()
+    if not users:
+        await tg_send(chat_id, "📭 کاربری وجود ندارد!")
+        return
+    per_page, total = 5, (len(users) + 4) // 5
+    start, end = page * per_page, min(start + per_page, len(users))
+    msg = f"📊 کاربران ({page+1}/{total})\n\n"
+    for uid, link in users[start:end]:
+        label = link.get("label", "بدون نام")
+        used, limit = link.get("used_bytes", 0), link.get("limit_bytes", 0)
+        active = link.get("active", True) and not is_link_expired(link)
+        msg += f"• <b>{label}</b>\n  مصرف: {fmt_bytes(used)} / {fmt_bytes(limit) if limit > 0 else '∞'}\n  وضعیت: {'🟢' if active else '🔴'}\n  UUID: <code>{uid[:8]}...</code>\n\n"
+    kb = []
+    nav = [{"text": "⬅️", "callback_data": f"list_page_{page-1}"} if page > 0 else None,
+           {"text": "➡️", "callback_data": f"list_page_{page+1}"} if page < total - 1 else None]
+    nav = [b for b in nav if b]
+    if nav:
+        kb.append(nav)
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
+    await tg_send(chat_id, msg, kb)
+
+async def show_user_list_for_config(chat_id):
+    users = await get_cached_users()
+    if not users:
+        await tg_send(chat_id, "📭 کاربری وجود ندارد!")
+        return
+    kb = [[{"text": f"📥 {link.get('label','بدون نام')}", "callback_data": f"select_config_{uid}"}] for uid, link in users[:10]]
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
+    await tg_send(chat_id, "📥 کاربر را انتخاب کنید:", kb)
+
+async def show_user_list_for_edit(chat_id):
+    users = await get_cached_users()
+    if not users:
+        await tg_send(chat_id, "📭 کاربری وجود ندارد!")
+        return
+    kb = [[{"text": f"✏️ {link.get('label','بدون نام')}", "callback_data": f"select_edit_{uid}"}] for uid, link in users[:10]]
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
+    await tg_send(chat_id, "✏️ کاربر را برای ویرایش انتخاب کنید:", kb)
+
+async def show_user_list_for_renew(chat_id):
+    users = await get_cached_users()
+    if not users:
+        await tg_send(chat_id, "📭 کاربری وجود ندارد!")
+        return
+    kb = [[{"text": f"🔄 {link.get('label','بدون نام')}", "callback_data": f"select_renew_{uid}"}] for uid, link in users[:10]]
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
+    await tg_send(chat_id, "🔄 کاربر را برای تمدید انتخاب کنید:", kb)
+
+async def show_user_list_for_delete(chat_id):
+    users = await get_cached_users()
+    if not users:
+        await tg_send(chat_id, "📭 کاربری وجود ندارد!")
+        return
+    kb = [[{"text": f"❌ {link.get('label','بدون نام')}", "callback_data": f"select_delete_{uid}"}] for uid, link in users[:10]]
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
+    await tg_send(chat_id, "❌ کاربر را برای حذف انتخاب کنید:", kb)
+
+async def send_user_config(chat_id, uuid):
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+    if not link:
+        await tg_send(chat_id, "❌ کاربر یافت نشد!")
+        return
+    host, label = get_host(), link.get("label", "کاربر")
+    vless_links = [generate_vless_link(uuid, host, remark=label, fingerprint="chrome", port=port) for port in link.get("ports", [443])]
+    await tg_doc(chat_id, "\n\n".join(vless_links), f"config_{uuid[:8]}.txt")
+    await tg_send(chat_id, f"🔗 ساب: <code>https://{host}/sub/{uuid}</code>", [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
+
+async def renew_user(chat_id, uuid):
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+    if not link:
+        await tg_send(chat_id, "❌ کاربر یافت نشد!")
+        return
+    link["expires_at"] = (datetime.now() + timedelta(days=30)).isoformat()
+    if link.get("limit_bytes", 0) > 0:
+        link["limit_bytes"] += 5 * 1024**3
+    link["active"] = True
+    await save_state()
+    await tg_send(chat_id, f"✅ {link.get('label')} تمدید شد!", [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
+
+async def delete_user(chat_id, uuid):
+    async with LINKS_LOCK:
+        if uuid not in LINKS:
+            await tg_send(chat_id, "❌ کاربر یافت نشد!")
+            return
+        label = LINKS[uuid].get("label", "بدون نام")
+        del LINKS[uuid]
+    await save_state()
+    await tg_send(chat_id, f"✅ {label} حذف شد!", [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
 
 # ─── HTML Pages ─────────────────────────────────────────────────────────────
 
 from pages import LOGIN_HTML, DASHBOARD_HTML
 
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    if await is_valid_session(request.cookies.get(SESSION_COOKIE)):
+@app.get("/login")
+async def login_page(req: Request):
+    if await is_valid_session(req.cookies.get(SESSION_COOKIE)):
         return RedirectResponse(url="/dashboard")
     return HTMLResponse(content=LOGIN_HTML)
 
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    if not await is_valid_session(request.cookies.get(SESSION_COOKIE)):
+@app.get("/dashboard")
+async def dashboard(req: Request):
+    if not await is_valid_session(req.cookies.get(SESSION_COOKIE)):
         return RedirectResponse(url="/login")
     return HTMLResponse(content=DASHBOARD_HTML)
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def root():
-    return HTMLResponse("""
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="UTF-8"><title>🪐 Eagle Gateway</title>
-    <style>
-    body{font-family:sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    return HTMLResponse("""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>🪐 Eagle Gateway</title>
+    <style>body{font-family:sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
     .card{text-align:center;padding:40px;background:rgba(20,20,40,0.7);border-radius:20px;border:1px solid rgba(100,80,255,0.2)}
-    h1{font-size:48px;margin:0}
-    .sub{color:#888}
-    a{color:#7C6BFF;text-decoration:none;font-weight:bold}
-    </style>
-    </head>
-    <body>
-    <div class="card">
-        <h1>🪐</h1>
-        <h2>Eagle Gateway v10 Pro</h2>
-        <p class="sub">پنل مدیریت فیلترشکن</p>
-        <a href="/login">ورود به پنل →</a>
-    </div>
-    </body>
-    </html>
-    """)
+    h1{font-size:48px;margin:0}.sub{color:#888}a{color:#7C6BFF;text-decoration:none}</style></head>
+    <body><div class="card"><h1>🪐</h1><h2>Eagle Gateway v10 Pro</h2><p class="sub">پنل مدیریت فیلترشکن</p><a href="/login">ورود →</a></div></body></html>""")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=CONFIG["port"], log_level="info", workers=1)
