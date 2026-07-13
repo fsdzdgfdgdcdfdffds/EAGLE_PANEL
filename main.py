@@ -34,7 +34,7 @@ CONFIG = {
     "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", os.environ.get("RENDER_EXTERNAL_URL", "localhost")),
 }
 
-app = FastAPI(title="🪐 Eagle Gateway", docs_url=None, redoc_url=None)
+app = FastAPI(title="🪐 Eagle Gateway v10 Pro", docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # ─── State ────────────────────────────────────────────────────────────────────
@@ -942,7 +942,6 @@ async def subscription_single(req: Request, uuid: str):
     
     host = get_host()
     ports = link.get("ports", [443])
-    clean_ip = link.get("clean_ip")
     vless_links = []
     for port in ports:
         vless_links.append(generate_vless_link(uuid, host, remark=link.get("label", "کاربر"),
@@ -985,7 +984,7 @@ async def root():
     <style>body{font-family:sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
     .card{text-align:center;padding:40px;background:rgba(20,20,40,0.7);border-radius:20px;border:1px solid rgba(100,80,255,0.2)}
     h1{font-size:48px;margin:0}.sub{color:#888}a{color:#7C6BFF;text-decoration:none}</style></head>
-    <body><div class="card"><h1>🪐</h1><h2>Eagle Gateway</h2><p class="sub">پنل مدیریت فیلترشکن</p><a href="/login">ورود →</a></div></body></html>""")
+    <body><div class="card"><h1>🪐</h1><h2>Eagle Gateway v10 Pro</h2><p class="sub">پنل مدیریت فیلترشکن</p><a href="/login">ورود →</a></div></body></html>""")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=CONFIG["port"], log_level="info", workers=1)
