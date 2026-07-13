@@ -35,8 +35,6 @@ CONFIG = {
     "port": int(os.environ.get("PORT", 8000)),
     "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
     "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", os.environ.get("RENDER_EXTERNAL_URL", "localhost")),
-    "admin_password": os.environ.get("ADMIN_PASSWORD", "123456"),
-    "admin_username": os.environ.get("ADMIN_USERNAME", "admin"),
 }
 
 app = FastAPI(title="🪐 Eagle Gateway v10 Pro", docs_url=None, redoc_url=None)
@@ -47,25 +45,21 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 DATA_FILE = DATA_DIR / "eagle_state.json"
 SAVE_LOCK = asyncio.Lock()
 
-# ─── Workspace System ─────────────────────────────────────────────────────────
-WORKSPACES: dict = {}
-WORKSPACES_LOCK = asyncio.Lock()
-
-# Super Admin (مدیر کل)
-SUPER_ADMIN = {
-    "username": os.environ.get("SUPER_ADMIN_USERNAME", "superadmin"),
-    "password_hash": hashlib.sha256(f"{os.environ.get('SUPER_ADMIN_PASSWORD', 'superadmin123')}{CONFIG['secret']}".encode()).hexdigest(),
-}
-
 # ─── Auth ──────────────────────────────────────────────────────────────────────
 SESSION_COOKIE = "eagle_session"
 SESSION_TTL = 60 * 60 * 24 * 7
-AUTH = {
-    "password_hash": hashlib.sha256(f"{CONFIG['admin_password']}{CONFIG['secret']}".encode()).hexdigest(),
-    "username": CONFIG["admin_username"],
+
+MAIN_ADMIN = {
+    "username": "admin",
+    "password_hash": hashlib.sha256(f"123456{CONFIG['secret']}".encode()).hexdigest(),
 }
+
 SESSIONS: dict = {}
 SESSIONS_LOCK = asyncio.Lock()
+
+# ─── Workspace System ─────────────────────────────────────────────────────────
+WORKSPACES: dict = {}
+WORKSPACES_LOCK = asyncio.Lock()
 
 # ─── Default Settings ─────────────────────────────────────────────────────────
 DEFAULT_SETTINGS = {
@@ -75,24 +69,23 @@ DEFAULT_SETTINGS = {
     "inbound_port": 443,
     "language": "fa",
     "theme": "dark",
-    "telegram_bot_token": "",
-    "telegram_chat_id": "",
-    "clean_ips": [
-        {"ip": "104.16.5.10", "provider": "MCI", "active": True},
-        {"ip": "104.17.20.30", "provider": "Irancell", "active": True},
-        {"ip": "104.18.10.20", "provider": "Hamrahe Aval", "active": True},
-    ],
+    "clean_ips": [],
     "ad_filter_enabled": True,
     "porn_filter_enabled": True,
     "malware_filter_enabled": True,
     "backup_interval": 6,
-    "multi_server": False,
-    "servers": [],
     "routes": [],
-    "log_retention_days": 30,
 }
 
-SETTINGS: dict = DEFAULT_SETTINGS.copy()
+PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
+DEFAULT_PROTOCOL = "vless-ws"
+DEFAULT_PORTS = [443, 8443, 2053, 2096, 2087, 2083, 8080]
+
+FINGERPRINTS = {
+    "chrome": "🌐 Chrome", "firefox": "🦊 Firefox", "safari": "🧭 Safari",
+    "edge": "🌊 Edge", "ios": "📱 iOS", "android": "🤖 Android",
+    "safari_ios": "🍏 Safari iOS", "random": "🎲 Random", "none": "🚫 None",
+}
 
 # ─── In-Memory State ─────────────────────────────────────────────────────────
 connections: dict = {}
@@ -104,22 +97,6 @@ daily_traffic: dict = defaultdict(int)
 device_connections: dict = {}
 DEVICE_CONNECTIONS_LOCK = asyncio.Lock()
 http_client: httpx.AsyncClient | None = None
-
-PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
-DEFAULT_PROTOCOL = "vless-ws"
-DEFAULT_PORTS = [443, 8443, 2053, 2096, 2087, 2083, 8080]
-
-FINGERPRINTS = {
-    "chrome": "🌐 Chrome",
-    "firefox": "🦊 Firefox",
-    "safari": "🧭 Safari",
-    "edge": "🌊 Edge",
-    "ios": "📱 iOS",
-    "android": "🤖 Android",
-    "safari_ios": "🍏 Safari iOS",
-    "random": "🎲 Random",
-    "none": "🚫 None",
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ===== Functions =====
@@ -226,94 +203,74 @@ async def remove_device_connection(uuid: str, client_ip: str):
             if not device_connections[uuid]:
                 del device_connections[uuid]
 
+async def send_telegram_message(chat_id, text):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                              json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
+    except:
+        pass
+
 # ─── Workspace Functions ──────────────────────────────────────────────────────
 
-async def load_workspaces():
-    """بارگذاری Workspace ها"""
-    global WORKSPACES, SUPER_ADMIN, SETTINGS
+async def load_state():
+    global WORKSPACES, MAIN_ADMIN
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         if DATA_FILE.exists():
             async with aiofiles.open(DATA_FILE, "r") as f:
                 data = json.loads(await f.read())
                 WORKSPACES = data.get("workspaces", {})
-                if "super_admin" in data:
-                    SUPER_ADMIN["username"] = data["super_admin"].get("username", SUPER_ADMIN["username"])
-                    SUPER_ADMIN["password_hash"] = data["super_admin"].get("password_hash", SUPER_ADMIN["password_hash"])
-                if "settings" in data:
-                    SETTINGS.update(data["settings"])
+                if "main_admin" in data:
+                    MAIN_ADMIN["username"] = data["main_admin"].get("username", "admin")
+                    MAIN_ADMIN["password_hash"] = data["main_admin"].get("password_hash", MAIN_ADMIN["password_hash"])
                 logger.info(f"📂 Loaded {len(WORKSPACES)} workspaces")
     except Exception as e:
-        logger.warning(f"Load workspaces error: {e}")
+        logger.warning(f"Load state error: {e}")
 
-async def save_workspaces():
-    """ذخیره Workspace ها"""
+async def save_state():
     async with SAVE_LOCK:
         try:
             data = {
                 "workspaces": WORKSPACES,
-                "super_admin": {
-                    "username": SUPER_ADMIN["username"],
-                    "password_hash": SUPER_ADMIN["password_hash"],
+                "main_admin": {
+                    "username": MAIN_ADMIN["username"],
+                    "password_hash": MAIN_ADMIN["password_hash"],
                 },
-                "settings": SETTINGS,
                 "saved_at": datetime.now().isoformat()
             }
             async with aiofiles.open(DATA_FILE, "w") as f:
                 await f.write(json.dumps(data, ensure_ascii=False, indent=2))
         except Exception as e:
-            logger.warning(f"Save workspaces error: {e}")
-
-async def get_workspace_data(workspace_id: str) -> dict:
-    """دریافت دیتای Workspace با fallback"""
-    ws = WORKSPACES.get(workspace_id, {})
-    if not ws:
-        return {
-            "links": {},
-            "settings": DEFAULT_SETTINGS.copy(),
-            "daily_traffic": {},
-            "activity_logs": [],
-            "stats": {"total_bytes": 0, "total_requests": 0, "total_errors": 0},
-            "quota_limit_bytes": 0,
-            "quota_used_bytes": 0,
-            "quota_reset_date": None,
-            "is_quota_exceeded": False,
-        }
-    return ws
+            logger.warning(f"Save error: {e}")
 
 async def check_workspace_quota(workspace_id: str) -> tuple[bool, str]:
-    """بررسی سهمیه Workspace"""
     ws = WORKSPACES.get(workspace_id)
     if not ws:
         return False, "Workspace یافت نشد"
-    
     limit = ws.get("quota_limit_bytes", 0)
     used = ws.get("quota_used_bytes", 0)
-    
-    # اگر سهمیه 0 باشه = نامحدود
     if limit == 0:
         return True, "نامحدود"
-    
-    # اگر مصرف از سهمیه بیشتر شده = غیرفعال
     if used >= limit:
         ws["is_quota_exceeded"] = True
-        await save_workspaces()
+        await save_state()
         return False, f"سهمیه تمام شده! {fmt_bytes(used)} / {fmt_bytes(limit)}"
-    
     return True, f"{fmt_bytes(used)} / {fmt_bytes(limit)}"
 
 async def update_workspace_usage(workspace_id: str, bytes_used: int):
-    """به‌روزرسانی مصرف Workspace"""
     async with WORKSPACES_LOCK:
         if workspace_id not in WORKSPACES:
             return
         ws = WORKSPACES[workspace_id]
         ws["quota_used_bytes"] = ws.get("quota_used_bytes", 0) + bytes_used
-        # بررسی دوباره سهمیه
         limit = ws.get("quota_limit_bytes", 0)
         if limit > 0 and ws["quota_used_bytes"] >= limit:
             ws["is_quota_exceeded"] = True
-        await save_workspaces()
+        await save_state()
 
 # ─── Session Functions ──────────────────────────────────────────────────────
 
@@ -340,18 +297,16 @@ async def destroy_session(token: str | None):
 
 # ─── Auth Dependencies ──────────────────────────────────────────────────────
 
-async def require_super_admin(req: Request):
-    """فقط Super Admin"""
+async def require_main_admin(req: Request):
     token = req.cookies.get(SESSION_COOKIE)
     if not await is_valid_session(token):
         raise HTTPException(401, "unauthorized")
     session_data = SESSIONS.get(token, {})
-    if session_data.get("user_type") != "super_admin":
-        raise HTTPException(403, "دسترسی محدود به Super Admin")
+    if session_data.get("user_type") != "main_admin":
+        raise HTTPException(403, "دسترسی محدود به ادمین اصلی")
     return token
 
 async def require_workspace_admin(req: Request):
-    """ادمین یک Workspace"""
     token = req.cookies.get(SESSION_COOKIE)
     if not await is_valid_session(token):
         raise HTTPException(401, "unauthorized")
@@ -363,81 +318,20 @@ async def require_workspace_admin(req: Request):
         raise HTTPException(404, "Workspace یافت نشد")
     return workspace_id
 
-# ─── Telegram Functions ──────────────────────────────────────────────────────
-
-async def tg_send(chat_id, text, kb=None):
-    token = SETTINGS.get("telegram_bot_token", "")
-    if not token:
-        return False
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
-    if kb:
-        payload["reply_markup"] = json.dumps({"inline_keyboard": kb})
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            r = await client.post(url, json=payload)
-            return r.status_code == 200
-    except:
-        return False
-
-async def tg_doc(chat_id, content, filename):
-    token = SETTINGS.get("telegram_bot_token", "")
-    if not token:
-        return False
-    url = f"https://api.telegram.org/bot{token}/sendDocument"
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(url, data={"chat_id": chat_id}, files={"document": (filename, BytesIO(content.encode()), "text/plain")})
-            return r.status_code == 200
-    except:
-        return False
-
-async def setup_webhook():
-    token = SETTINGS.get("telegram_bot_token", "")
-    if not token:
-        return
-    host = get_host()
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(f"https://api.telegram.org/bot{token}/setWebhook", json={"url": f"https://{host}/webhook/telegram"})
-            logger.info("✅ Webhook set")
-    except:
-        pass
-
 # ─── Startup ─────────────────────────────────────────────────────────────────
 
 @app.on_event("startup")
 async def startup():
     global http_client
     http_client = httpx.AsyncClient(timeout=10.0)
-    await load_workspaces()
-    await setup_webhook()
-    asyncio.create_task(auto_backup())
+    await load_state()
     logger.info(f"🪐 Eagle Gateway started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
-    await save_workspaces()
+    await save_state()
     if http_client:
         await http_client.aclose()
-
-# ─── Auto Backup ─────────────────────────────────────────────────────────────
-
-async def auto_backup():
-    while True:
-        try:
-            await asyncio.sleep(SETTINGS.get("backup_interval", 6) * 3600)
-            await save_workspaces()
-            chat_id = SETTINGS.get("telegram_chat_id")
-            token = SETTINGS.get("telegram_bot_token")
-            if chat_id and token:
-                async with aiofiles.open(DATA_FILE, "r") as f:
-                    content = await f.read()
-                await tg_doc(chat_id, content, f"backup_{now_ir().strftime('%Y-%m-%d_%H-%M')}.json")
-            logger.info("✅ Auto backup completed")
-        except Exception as e:
-            logger.error(f"Auto backup error: {e}")
-            await asyncio.sleep(300)
 
 # ─── ===== API: Login ===== ──────────────────────────────────────────────────
 
@@ -448,25 +342,19 @@ async def api_login(req: Request):
     password = body.get("password", "").strip()
     workspace_id = body.get("workspace_id", "").strip()
     
-    # ===== Super Admin =====
-    if username == SUPER_ADMIN["username"] and hash_password(password) == SUPER_ADMIN["password_hash"]:
+    # ===== ادمین اصلی =====
+    if username == MAIN_ADMIN["username"] and hash_password(password) == MAIN_ADMIN["password_hash"]:
         token = await create_session()
         async with SESSIONS_LOCK:
-            SESSIONS[token] = {"user_type": "super_admin", "workspace_id": None}
-        resp = JSONResponse({"ok": True, "user_type": "super_admin", "is_super_admin": True})
+            SESSIONS[token] = {"user_type": "main_admin", "workspace_id": None}
+        resp = JSONResponse({"ok": True, "user_type": "main_admin", "is_main_admin": True})
         resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL if body.get("remember") else None, httponly=True, samesite="lax", path="/")
         return resp
     
-    # ===== Workspace Admin =====
+    # ===== ادمین Workspace =====
     if workspace_id and workspace_id in WORKSPACES:
         ws = WORKSPACES[workspace_id]
         if ws.get("admin_username") == username and hash_password(password) == ws.get("admin_password_hash"):
-            # بررسی سهمیه
-            limit = ws.get("quota_limit_bytes", 0)
-            used = ws.get("quota_used_bytes", 0)
-            if limit > 0 and used >= limit:
-                return JSONResponse({"ok": False, "error": "سهمیه این Workspace تمام شده است!"}, status_code=403)
-            
             token = await create_session()
             async with SESSIONS_LOCK:
                 SESSIONS[token] = {"user_type": "workspace_admin", "workspace_id": workspace_id}
@@ -490,21 +378,17 @@ async def api_me(req: Request):
     token = req.cookies.get(SESSION_COOKIE)
     is_auth = await is_valid_session(token)
     session_data = SESSIONS.get(token, {}) if token else {}
-    user_type = session_data.get("user_type")
-    workspace_id = session_data.get("workspace_id")
-    
     return {
         "authenticated": is_auth,
-        "user_type": user_type,
-        "workspace_id": workspace_id,
-        "is_super_admin": user_type == "super_admin",
+        "user_type": session_data.get("user_type"),
+        "workspace_id": session_data.get("workspace_id"),
+        "is_main_admin": session_data.get("user_type") == "main_admin",
     }
 
-# ─── ===== API: Workspace Management (Super Admin) ===== ────────────────────
+# ─── ===== API: Workspace Management (ادمین اصلی) ===== ────────────────────
 
 @app.get("/api/admin/workspaces")
-async def admin_list_workspaces(_=Depends(require_super_admin)):
-    """لیست همه Workspace ها"""
+async def admin_list_workspaces(_=Depends(require_main_admin)):
     result = []
     for wid, ws in WORKSPACES.items():
         limit = ws.get("quota_limit_bytes", 0)
@@ -520,13 +404,11 @@ async def admin_list_workspaces(_=Depends(require_super_admin)):
             "quota_used_gb": round(used / (1024**3), 2),
             "quota_percent": round((used / limit) * 100, 1) if limit > 0 else 0,
             "is_quota_exceeded": ws.get("is_quota_exceeded", False),
-            "quota_reset_date": ws.get("quota_reset_date"),
         })
     return {"workspaces": result}
 
 @app.post("/api/admin/workspaces")
-async def admin_create_workspace(req: Request, _=Depends(require_super_admin)):
-    """ساخت Workspace جدید"""
+async def admin_create_workspace(req: Request, _=Depends(require_main_admin)):
     body = await req.json()
     name = body.get("name", "").strip()
     admin_username = body.get("admin_username", "").strip()
@@ -535,11 +417,9 @@ async def admin_create_workspace(req: Request, _=Depends(require_super_admin)):
     
     if not name or not admin_username or not admin_password:
         raise HTTPException(400, "نام، نام کاربری و رمز عبور الزامی است")
-    
     if len(admin_password) < 4:
         raise HTTPException(400, "رمز عبور حداقل 4 کاراکتر")
     
-    # بررسی تکراری نبودن
     for wid, ws in WORKSPACES.items():
         if ws.get("admin_username") == admin_username:
             raise HTTPException(400, "این نام کاربری قبلاً استفاده شده است")
@@ -554,7 +434,6 @@ async def admin_create_workspace(req: Request, _=Depends(require_super_admin)):
             "active": True,
             "quota_limit_bytes": int(quota_gb * 1024**3) if quota_gb > 0 else 0,
             "quota_used_bytes": 0,
-            "quota_reset_date": None,
             "is_quota_exceeded": False,
             "settings": DEFAULT_SETTINGS.copy(),
             "links": {},
@@ -563,65 +442,47 @@ async def admin_create_workspace(req: Request, _=Depends(require_super_admin)):
             "stats": {"total_bytes": 0, "total_requests": 0, "total_errors": 0},
         }
     
-    await save_workspaces()
-    log_activity("workspace", f"Workspace {name} ساخته شد", "ok")
+    await save_state()
     return {"ok": True, "workspace_id": workspace_id}
 
 @app.delete("/api/admin/workspaces/{workspace_id}")
-async def admin_delete_workspace(workspace_id: str, _=Depends(require_super_admin)):
-    """حذف Workspace"""
+async def admin_delete_workspace(workspace_id: str, _=Depends(require_main_admin)):
     async with WORKSPACES_LOCK:
         if workspace_id not in WORKSPACES:
             raise HTTPException(404, "Workspace یافت نشد")
-        name = WORKSPACES[workspace_id].get("name", "بدون نام")
         del WORKSPACES[workspace_id]
-    
-    await save_workspaces()
-    log_activity("workspace", f"Workspace {name} حذف شد", "err")
+    await save_state()
     return {"ok": True}
 
 @app.post("/api/admin/workspaces/{workspace_id}/quota")
-async def admin_set_quota(workspace_id: str, req: Request, _=Depends(require_super_admin)):
-    """تنظیم سهمیه Workspace"""
+async def admin_set_quota(workspace_id: str, req: Request, _=Depends(require_main_admin)):
     body = await req.json()
     quota_gb = float(body.get("quota_gb", 0))
-    reset_date = body.get("reset_date")
-    
     async with WORKSPACES_LOCK:
         if workspace_id not in WORKSPACES:
             raise HTTPException(404, "Workspace یافت نشد")
-        ws = WORKSPACES[workspace_id]
-        ws["quota_limit_bytes"] = int(quota_gb * 1024**3) if quota_gb > 0 else 0
-        if reset_date:
-            ws["quota_reset_date"] = reset_date
-        ws["is_quota_exceeded"] = False
-    
-    await save_workspaces()
-    log_activity("quota", f"سهمیه {WORKSPACES[workspace_id].get('name')} به {quota_gb}GB تغییر کرد", "ok")
+        WORKSPACES[workspace_id]["quota_limit_bytes"] = int(quota_gb * 1024**3) if quota_gb > 0 else 0
+        WORKSPACES[workspace_id]["is_quota_exceeded"] = False
+    await save_state()
     return {"ok": True}
 
 @app.post("/api/admin/workspaces/{workspace_id}/quota/reset")
-async def admin_reset_quota(workspace_id: str, _=Depends(require_super_admin)):
-    """ریست مصرف Workspace"""
+async def admin_reset_quota(workspace_id: str, _=Depends(require_main_admin)):
     async with WORKSPACES_LOCK:
         if workspace_id not in WORKSPACES:
             raise HTTPException(404, "Workspace یافت نشد")
         ws = WORKSPACES[workspace_id]
         ws["quota_used_bytes"] = 0
         ws["is_quota_exceeded"] = False
-        # ریست مصرف کاربران هم
         for uid, link in ws.get("links", {}).items():
             link["used_bytes"] = 0
-    
-    await save_workspaces()
-    log_activity("quota", f"مصرف {WORKSPACES[workspace_id].get('name')} ریست شد", "ok")
+    await save_state()
     return {"ok": True}
 
 # ─── ===== API: Workspace (برای ادمین Workspace) ===== ──────────────────────
 
 @app.get("/api/workspace/info")
 async def workspace_get_info(workspace_id=Depends(require_workspace_admin)):
-    """دریافت اطلاعات Workspace جاری"""
     ws = WORKSPACES.get(workspace_id, {})
     limit = ws.get("quota_limit_bytes", 0)
     used = ws.get("quota_used_bytes", 0)
@@ -636,26 +497,84 @@ async def workspace_get_info(workspace_id=Depends(require_workspace_admin)):
             "used_gb": round(used / (1024**3), 2),
             "percent": round((used / limit) * 100, 1) if limit > 0 else 0,
             "is_exceeded": ws.get("is_quota_exceeded", False),
-            "reset_date": ws.get("quota_reset_date"),
-        }
+        },
+        "admin_username": ws.get("admin_username"),
     }
+
+@app.post("/api/workspace/change-password")
+async def workspace_change_password(req: Request, workspace_id=Depends(require_workspace_admin)):
+    body = await req.json()
+    old = body.get("old_password", "").strip()
+    new = body.get("new_password", "").strip()
+    
+    if not old or not new or len(new) < 4:
+        raise HTTPException(400, "رمز جدید حداقل 4 کاراکتر")
+    
+    async with WORKSPACES_LOCK:
+        ws = WORKSPACES.get(workspace_id)
+        if not ws:
+            raise HTTPException(404, "Workspace یافت نشد")
+        if hash_password(old) != ws.get("admin_password_hash"):
+            raise HTTPException(403, "رمز فعلی اشتباه است")
+        ws["admin_password_hash"] = hash_password(new)
+    
+    await save_state()
+    log_activity("settings", f"رمز Workspace {ws.get('name')} تغییر کرد", "ok", workspace_id)
+    return {"ok": True, "message": "رمز عبور تغییر کرد"}
+
+@app.post("/api/workspace/change-username")
+async def workspace_change_username(req: Request, workspace_id=Depends(require_workspace_admin)):
+    body = await req.json()
+    new_username = body.get("new_username", "").strip()
+    
+    if not new_username or len(new_username) < 3:
+        raise HTTPException(400, "نام کاربری جدید حداقل 3 کاراکتر باشد")
+    
+    for wid, ws in WORKSPACES.items():
+        if wid != workspace_id and ws.get("admin_username") == new_username:
+            raise HTTPException(400, "این نام کاربری قبلاً استفاده شده است")
+    
+    async with WORKSPACES_LOCK:
+        ws = WORKSPACES.get(workspace_id)
+        if not ws:
+            raise HTTPException(404, "Workspace یافت نشد")
+        ws["admin_username"] = new_username
+    
+    await save_state()
+    log_activity("settings", f"نام کاربری Workspace به {new_username} تغییر کرد", "ok", workspace_id)
+    return {"ok": True, "message": "نام کاربری تغییر کرد"}
 
 # ─── ===== API: Workspace Links ===== ────────────────────────────────────────
 
 @app.get("/api/workspace/links")
 async def workspace_list_links(req: Request, workspace_id=Depends(require_workspace_admin)):
-    """لیست کاربران در Workspace جاری"""
     ws = WORKSPACES.get(workspace_id, {})
     links = ws.get("links", {})
     host = get_host()
+    search = req.query_params.get("search", "").lower()
+    status = req.query_params.get("status", "")
     
     result = []
     for uid, d in links.items():
+        if search and search not in d.get("label", "").lower() and search not in uid.lower():
+            continue
+        active = d.get("active", True) and not is_link_expired(d)
+        if status == "active" and not active:
+            continue
+        if status == "expired" and not is_link_expired(d):
+            continue
+        if status == "disabled" and d.get("active", True):
+            continue
+        
         ports = d.get("ports", [443])
         first_port = ports[0] if ports else 443
-        active = d.get("active", True) and not is_link_expired(d)
         label = d.get("label", "کاربر")
         clean_ip = d.get("clean_ip")
+        
+        last_connected = None
+        for c in connections.values():
+            if c.get("uuid") == uid and (not last_connected or c.get("connected_at") > last_connected):
+                last_connected = c.get("connected_at")
         
         result.append({
             "uuid": uid,
@@ -663,6 +582,7 @@ async def workspace_list_links(req: Request, workspace_id=Depends(require_worksp
             "ports": ports,
             "expired": is_link_expired(d),
             "has_password": d.get("password_hash") is not None,
+            "last_connected_at": last_connected,
             "vless_link": generate_vless_link(uid, host, remark=f"عقاب-{label}",
                 protocol=d.get("protocol", DEFAULT_PROTOCOL),
                 fingerprint=d.get("fingerprint", "chrome"),
@@ -675,8 +595,6 @@ async def workspace_list_links(req: Request, workspace_id=Depends(require_worksp
 
 @app.post("/api/workspace/links")
 async def workspace_create_link(req: Request, workspace_id=Depends(require_workspace_admin)):
-    """ساخت کاربر جدید در Workspace جاری"""
-    # بررسی سهمیه Workspace
     can_use, msg = await check_workspace_quota(workspace_id)
     if not can_use:
         raise HTTPException(403, f"سهمیه Workspace تمام شده! {msg}")
@@ -706,24 +624,14 @@ async def workspace_create_link(req: Request, workspace_id=Depends(require_works
         if workspace_id not in WORKSPACES:
             raise HTTPException(404, "Workspace یافت نشد")
         WORKSPACES[workspace_id]["links"][uid] = {
-            "label": label,
-            "limit_bytes": limit_bytes,
-            "used_bytes": 0,
-            "created_at": datetime.now().isoformat(),
-            "active": True,
-            "expires_at": expires_at,
-            "note": "",
-            "is_default": False,
-            "sub_id": None,
-            "protocol": protocol,
-            "max_devices": max_devices,
-            "fingerprint": fingerprint,
-            "password_hash": password_hash,
-            "ports": ports,
-            "clean_ip": clean_ip,
+            "label": label, "limit_bytes": limit_bytes, "used_bytes": 0,
+            "created_at": datetime.now().isoformat(), "active": True,
+            "expires_at": expires_at, "note": "", "is_default": False, "sub_id": None,
+            "protocol": protocol, "max_devices": max_devices, "fingerprint": fingerprint,
+            "password_hash": password_hash, "ports": ports, "clean_ip": clean_ip,
         }
     
-    await save_workspaces()
+    await save_state()
     log_activity("link", f"کانفیگ «{label}» در {WORKSPACES[workspace_id].get('name')} ساخته شد", "ok", workspace_id)
     
     host = get_host()
@@ -734,7 +642,6 @@ async def workspace_create_link(req: Request, workspace_id=Depends(require_works
 
 @app.patch("/api/workspace/links/{uid}")
 async def workspace_update_link(uid: str, req: Request, workspace_id=Depends(require_workspace_admin)):
-    """ویرایش کاربر در Workspace جاری"""
     body = await req.json()
     async with WORKSPACES_LOCK:
         if workspace_id not in WORKSPACES:
@@ -771,12 +678,11 @@ async def workspace_update_link(uid: str, req: Request, workspace_id=Depends(req
             if ports:
                 link["ports"] = ports
     
-    await save_workspaces()
+    await save_state()
     return {"ok": True}
 
 @app.delete("/api/workspace/links/{uid}")
 async def workspace_delete_link(uid: str, req: Request, workspace_id=Depends(require_workspace_admin)):
-    """حذف کاربر از Workspace جاری"""
     body = await req.json()
     async with WORKSPACES_LOCK:
         if workspace_id not in WORKSPACES:
@@ -792,7 +698,7 @@ async def workspace_delete_link(uid: str, req: Request, workspace_id=Depends(req
         label = link.get("label", uid)
         del ws["links"][uid]
     
-    await save_workspaces()
+    await save_state()
     log_activity("link", f"کانفیگ «{label}» از {WORKSPACES[workspace_id].get('name')} حذف شد", "err", workspace_id)
     return {"ok": True}
 
@@ -800,13 +706,11 @@ async def workspace_delete_link(uid: str, req: Request, workspace_id=Depends(req
 
 @app.get("/api/workspace/settings")
 async def workspace_get_settings(workspace_id=Depends(require_workspace_admin)):
-    """دریافت تنظیمات Workspace جاری"""
     ws = WORKSPACES.get(workspace_id, {})
     return ws.get("settings", DEFAULT_SETTINGS.copy())
 
 @app.post("/api/workspace/settings")
 async def workspace_update_settings(req: Request, workspace_id=Depends(require_workspace_admin)):
-    """به‌روزرسانی تنظیمات Workspace جاری"""
     body = await req.json()
     async with WORKSPACES_LOCK:
         if workspace_id not in WORKSPACES:
@@ -814,85 +718,68 @@ async def workspace_update_settings(req: Request, workspace_id=Depends(require_w
         for key, value in body.items():
             if key in DEFAULT_SETTINGS:
                 WORKSPACES[workspace_id]["settings"][key] = value
-    
-    await save_workspaces()
+    await save_state()
     return {"ok": True}
-
-# ─── ===== API: Workspace Stats ===== ────────────────────────────────────────
-
-@app.get("/api/workspace/stats")
-async def workspace_stats(workspace_id=Depends(require_workspace_admin)):
-    """آمار Workspace جاری"""
-    ws = WORKSPACES.get(workspace_id, {})
-    links = ws.get("links", {})
-    stats_data = ws.get("stats", {})
-    daily = ws.get("daily_traffic", {})
-    today = now_ir().strftime("%Y-%m-%d")
-    
-    active_links = sum(1 for l in links.values() if l.get("active", True) and not is_link_expired(l))
-    total_used = sum(l.get("used_bytes", 0) for l in links.values())
-    today_traffic = daily.get(today, 0)
-    
-    return {
-        "links_count": len(links),
-        "active_links": active_links,
-        "total_used": total_used,
-        "total_used_fmt": fmt_bytes(total_used),
-        "today_traffic": today_traffic,
-        "today_traffic_fmt": fmt_bytes(today_traffic),
-        "total_requests": stats_data.get("total_requests", 0),
-        "total_errors": stats_data.get("total_errors", 0),
-        "connections": len(connections),
-    }
-
-# ─── ===== API: Workspace Clean IP ===== ─────────────────────────────────────
 
 @app.get("/api/workspace/clean-ips")
 async def workspace_get_clean_ips(workspace_id=Depends(require_workspace_admin)):
-    """دریافت لیست IP‌های تمیز Workspace"""
     ws = WORKSPACES.get(workspace_id, {})
     return {"clean_ips": ws.get("settings", {}).get("clean_ips", [])}
 
 @app.post("/api/workspace/clean-ips")
 async def workspace_add_clean_ip(req: Request, workspace_id=Depends(require_workspace_admin)):
-    """افزودن IP تمیز به Workspace"""
     body = await req.json()
     ip = body.get("ip", "").strip()
     provider = body.get("provider", "Unknown")
-    
     if not ip:
         raise HTTPException(400, "IP نمی‌تواند خالی باشد")
-    
     async with WORKSPACES_LOCK:
-        if workspace_id not in WORKSPACES:
-            raise HTTPException(404, "Workspace یافت نشد")
         clean_ips = WORKSPACES[workspace_id]["settings"].get("clean_ips", [])
         for item in clean_ips:
             if item.get("ip") == ip:
                 raise HTTPException(400, "این IP قبلاً اضافه شده است")
         clean_ips.append({"ip": ip, "provider": provider, "active": True})
         WORKSPACES[workspace_id]["settings"]["clean_ips"] = clean_ips
-    
-    await save_workspaces()
+    await save_state()
     return {"ok": True}
 
 @app.delete("/api/workspace/clean-ips/{ip}")
 async def workspace_delete_clean_ip(ip: str, workspace_id=Depends(require_workspace_admin)):
-    """حذف IP تمیز از Workspace"""
     async with WORKSPACES_LOCK:
-        if workspace_id not in WORKSPACES:
-            raise HTTPException(404, "Workspace یافت نشد")
         clean_ips = WORKSPACES[workspace_id]["settings"].get("clean_ips", [])
         WORKSPACES[workspace_id]["settings"]["clean_ips"] = [item for item in clean_ips if item.get("ip") != ip]
-    
-    await save_workspaces()
+    await save_state()
     return {"ok": True}
 
-# ─── ===== API: Workspace Filters ===== ─────────────────────────────────────
+@app.get("/api/workspace/routes")
+async def workspace_get_routes(workspace_id=Depends(require_workspace_admin)):
+    ws = WORKSPACES.get(workspace_id, {})
+    return {"routes": ws.get("settings", {}).get("routes", [])}
+
+@app.post("/api/workspace/routes")
+async def workspace_add_route(req: Request, workspace_id=Depends(require_workspace_admin)):
+    body = await req.json()
+    domain = body.get("domain", "").strip()
+    route_type = body.get("type", "direct")
+    if not domain:
+        raise HTTPException(400, "دامنه نمی‌تواند خالی باشد")
+    async with WORKSPACES_LOCK:
+        routes = WORKSPACES[workspace_id]["settings"].get("routes", [])
+        routes.append({"domain": domain, "type": route_type, "active": True})
+        WORKSPACES[workspace_id]["settings"]["routes"] = routes
+    await save_state()
+    return {"ok": True}
+
+@app.delete("/api/workspace/routes/{domain}")
+async def workspace_delete_route(domain: str, workspace_id=Depends(require_workspace_admin)):
+    async with WORKSPACES_LOCK:
+        routes = WORKSPACES[workspace_id]["settings"].get("routes", [])
+        WORKSPACES[workspace_id]["settings"]["routes"] = [r for r in routes if r.get("domain") != domain]
+    await save_state()
+    return {"ok": True}
 
 @app.get("/api/workspace/filters")
 async def workspace_get_filters(workspace_id=Depends(require_workspace_admin)):
-    """دریافت وضعیت فیلترها"""
     ws = WORKSPACES.get(workspace_id, {})
     settings = ws.get("settings", {})
     return {
@@ -903,11 +790,8 @@ async def workspace_get_filters(workspace_id=Depends(require_workspace_admin)):
 
 @app.post("/api/workspace/filters")
 async def workspace_update_filters(req: Request, workspace_id=Depends(require_workspace_admin)):
-    """به‌روزرسانی وضعیت فیلترها"""
     body = await req.json()
     async with WORKSPACES_LOCK:
-        if workspace_id not in WORKSPACES:
-            raise HTTPException(404, "Workspace یافت نشد")
         settings = WORKSPACES[workspace_id]["settings"]
         if "ad_filter_enabled" in body:
             settings["ad_filter_enabled"] = bool(body["ad_filter_enabled"])
@@ -915,74 +799,42 @@ async def workspace_update_filters(req: Request, workspace_id=Depends(require_wo
             settings["porn_filter_enabled"] = bool(body["porn_filter_enabled"])
         if "malware_filter_enabled" in body:
             settings["malware_filter_enabled"] = bool(body["malware_filter_enabled"])
-    
-    await save_workspaces()
+    await save_state()
     return {"ok": True}
 
-# ─── ===== API: Workspace Routes ===== ───────────────────────────────────────
-
-@app.get("/api/workspace/routes")
-async def workspace_get_routes(workspace_id=Depends(require_workspace_admin)):
-    """دریافت لیست مسیرها"""
+@app.get("/api/workspace/stats")
+async def workspace_stats(workspace_id=Depends(require_workspace_admin)):
     ws = WORKSPACES.get(workspace_id, {})
-    return {"routes": ws.get("settings", {}).get("routes", [])}
-
-@app.post("/api/workspace/routes")
-async def workspace_add_route(req: Request, workspace_id=Depends(require_workspace_admin)):
-    """افزودن مسیر جدید"""
-    body = await req.json()
-    domain = body.get("domain", "").strip()
-    route_type = body.get("type", "direct")
-    target = body.get("target", "")
-    
-    if not domain:
-        raise HTTPException(400, "دامنه نمی‌تواند خالی باشد")
-    
-    async with WORKSPACES_LOCK:
-        if workspace_id not in WORKSPACES:
-            raise HTTPException(404, "Workspace یافت نشد")
-        routes = WORKSPACES[workspace_id]["settings"].get("routes", [])
-        routes.append({"domain": domain, "type": route_type, "target": target, "active": True})
-        WORKSPACES[workspace_id]["settings"]["routes"] = routes
-    
-    await save_workspaces()
-    return {"ok": True}
-
-@app.delete("/api/workspace/routes/{domain}")
-async def workspace_delete_route(domain: str, workspace_id=Depends(require_workspace_admin)):
-    """حذف مسیر"""
-    async with WORKSPACES_LOCK:
-        if workspace_id not in WORKSPACES:
-            raise HTTPException(404, "Workspace یافت نشد")
-        routes = WORKSPACES[workspace_id]["settings"].get("routes", [])
-        WORKSPACES[workspace_id]["settings"]["routes"] = [r for r in routes if r.get("domain") != domain]
-    
-    await save_workspaces()
-    return {"ok": True}
-
-# ─── ===== API: Workspace Export ===== ───────────────────────────────────────
+    links = ws.get("links", {})
+    stats_data = ws.get("stats", {})
+    daily = ws.get("daily_traffic", {})
+    today = now_ir().strftime("%Y-%m-%d")
+    return {
+        "links_count": len(links),
+        "active_links": sum(1 for l in links.values() if l.get("active", True) and not is_link_expired(l)),
+        "total_used": sum(l.get("used_bytes", 0) for l in links.values()),
+        "total_used_fmt": fmt_bytes(sum(l.get("used_bytes", 0) for l in links.values())),
+        "today_traffic": daily.get(today, 0),
+        "today_traffic_fmt": fmt_bytes(daily.get(today, 0)),
+        "total_requests": stats_data.get("total_requests", 0),
+        "total_errors": stats_data.get("total_errors", 0),
+        "connections": len(connections),
+    }
 
 @app.get("/api/workspace/export/excel")
 async def workspace_export_excel(workspace_id=Depends(require_workspace_admin)):
-    """خروجی Excel از کاربران Workspace"""
     ws = WORKSPACES.get(workspace_id, {})
     links = ws.get("links", {})
-    
     wb = Workbook()
     ws_excel = wb.active
     ws_excel.title = "کاربران"
-    
     headers = ["نام", "UUID", "مصرف", "سهمیه", "وضعیت", "انقضا", "دستگاه‌ها", "فینگرپرینت"]
     ws_excel.append(headers)
-    
-    header_fill = PatternFill(start_color="7C6BFF", end_color="7C6BFF", fill_type="solid")
-    header_font = Font(color="FFFFFF", bold=True)
     for col, _ in enumerate(headers, 1):
         cell = ws_excel.cell(row=1, column=col)
-        cell.fill = header_fill
-        cell.font = header_font
+        cell.fill = PatternFill(start_color="7C6BFF", end_color="7C6BFF", fill_type="solid")
+        cell.font = Font(color="FFFFFF", bold=True)
         cell.alignment = Alignment(horizontal="center")
-    
     for uid, link in links.items():
         used = link.get("used_bytes", 0)
         limit = link.get("limit_bytes", 0)
@@ -994,7 +846,6 @@ async def workspace_export_excel(workspace_id=Depends(require_workspace_admin)):
                 expires_at = datetime.fromisoformat(expires_at).strftime("%Y-%m-%d")
             except:
                 pass
-        
         ws_excel.append([
             link.get("label", "بدون نام"),
             uid[:8] + "..." + uid[-8:],
@@ -1005,39 +856,103 @@ async def workspace_export_excel(workspace_id=Depends(require_workspace_admin)):
             link.get("max_devices", 0),
             link.get("fingerprint", "chrome"),
         ])
-    
     for col in range(1, len(headers) + 1):
         ws_excel.column_dimensions[chr(64 + col)].width = 20
-    
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-    
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename=users_{now_ir().strftime('%Y-%m-%d')}.xlsx"}
     )
 
-# ─── ===== API: Workspace Activity Logs ===== ────────────────────────────────
-
 @app.get("/api/workspace/logs")
 async def workspace_get_logs(req: Request, workspace_id=Depends(require_workspace_admin)):
-    """دریافت لاگ‌های Workspace"""
     ws = WORKSPACES.get(workspace_id, {})
     logs = ws.get("activity_logs", [])
     limit = int(req.query_params.get("limit", 50))
     level = req.query_params.get("level", "")
     search = req.query_params.get("search", "").lower()
-    
     result = list(logs)[-limit:]
-    
     if level:
         result = [l for l in result if l.get("level") == level]
     if search:
         result = [l for l in result if search in l.get("message", "").lower()]
-    
     return {"logs": result}
+
+# ─── ===== API: Main Admin Settings ===== ────────────────────────────────────
+
+@app.post("/api/main-admin/change-password")
+async def main_admin_change_password(req: Request, _=Depends(require_main_admin)):
+    body = await req.json()
+    old = body.get("old_password", "").strip()
+    new = body.get("new_password", "").strip()
+    if not old or not new or len(new) < 4:
+        raise HTTPException(400, "رمز جدید حداقل 4 کاراکتر")
+    if hash_password(old) != MAIN_ADMIN["password_hash"]:
+        raise HTTPException(403, "رمز فعلی اشتباه است")
+    MAIN_ADMIN["password_hash"] = hash_password(new)
+    await save_state()
+    return {"ok": True, "message": "رمز عبور تغییر کرد"}
+
+@app.post("/api/main-admin/change-username")
+async def main_admin_change_username(req: Request, _=Depends(require_main_admin)):
+    body = await req.json()
+    new_username = body.get("new_username", "").strip()
+    if not new_username or len(new_username) < 3:
+        raise HTTPException(400, "نام کاربری جدید حداقل 3 کاراکتر باشد")
+    MAIN_ADMIN["username"] = new_username
+    await save_state()
+    return {"ok": True, "message": "نام کاربری تغییر کرد"}
+
+# ─── ===== API: Dashboard ===== ─────────────────────────────────────────────
+
+@app.get("/api/dashboard/stats")
+async def dashboard_stats(req: Request, _=Depends(require_workspace_admin)):
+    disk = psutil.disk_usage('/')
+    speed = 0
+    if len(hourly_traffic) > 0:
+        speed = sum(list(hourly_traffic.values())[-6:]) / 21600
+    today = daily_traffic.get(now_ir().strftime("%Y-%m-%d"), 0)
+    return {
+        "traffic": {"total": stats["total_bytes"], "total_fmt": fmt_bytes(stats["total_bytes"]),
+                    "today": today, "today_fmt": fmt_bytes(today)},
+        "requests": stats["total_requests"], "uptime": uptime(),
+        "disk": {"total": disk.total, "used": disk.used, "free": disk.free,
+                 "total_fmt": fmt_bytes(disk.total), "used_fmt": fmt_bytes(disk.used), "free_fmt": fmt_bytes(disk.free),
+                 "percent": disk.percent},
+        "connections": len(connections),
+        "speed": {"download": speed, "download_fmt": fmt_bytes(speed) + "/s" if speed > 0 else "0 B/s"},
+        "links_count": len(WORKSPACES.get(await require_workspace_admin(req), {}).get("links", {})),
+        "active_links": sum(1 for l in WORKSPACES.get(await require_workspace_admin(req), {}).get("links", {}).values() if l.get("active", True) and not is_link_expired(l))
+    }
+
+@app.get("/api/inbound")
+async def get_inbound(_=Depends(require_workspace_admin)):
+    return {"port": 443, "protocol": "vless", "host": get_host(), "is_active": True}
+
+@app.post("/api/inbound")
+async def update_inbound(req: Request, _=Depends(require_workspace_admin)):
+    body = await req.json()
+    port = body.get("port", 443)
+    if port < 1 or port > 65535:
+        raise HTTPException(400, "پورت نامعتبر")
+    return {"ok": True}
+
+@app.get("/api/connections")
+async def get_connections(_=Depends(require_workspace_admin)):
+    result = []
+    for c in connections.values():
+        result.append({
+            "ip": c.get("ip", "نامشخص"),
+            "label": c.get("label", "نامشخص"),
+            "bytes": c.get("bytes", 0),
+            "bytes_fmt": fmt_bytes(c.get("bytes", 0)),
+            "connected_at": c.get("connected_at"),
+        })
+    result.sort(key=lambda x: x.get("connected_at") or "", reverse=True)
+    return {"connections": result, "count": len(result)}
 
 # ─── ===== WebSocket Tunnel ===== ─────────────────────────────────────────────
 
@@ -1097,35 +1012,19 @@ async def check_and_use(uid: str, n: int, workspace_id: str) -> bool:
     link = links.get(uid)
     if not link or not is_link_allowed(link):
         return False
-    
-    # بروزرسانی مصرف کاربر
     link["used_bytes"] = link.get("used_bytes", 0) + n
-    
-    # بروزرسانی مصرف Workspace
     ws["quota_used_bytes"] = ws.get("quota_used_bytes", 0) + n
-    
-    # بروزرسانی آمار روزانه
     today = now_ir().strftime("%Y-%m-%d")
     daily = ws.get("daily_traffic", {})
     daily[today] = daily.get(today, 0) + n
     ws["daily_traffic"] = daily
     
-    # بررسی سهمیه Workspace
     limit = ws.get("quota_limit_bytes", 0)
     used = ws.get("quota_used_bytes", 0)
     if limit > 0 and used >= limit:
         ws["is_quota_exceeded"] = True
-        await save_workspaces()
+        await save_state()
         return False
-    
-    # هشدار 80%
-    if limit > 0 and used / limit > 0.8 and not link.get("alert_80"):
-        link["alert_80"] = True
-        log_activity("warning", f"⚠️ مصرف {link.get('label')} به 80% رسید", "warn", workspace_id)
-        chat_id = SETTINGS.get("telegram_chat_id")
-        if chat_id:
-            await tg_send(chat_id, f"⚠️ هشدار مصرف!\nکاربر: {link.get('label')}\nمصرف: {fmt_bytes(used)} / {fmt_bytes(limit)}")
-    
     return True
 
 async def relay_ws_to_tcp(ws, writer, conn_id, uid, workspace_id):
@@ -1174,8 +1073,6 @@ async def relay_tcp_to_ws(ws, reader, conn_id, uid, workspace_id):
 @app.websocket("/ws/{uuid}")
 async def websocket_tunnel(ws: WebSocket, uuid: str):
     await ws.accept()
-    
-    # تشخیص Workspace از هدر یا کوکی
     workspace_id = ws.headers.get("X-Workspace-ID")
     if not workspace_id:
         cookie_header = ws.headers.get("cookie", "")
@@ -1192,16 +1089,13 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
     ws_data = WORKSPACES.get(workspace_id, {})
     links = ws_data.get("links", {})
     link = links.get(uuid)
-    
     if not link:
         await ws.close(code=1008, reason="user not found")
         return
-    
     if not is_link_allowed(link):
         await ws.close(code=1008, reason="not authorized")
         return
     
-    # بررسی سهمیه Workspace
     can_use, msg = await check_workspace_quota(workspace_id)
     if not can_use:
         await ws.close(code=1008, reason=f"quota exceeded: {msg}")
@@ -1252,7 +1146,7 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
                 await t
             except:
                 pass
-        await save_workspaces()
+        await save_state()
     except:
         pass
     finally:
@@ -1270,8 +1164,6 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
 @app.get("/sub/{uuid}")
 async def subscription_single(req: Request, uuid: str):
     import base64
-    
-    # تشخیص Workspace از هدر یا کوکی
     workspace_id = req.headers.get("X-Workspace-ID")
     if not workspace_id:
         cookie_header = req.headers.get("cookie", "")
@@ -1294,7 +1186,6 @@ async def subscription_single(req: Request, uuid: str):
         if is_browser:
             return HTMLResponse("""<html><body><h1>کاربر یافت نشد</h1></body></html>""", status_code=404)
         raise HTTPException(404, "user not found")
-    
     if not is_link_allowed(link):
         if is_browser:
             return HTMLResponse("""<html><body><h1>کاربر غیرفعال</h1></body></html>""", status_code=403)
@@ -1304,7 +1195,6 @@ async def subscription_single(req: Request, uuid: str):
     ports = link.get("ports", [443])
     clean_ip = link.get("clean_ip")
     vless_links = []
-    
     for port in ports:
         remark = f"{link.get('label','کاربر')}-p{port}" if len(ports) > 1 else link.get('label', 'کاربر')
         vless_links.append(generate_vless_link(uuid, host, remark=remark,
@@ -1348,14 +1238,9 @@ async def dashboard(req: Request):
     token = req.cookies.get(SESSION_COOKIE)
     if not await is_valid_session(token):
         return RedirectResponse(url="/login")
-    
     session_data = SESSIONS.get(token, {})
-    if session_data.get("user_type") == "super_admin":
-        # Super Admin به صفحه مدیریت Workspace ها میره
+    if session_data.get("user_type") in ["main_admin", "workspace_admin"]:
         return HTMLResponse(content=DASHBOARD_HTML)
-    elif session_data.get("user_type") == "workspace_admin":
-        return HTMLResponse(content=DASHBOARD_HTML)
-    
     return RedirectResponse(url="/login")
 
 @app.get("/")
