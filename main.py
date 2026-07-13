@@ -13,12 +13,15 @@ from collections import deque, defaultdict
 from pathlib import Path
 import socket
 import base64
+from io import BytesIO
+import httpx
+import random
+import re
 
 from fastapi import FastAPI, Request, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-import httpx
 import logging
 
 # ─── تنظیمات ──────────────────────────────────────────────────────────────────
@@ -70,6 +73,7 @@ stats = {
 error_logs: deque = deque(maxlen=50)
 activity_logs: deque = deque(maxlen=200)
 hourly_traffic: dict = defaultdict(int)
+daily_traffic: dict = defaultdict(int)
 device_connections: dict = {}
 DEVICE_CONNECTIONS_LOCK = asyncio.Lock()
 http_client: httpx.AsyncClient | None = None
@@ -89,6 +93,8 @@ SETTINGS: dict = {
     "inbound_port": 443,
     "language": "fa",
     "theme": "dark",
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
 }
 
 PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
@@ -108,7 +114,13 @@ FINGERPRINTS = {
     "none": "🚫 None"
 }
 
-# ─── Functions ─────────────────────────────────────────────────────────────────
+# ─── Telegram Session ─────────────────────────────────────────────────────────
+TELEGRAM_SESSIONS: dict = {}
+TELEGRAM_SESSIONS_LOCK = asyncio.Lock()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ===== Functions =====
+# ─────────────────────────────────────────────────────────────────────────────
 
 def now_ir() -> datetime:
     return datetime.now(IRAN_TZ)
@@ -235,6 +247,67 @@ async def remove_device_connection(uuid: str, client_ip: str):
                 if not device_connections[uuid]:
                     del device_connections[uuid]
 
+async def send_telegram_message(chat_id, message, keyboard=None):
+    """ارسال پیام به تلگرام"""
+    token = SETTINGS.get("telegram_bot_token", "")
+    if not token:
+        return False
+    
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    if keyboard:
+        payload["reply_markup"] = json.dumps({"inline_keyboard": keyboard})
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=payload, timeout=10)
+            return r.status_code == 200
+    except Exception as e:
+        logger.error(f"Telegram send error: {e}")
+        return False
+
+async def send_telegram_document(chat_id, content, filename):
+    """ارسال فایل به تلگرام"""
+    token = SETTINGS.get("telegram_bot_token", "")
+    if not token:
+        return False
+    
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+    files = {"document": (filename, BytesIO(content.encode()), "text/plain")}
+    data = {"chat_id": chat_id}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, data=data, files=files, timeout=30)
+            return r.status_code == 200
+    except Exception as e:
+        logger.error(f"Telegram document send error: {e}")
+        return False
+
+async def setup_telegram_webhook():
+    """تنظیم WebHook برای بات تلگرام"""
+    token = SETTINGS.get("telegram_bot_token", "")
+    if not token:
+        return
+    
+    host = get_host()
+    webhook_url = f"https://{host}/webhook/telegram"
+    url = f"https://api.telegram.org/bot{token}/setWebhook"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json={"url": webhook_url})
+            if r.status_code == 200:
+                logger.info(f"✅ Telegram webhook set to {webhook_url}")
+            else:
+                logger.warning(f"⚠️ Telegram webhook failed: {r.text}")
+    except Exception as e:
+        logger.warning(f"⚠️ Telegram webhook error: {e}")
+
 # ─── Session Functions ──────────────────────────────────────────────────────
 
 async def create_session() -> str:
@@ -283,6 +356,8 @@ async def load_state():
                 AUTH["password_hash"] = data["password_hash"]
             if "settings" in data:
                 SETTINGS.update(data["settings"])
+            if "daily_traffic" in data:
+                daily_traffic.update(data["daily_traffic"])
             logger.info(f"📂 State loaded: {len(LINKS)} links, {len(SUBS)} subs")
     except Exception as e:
         logger.warning(f"Could not load state: {e}")
@@ -296,6 +371,7 @@ async def save_state():
                 "subs": dict(SUBS),
                 "password_hash": AUTH["password_hash"],
                 "settings": SETTINGS,
+                "daily_traffic": dict(daily_traffic),
                 "saved_at": datetime.now().isoformat(),
             }
             tmp = DATA_FILE.with_suffix(".tmp")
@@ -314,6 +390,9 @@ async def startup():
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
     await load_state()
+    
+    # تنظیم WebHook تلگرام
+    await setup_telegram_webhook()
     
     log_activity("system", "🪐 Eagle Gateway v10 Pro راه‌اندازی شد", "ok")
     logger.info(f"🪐 Eagle Gateway v10 Pro started on port {CONFIG['port']}")
@@ -382,6 +461,57 @@ async def toggle_rgb(request: Request, _=Depends(require_auth)):
     await save_state()
     return {"rgb_mode": SETTINGS["rgb_mode"]}
 
+# ─── API: Telegram Settings ───────────────────────────────────────────────
+
+@app.post("/api/settings/telegram")
+async def set_telegram_settings(request: Request, _=Depends(require_auth)):
+    """تنظیم توکن و Chat ID تلگرام"""
+    body = await request.json()
+    token = body.get("token", "").strip()
+    chat_id = body.get("chat_id", "").strip()
+    
+    if token:
+        SETTINGS["telegram_bot_token"] = token
+    if chat_id:
+        SETTINGS["telegram_chat_id"] = chat_id
+    
+    await save_state()
+    await setup_telegram_webhook()
+    
+    log_activity("settings", "تنظیمات تلگرام به‌روزرسانی شد", "ok")
+    return {"ok": True, "message": "تنظیمات تلگرام ذخیره شد"}
+
+@app.post("/api/telegram/test")
+async def test_telegram(request: Request, _=Depends(require_auth)):
+    """تست اتصال به تلگرام"""
+    chat_id = SETTINGS.get("telegram_chat_id", "")
+    if not chat_id:
+        return {"ok": False, "message": "Chat ID تنظیم نشده است"}
+    
+    message = "✅ <b>تست اتصال</b>\n\nاین پیام برای تست ارسال شد.\nزمان: " + now_ir().strftime("%Y-%m-%d %H:%M:%S")
+    
+    result = await send_telegram_message(chat_id, message)
+    if result:
+        return {"ok": True, "message": "پیام تست با موفقیت ارسال شد"}
+    else:
+        return {"ok": False, "message": "خطا در ارسال پیام. توکن یا Chat ID را بررسی کنید"}
+
+@app.get("/api/telegram/status")
+async def get_telegram_status(_=Depends(require_auth)):
+    """دریافت وضعیت تلگرام"""
+    token = SETTINGS.get("telegram_bot_token", "")
+    chat_id = SETTINGS.get("telegram_chat_id", "")
+    
+    is_active = bool(token and chat_id)
+    
+    return {
+        "active": is_active,
+        "has_token": bool(token),
+        "has_chat_id": bool(chat_id),
+        "token_preview": token[:10] + "..." if len(token) > 10 else token,
+        "chat_id": chat_id,
+    }
+
 # ─── API: Dashboard Stats ──────────────────────────────────────────────────
 
 @app.get("/api/dashboard/stats")
@@ -394,12 +524,15 @@ async def dashboard_stats(_=Depends(require_auth)):
     else:
         speed = 0
     
+    today_key = now_ir().strftime("%Y-%m-%d")
+    today_traffic = daily_traffic.get(today_key, 0)
+    
     return {
         "traffic": {
             "total": stats["total_bytes"],
             "total_fmt": fmt_bytes(stats["total_bytes"]),
-            "today": sum(hourly_traffic.values()),
-            "today_fmt": fmt_bytes(sum(hourly_traffic.values()))
+            "today": today_traffic,
+            "today_fmt": fmt_bytes(today_traffic)
         },
         "requests": stats["total_requests"],
         "uptime": uptime(),
@@ -795,6 +928,7 @@ async def get_backup(_=Depends(require_auth)):
         "subs": subs,
         "password_hash": AUTH["password_hash"],
         "settings": SETTINGS,
+        "daily_traffic": dict(daily_traffic),
         "exported_at": datetime.now().isoformat(),
         "version": "10.0"
     }
@@ -825,6 +959,9 @@ async def restore_backup(request: Request, _=Depends(require_auth)):
         
         if "settings" in body and isinstance(body["settings"], dict):
             SETTINGS.update(body["settings"])
+        
+        if "daily_traffic" in body and isinstance(body["daily_traffic"], dict):
+            daily_traffic.update(body["daily_traffic"])
         
         await save_state()
         log_activity("backup", "بکاپ بازیابی شد", "ok")
@@ -905,14 +1042,422 @@ async def check_and_use(uid: str, n: int) -> bool:
         link["used_bytes"] = link.get("used_bytes", 0) + n
         stats["total_bytes"] = stats.get("total_bytes", 0) + n
         hourly_traffic[now_ir().strftime("%H:00")] = hourly_traffic.get(now_ir().strftime("%H:00"), 0) + n
+        today_key = now_ir().strftime("%Y-%m-%d")
+        daily_traffic[today_key] = daily_traffic.get(today_key, 0) + n
         
         limit = link.get("limit_bytes", 0)
         used = link.get("used_bytes", 0)
         if limit > 0 and used / limit > 0.8 and not link.get("alert_80"):
             link["alert_80"] = True
             log_activity("warning", f"⚠️ مصرف کانفیگ {link.get('label')} به 80% رسید", "warn")
+            # ارسال اعلان تلگرام
+            await send_telegram_alert(link.get('label'), used, limit)
         
         return True
+
+async def send_telegram_alert(label: str, used: int, limit: int):
+    """ارسال اعلان به تلگرام"""
+    chat_id = SETTINGS.get("telegram_chat_id", "")
+    if not chat_id:
+        return
+    
+    percent = (used / limit) * 100 if limit > 0 else 0
+    message = f"""⚠️ <b>هشدار مصرف!</b>
+
+📌 کاربر: <b>{label}</b>
+📊 مصرف: <b>{fmt_bytes(used)}</b> از <b>{fmt_bytes(limit)}</b>
+📈 درصد: <b>{percent:.1f}%</b>
+
+لطفاً نسبت به تمدید یا افزایش حجم اقدام کنید."""
+
+    await send_telegram_message(chat_id, message)
+
+# ─── ===== بخش بات تلگرام با دکمه‌ها ===== ──────────────────────────────────
+
+@app.post("/webhook/telegram")
+async def telegram_webhook(request: Request):
+    """WebHook تلگرام"""
+    token = SETTINGS.get("telegram_bot_token", "")
+    if not token:
+        return {"ok": False, "message": "Bot token not set"}
+    
+    try:
+        body = await request.json()
+    except:
+        return {"ok": False}
+    
+    message = body.get("message")
+    callback_query = body.get("callback_query")
+    
+    if message:
+        chat_id = message.get("chat", {}).get("id")
+        text = message.get("text", "").lower()
+        user = message.get("from", {})
+        username = user.get("username", "کاربر")
+        
+        if text == "/start":
+            await send_main_menu(chat_id, username)
+        else:
+            await handle_text_message(chat_id, text, username)
+    
+    elif callback_query:
+        chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
+        data = callback_query.get("data", "")
+        username = callback_query.get("from", {}).get("username", "کاربر")
+        
+        await handle_callback(chat_id, data, username)
+    
+    return {"ok": True}
+
+async def send_main_menu(chat_id, username):
+    """ارسال منوی اصلی"""
+    keyboard = [
+        [
+            {"text": "📝 ساخت کاربر جدید", "callback_data": "new_user"},
+            {"text": "📊 لیست کاربران", "callback_data": "list_users"}
+        ],
+        [
+            {"text": "📥 دریافت کانفیگ", "callback_data": "get_config"},
+            {"text": "🔄 تمدید کاربر", "callback_data": "renew_user"}
+        ],
+        [
+            {"text": "❌ حذف کاربر", "callback_data": "delete_user"},
+            {"text": "ℹ️ راهنما", "callback_data": "help"}
+        ]
+    ]
+    
+    message = f"""🪐 <b>به پنل عقاب خوش آمدید!</b>
+
+👤 کاربر: <b>@{username}</b>
+📅 تاریخ: {now_ir().strftime("%Y-%m-%d %H:%M")}
+
+از منوی زیر یکی از گزینه‌ها را انتخاب کنید:"""
+    
+    await send_telegram_message(chat_id, message, keyboard)
+
+async def handle_text_message(chat_id, text, username):
+    """پردازش پیام‌های متنی"""
+    if text.startswith("/new"):
+        await start_new_user(chat_id)
+    elif text.startswith("/list"):
+        await send_user_list(chat_id)
+    elif text.startswith("/config"):
+        parts = text.split()
+        if len(parts) > 1:
+            uuid = parts[1]
+            await send_user_config(chat_id, uuid)
+        else:
+            await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /config xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+    elif text.startswith("/renew"):
+        parts = text.split()
+        if len(parts) > 1:
+            uuid = parts[1]
+            await renew_user(chat_id, uuid)
+        else:
+            await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /renew xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+    elif text.startswith("/delete"):
+        parts = text.split()
+        if len(parts) > 1:
+            uuid = parts[1]
+            await delete_user(chat_id, uuid)
+        else:
+            await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /delete xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+    else:
+        await send_telegram_message(chat_id, "❌ دستور نامعتبر!\nبرای مشاهده راهنما /start را بزنید.")
+
+async def handle_callback(chat_id, data, username):
+    """پردازش کلیک روی دکمه‌ها"""
+    
+    if data == "main_menu":
+        await send_main_menu(chat_id, username)
+    
+    elif data == "new_user":
+        await start_new_user(chat_id)
+    
+    elif data == "list_users":
+        await send_user_list(chat_id)
+    
+    elif data == "get_config":
+        await show_user_list_for_config(chat_id)
+    
+    elif data == "renew_user":
+        await show_user_list_for_renew(chat_id)
+    
+    elif data == "delete_user":
+        await show_user_list_for_delete(chat_id)
+    
+    elif data == "help":
+        help_text = """🪐 <b>راهنمای پنل عقاب</b>
+
+📌 <b>دستورات:</b>
+• /start - نمایش منوی اصلی
+• /new - ساخت کاربر جدید
+• /list - نمایش لیست کاربران
+• /config [UUID] - دریافت کانفیگ
+• /renew [UUID] - تمدید کاربر
+• /delete [UUID] - حذف کاربر
+
+📌 <b>دکمه‌ها:</b>
+• ساخت کاربر جدید - با تنظیمات دلخواه
+• لیست کاربران - نمایش همه کاربران با مصرف
+• دریافت کانفیگ - انتخاب از لیست
+• تمدید کاربر - افزایش حجم و زمان
+• حذف کاربر - حذف کاربر از پنل
+
+🔹 <b>نکته:</b> برای دریافت UUID کاربر، از لیست کاربران استفاده کنید."""
+        await send_telegram_message(chat_id, help_text)
+    
+    elif data.startswith("select_config_"):
+        uuid = data.replace("select_config_", "")
+        await send_user_config(chat_id, uuid)
+    
+    elif data.startswith("select_renew_"):
+        uuid = data.replace("select_renew_", "")
+        await renew_user(chat_id, uuid)
+    
+    elif data.startswith("select_delete_"):
+        uuid = data.replace("select_delete_", "")
+        await delete_user(chat_id, uuid)
+    
+    elif data.startswith("list_page_"):
+        page = int(data.replace("list_page_", ""))
+        await send_user_list(chat_id, page)
+
+async def start_new_user(chat_id):
+    """شروع فرآیند ساخت کاربر جدید"""
+    async with TELEGRAM_SESSIONS_LOCK:
+        TELEGRAM_SESSIONS[str(chat_id)] = {
+            "action": "creating_user",
+            "step": "label",
+            "data": {}
+        }
+    
+    keyboard = [[{"text": "❌ انصراف", "callback_data": "main_menu"}]]
+    await send_telegram_message(
+        chat_id,
+        "📝 <b>ساخت کاربر جدید</b>\n\nلطفاً <b>نام کاربری</b> را وارد کنید:",
+        keyboard
+    )
+
+async def send_user_list(chat_id, page=0):
+    """ارسال لیست کاربران"""
+    async with LINKS_LOCK:
+        users = list(LINKS.items())
+    
+    if not users:
+        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        return
+    
+    per_page = 5
+    total_pages = (len(users) + per_page - 1) // per_page
+    start = page * per_page
+    end = min(start + per_page, len(users))
+    
+    message = f"📊 <b>لیست کاربران (صفحه {page+1}/{total_pages})</b>\n\n"
+    
+    for uid, link in users[start:end]:
+        label = link.get("label", "بدون نام")
+        used = link.get("used_bytes", 0)
+        limit = link.get("limit_bytes", 0)
+        active = link.get("active", True)
+        expired = is_link_expired(link)
+        
+        status = "🟢 فعال" if (active and not expired) else "🔴 غیرفعال"
+        used_fmt = fmt_bytes(used)
+        limit_fmt = fmt_bytes(limit) if limit > 0 else "∞"
+        
+        message += f"• <b>{label}</b>\n"
+        message += f"  📌 UUID: <code>{uid[:8]}...{uid[-8:]}</code>\n"
+        message += f"  📊 مصرف: {used_fmt} / {limit_fmt}\n"
+        message += f"  📌 وضعیت: {status}\n\n"
+    
+    keyboard = []
+    nav_buttons = []
+    
+    if page > 0:
+        nav_buttons.append({"text": "⬅️ قبلی", "callback_data": f"list_page_{page-1}"})
+    if page < total_pages - 1:
+        nav_buttons.append({"text": "➡️ بعدی", "callback_data": f"list_page_{page+1}"})
+    
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+    
+    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
+    
+    await send_telegram_message(chat_id, message, keyboard)
+
+async def show_user_list_for_config(chat_id):
+    """نمایش لیست کاربران برای دریافت کانفیگ"""
+    async with LINKS_LOCK:
+        users = list(LINKS.items())
+    
+    if not users:
+        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        return
+    
+    keyboard = []
+    for uid, link in users[:10]:
+        label = link.get("label", "بدون نام")
+        keyboard.append([
+            {"text": f"📥 {label}", "callback_data": f"select_config_{uid}"}
+        ])
+    
+    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
+    
+    await send_telegram_message(
+        chat_id,
+        "📥 <b>دریافت کانفیگ</b>\n\nلطفاً کاربر مورد نظر را انتخاب کنید:",
+        keyboard
+    )
+
+async def show_user_list_for_renew(chat_id):
+    """نمایش لیست کاربران برای تمدید"""
+    async with LINKS_LOCK:
+        users = list(LINKS.items())
+    
+    if not users:
+        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        return
+    
+    keyboard = []
+    for uid, link in users[:10]:
+        label = link.get("label", "بدون نام")
+        keyboard.append([
+            {"text": f"🔄 {label}", "callback_data": f"select_renew_{uid}"}
+        ])
+    
+    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
+    
+    await send_telegram_message(
+        chat_id,
+        "🔄 <b>تمدید کاربر</b>\n\nلطفاً کاربر مورد نظر را انتخاب کنید:",
+        keyboard
+    )
+
+async def show_user_list_for_delete(chat_id):
+    """نمایش لیست کاربران برای حذف"""
+    async with LINKS_LOCK:
+        users = list(LINKS.items())
+    
+    if not users:
+        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        return
+    
+    keyboard = []
+    for uid, link in users[:10]:
+        label = link.get("label", "بدون نام")
+        keyboard.append([
+            {"text": f"❌ {label}", "callback_data": f"select_delete_{uid}"}
+        ])
+    
+    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
+    
+    await send_telegram_message(
+        chat_id,
+        "❌ <b>حذف کاربر</b>\n\n⚠️ این کار غیرقابل بازگشت است!\nلطفاً کاربر مورد نظر را انتخاب کنید:",
+        keyboard
+    )
+
+async def send_user_config(chat_id, uuid):
+    """ارسال کانفیگ کاربر"""
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+    
+    if not link:
+        await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
+        return
+    
+    host = get_host()
+    label = link.get("label", "کاربر")
+    protocol = link.get("protocol", DEFAULT_PROTOCOL)
+    fingerprint = link.get("fingerprint", "chrome")
+    ports = link.get("ports", [443])
+    
+    vless_links = []
+    for i, port in enumerate(ports):
+        remark = f"{label}-p{port}" if len(ports) > 1 else label
+        vless_links.append(generate_vless_link(
+            uuid, host, remark=remark, protocol=protocol, 
+            fingerprint=fingerprint, port=port
+        ))
+    
+    content = "\n\n".join(vless_links)
+    
+    await send_telegram_document(
+        chat_id,
+        content,
+        f"config_{uuid[:8]}.txt"
+    )
+    
+    sub_url = f"https://{host}/sub/{uuid}"
+    await send_telegram_message(
+        chat_id,
+        f"🔗 <b>لینک ساب‌لینک</b>\n<code>{sub_url}</code>\n\n📌 این لینک رو در کلاینت خود وارد کنید.",
+        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
+    )
+
+async def renew_user(chat_id, uuid):
+    """تمدید کاربر"""
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+    
+    if not link:
+        await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
+        return
+    
+    current_exp = link.get("expires_at")
+    if current_exp:
+        try:
+            exp_date = datetime.fromisoformat(current_exp)
+            new_exp = exp_date + timedelta(days=30)
+            link["expires_at"] = new_exp.isoformat()
+        except:
+            link["expires_at"] = (datetime.now() + timedelta(days=30)).isoformat()
+    else:
+        link["expires_at"] = (datetime.now() + timedelta(days=30)).isoformat()
+    
+    current_limit = link.get("limit_bytes", 0)
+    if current_limit > 0:
+        link["limit_bytes"] = current_limit + (5 * 1024**3)
+    
+    link["active"] = True
+    
+    await save_state()
+    log_activity("renew", f"کاربر {link.get('label')} تمدید شد", "ok")
+    
+    label = link.get("label", "کاربر")
+    new_limit = link.get("limit_bytes", 0)
+    new_exp = link.get("expires_at", "نامحدود")
+    
+    await send_telegram_message(
+        chat_id,
+        f"✅ <b>کاربر {label} تمدید شد!</b>\n\n"
+        f"📊 حجم جدید: {fmt_bytes(new_limit)}\n"
+        f"📅 تاریخ انقضا: {new_exp[:16] if new_exp != 'نامحدود' else new_exp}\n\n"
+        f"🔗 لینک ساب: https://{get_host()}/sub/{uuid}",
+        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
+    )
+
+async def delete_user(chat_id, uuid):
+    """حذف کاربر"""
+    async with LINKS_LOCK:
+        if uuid not in LINKS:
+            await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
+            return
+        link = LINKS[uuid]
+        label = link.get("label", "بدون نام")
+        del LINKS[uuid]
+    
+    await save_state()
+    log_activity("delete", f"کاربر {label} از طریق بات حذف شد", "err")
+    
+    await send_telegram_message(
+        chat_id,
+        f"✅ <b>کاربر {label} با موفقیت حذف شد!</b>",
+        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
+    )
+
+# ─── ادامه WebSocket Tunnel ──────────────────────────────────────────────
 
 async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: str, uid: str):
     try:
@@ -1017,10 +1562,8 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
             connections[conn_id]["bytes"] = connections[conn_id].get("bytes", 0) + len(first_chunk)
         logger.info(f"➡️  [{conn_id}] → {address}:{port}")
 
-        # ✅ رفع مشکل پورت: از لینک پورت می‌گیریم
-        target_port = port
         reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(address, target_port),
+            asyncio.open_connection(address, port),
             timeout=10.0
         )
         sock = writer.transport.get_extra_info('socket')
@@ -1069,13 +1612,12 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         await remove_device_connection(uuid, client_ip)
         logger.info(f"🔌 WS closed [{conn_id}] total={len(connections)}")
 
-# ─── ===== ساب‌لینک با اطلاعات کامل و Userinfo ===== ──────────────────
+# ─── Subscriptions ─────────────────────────────────────────────────────────
 
 @app.get("/sub/{uuid}")
 async def subscription_single(request: Request, uuid: str):
-    """ساب‌لینک با اطلاعات کامل حجم، زمان و Userinfo برای کلاینت"""
+    import base64
     
-    # تشخیص User-Agent
     user_agent = request.headers.get("user-agent", "").lower()
     is_browser = any(b in user_agent for b in [
         "chrome", "firefox", "safari", "edge", "opera", "brave",
@@ -1155,12 +1697,10 @@ async def subscription_single(request: Request, uuid: str):
     used_bytes = link.get("used_bytes", 0)
     expires_at = link.get("expires_at")
     
-    # محاسبه درصد مصرف
     percent = 0
     if limit_bytes > 0:
         percent = min(100, (used_bytes / limit_bytes) * 100)
     
-    # محاسبه روزهای باقی‌مونده
     days_left = "نامحدود"
     if expires_at:
         try:
@@ -1170,14 +1710,12 @@ async def subscription_single(request: Request, uuid: str):
         except:
             days_left = "نامشخص"
     
-    # گرفتن IP کاربر
     user_ip = "نامشخص"
     for c in connections.values():
         if c.get("uuid") == uuid:
             user_ip = c.get("ip", "نامشخص")
             break
     
-    # ساخت لینک‌های VLESS با پورت‌های مختلف
     vless_links = []
     for i, port in enumerate(ports):
         remark = f"{label}-p{port}" if len(ports) > 1 else label
@@ -1186,13 +1724,8 @@ async def subscription_single(request: Request, uuid: str):
             fingerprint=fingerprint, port=port
         ))
     
-    # ===== اگر کلاینت باشد → کانفیگ با Userinfo =====
     if not is_browser:
-        # استاندارد Subscription Userinfo (برای کلاینت‌های مدرن)
-        # فرمت: upload=0&download=0&total=1073741824&expire=0
-        total_bytes = limit_bytes if limit_bytes > 0 else 0
-        # ساخت هدر Userinfo
-        userinfo = f"upload=0&download={used_bytes}&total={total_bytes}"
+        userinfo = f"upload=0&download={used_bytes}&total={limit_bytes}"
         if expires_at:
             try:
                 exp_ts = int(datetime.fromisoformat(expires_at.replace('Z', '+00:00')).timestamp())
@@ -1214,12 +1747,10 @@ async def subscription_single(request: Request, uuid: str):
                 "profile-title": quote(label),
                 "profile-update-interval": "12",
                 "profile-web-page-url": f"https://{host}/info/{uuid}",
-                # ✅ هدر Userinfo برای نمایش حجم در کلاینت
                 "Subscription-Userinfo": userinfo,
             }
         )
     
-    # ===== اگر مرورگر باشد → صفحه اطلاعات =====
     from pages import get_sub_page_html
     
     active_connections_list = []
@@ -1253,7 +1784,6 @@ async def subscription_single(request: Request, uuid: str):
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
 
-
 @app.get("/sub-all")
 async def subscription_all(_=Depends(require_auth)):
     host = get_host()
@@ -1271,48 +1801,8 @@ async def subscription_all(_=Depends(require_auth)):
     content = base64.b64encode("\n".join(lines).encode()).decode()
     return Response(content=content, media_type="text/plain")
 
-
-@app.get("/sub-group/{uuid_key}")
-async def sub_group_subscription(uuid_key: str, request: Request):
-    async with SUBS_LOCK:
-        sub = next((s for s in SUBS.values() if s.get("uuid_key") == uuid_key), None)
-    if not sub:
-        raise HTTPException(status_code=404, detail="not found")
-
-    if sub.get("password_hash"):
-        pw = request.query_params.get("pw", "")
-        if hash_password(pw) != sub["password_hash"]:
-            raise HTTPException(status_code=403, detail="wrong password")
-
-    host = get_host()
-    link_ids = sub.get("link_ids", [])
-    async with LINKS_LOCK:
-        lines = []
-        for lid in link_ids:
-            link = LINKS.get(lid)
-            if link and is_link_allowed(link):
-                fp = link.get("fingerprint", "chrome")
-                ports = link.get("ports", [443])
-                label = link.get("label", "کاربر")
-                remark_base = f"عقاب-{label}"
-                for i, port in enumerate(ports):
-                    remark = f"{remark_base}-p{port}" if len(ports) > 1 else remark_base
-                    lines.append(generate_vless_link(lid, host, remark=remark, protocol=link.get("protocol", DEFAULT_PROTOCOL), fingerprint=fp, port=port))
-
-    content = base64.b64encode("\n".join(lines).encode()).decode()
-    return Response(
-        content=content,
-        media_type="text/plain",
-        headers={
-            "profile-title": quote(sub["name"]),
-            "profile-update-interval": "12",
-        }
-    )
-
-
 @app.get("/info/{uuid}")
 async def info_page(uuid: str, request: Request):
-    """صفحه اطلاعات کامل برای مرورگر"""
     from pages import get_sub_page_html
     
     async with LINKS_LOCK:
@@ -1440,7 +1930,6 @@ async def info_page(uuid: str, request: Request):
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
-
 
 # ─── HTML Pages ─────────────────────────────────────────────────────────────
 
