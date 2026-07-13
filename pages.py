@@ -279,7 +279,6 @@ setLang(currentLang);
 </script>
 </body></html>"""
 
-# ===== صفحه داشبورد =====
 DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -1224,9 +1223,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body></html>"""
 
-# ===== تابع صفحه ساب‌لینک =====
+# ===== تابع صفحه ساب‌لینک حرفه‌ای با تایمر و تغییر تم =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
-    """صفحه HTML زیبا برای نمایش اطلاعات کانفیگ"""
+    """صفحه ساب‌لینک با طراحی حرفه‌ای، تایمر زنده و تغییر تم"""
     from datetime import datetime
     
     used = link.get('used_bytes', 0)
@@ -1250,147 +1249,722 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     vless_link = vless_links[0] if vless_links else ""
     sub_url = link.get('sub_url', '')
     is_allowed = active and not expired
-    max_devices = link.get('max_devices', 0)
-    last_connected_text = "—"
-    if last_connected:
-        try:
-            dt = datetime.fromisoformat(last_connected)
-            last_connected_text = dt.strftime("%Y-%m-%d %H:%M")
-        except:
-            last_connected_text = last_connected[:16]
     
+    # محاسبه زمان باقیمانده به ثانیه برای تایمر
+    remaining_seconds = 0
+    expires_at = link.get('expires_at')
+    if expires_at and expires_at != 'نامحدود':
+        try:
+            exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+            now = datetime.now().astimezone()
+            remaining_seconds = max(0, int((exp_date - now).total_seconds()))
+        except:
+            pass
+    
+    # ساخت اتصالات فعال
     conns_html = ""
     if active_connections > 0:
         conns_html = f"""
-        <div style="background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:10px;padding:8px 10px;margin:8px 0">
-            <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:9px;color:#8888BB">
-                <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#34D399;animation:pulse 1.5s infinite"></span>
-                <span style="font-weight:700;color:#34D399;font-size:9px">{active_connections} دستگاه متصل</span>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:3px">"""
+        <div class="conns-section">
+            <div class="conns-header"><span class="conns-dot"></span> {active_connections} دستگاه متصل</div>
+            <div class="conns-list">"""
         for conn in active_connections_list[:10]:
             ip = conn.get('ip', 'نامشخص')
-            conns_html += f"""<span style="font-family:monospace;font-size:8px;background:rgba(100,80,255,0.04);border:1px solid rgba(100,80,255,0.04);padding:1px 6px;border-radius:3px;color:#8888BB">🔵 {ip}</span>"""
+            conns_html += f"""<span class="conn-chip">🔵 {ip}</span>"""
         if len(active_connections_list) > 10:
-            conns_html += f"""<span style="font-family:monospace;font-size:8px;background:rgba(100,80,255,0.02);padding:1px 6px;border-radius:3px;color:#555577">+{len(active_connections_list)-10}</span>"""
+            conns_html += f"""<span class="conn-chip more">+{len(active_connections_list)-10}</span>"""
         conns_html += "</div></div>"
     else:
-        conns_html = f"""<div style="background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:10px;padding:6px 10px;margin:8px 0;text-align:center"><span style="font-size:9px;color:#555577">🔴 بدون اتصال فعال</span></div>"""
+        conns_html = """<div class="conns-section offline"><div class="conns-header">🔴 بدون اتصال فعال</div></div>"""
     
-    # ساخت لینک‌های کانفیگ
-    vless_links_html = ""
-    if len(vless_links) > 1:
-        vless_links_html = "<div style='margin-top:6px;font-size:8px;color:#8888BB'>"
-        for i, link_str in enumerate(vless_links[:5]):
-            port = ports[i] if i < len(ports) else 443
-            vless_links_html += f"<div style='font-family:monospace;font-size:7px;color:#A78BFA;word-break:break-all;padding:2px 4px;background:rgba(0,0,0,0.1);border-radius:3px;margin-bottom:2px;'>🔌 پورت {port}</div>"
-        if len(vless_links) > 5:
-            vless_links_html += f"<div style='font-size:7px;color:#555577'>+{len(vless_links)-5} کانفیگ دیگر</div>"
-        vless_links_html += "</div>"
+    # نام انگشت‌نگاری
+    fp_names = {
+        'chrome': 'Chrome', 'firefox': 'Firefox', 'safari': 'Safari',
+        'edge': 'Edge', 'ios': 'iOS', 'android': 'Android',
+        'safari_ios': 'Safari iOS', 'random': 'Random', 'none': 'None'
+    }
+    fp_name = fp_names.get(fingerprint, fingerprint)
+    fp_emoji = {'chrome':'🌐','firefox':'🦊','safari':'🧭','edge':'🌊','ios':'📱','android':'🤖','safari_ios':'🍏','random':'🎲','none':'🚫'}.get(fingerprint, '🔑')
     
-    return f"""<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>🪐 {label}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    return f'''<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🪐 {label} · پنل عقاب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-*{{margin:0;padding:0;box-sizing:border-box}}@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.25}}}}
-body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;color:#F0EEFF;background:linear-gradient(135deg,#0a0a1a,#1a0a2a,#0a0a2a);}}
-.stars-sub{{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}}
-.star-sub{{position:absolute;border-radius:50%;background:#fff;animation:twinkleSub 4s ease-in-out infinite}}
-@keyframes twinkleSub{{0%,100%{{opacity:0.1}}50%{{opacity:0.4}}}}
-.glow-sub{{position:fixed;border-radius:50%;filter:blur(150px);z-index:0;pointer-events:none}}
-.glow-sub1{{width:350px;height:350px;background:rgba(100,80,255,0.04);top:-120px;right:-60px;animation:glowFloat2 7s ease-in-out infinite}}
-.glow-sub2{{width:250px;height:250px;background:rgba(167,139,250,0.03);bottom:-60px;left:-40px;animation-delay:2s;animation:glowFloat2 9s ease-in-out infinite reverse}}
-@keyframes glowFloat2{{0%,100%{{transform:translate(0,0) scale(1)}}50%{{transform:translate(20px,-20px) scale(1.05)}}}}
-.card{{position:relative;z-index:10;background:rgba(10,10,30,0.8);backdrop-filter:blur(30px);border:1px solid rgba(100,80,255,0.06);border-radius:20px;padding:24px 22px 20px;max-width:420px;width:100%;box-shadow:0 0 60px rgba(0,0,0,0.4),0 0 80px rgba(100,80,255,0.02);animation:cardIn 0.6s ease;}}
-@keyframes cardIn{{from{{opacity:0;transform:translateY(20px) scale(0.97)}}to{{opacity:1;transform:translateY(0) scale(1)}}}}
-.brand{{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(100,80,255,0.04);}}
-.brand-icon{{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C6BFF,#5B4BD9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 30px rgba(100,80,255,0.1);}}
-.brand-text .name{{font-size:13px;font-weight:800;background:linear-gradient(135deg,#A78BFA,#7C6BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
-.brand-text .sub{{font-size:7px;color:#555577;margin-top:0px}}
-.user-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}}
-.user-name{{font-size:17px;font-weight:800;color:#F0EEFF;display:flex;align-items:center;gap:4px}}
-.user-name .fire{{font-size:15px}}
-.status{{display:inline-flex;align-items:center;gap:3px;padding:2px 10px;border-radius:12px;font-size:9px;font-weight:700;}}
-.status.active{{background:rgba(100,80,255,0.12);color:#A78BFA;border:1px solid rgba(100,80,255,0.08);}}
-.status.inactive{{background:rgba(239,68,68,0.12);color:#F87171;border:1px solid rgba(239,68,68,0.08);}}
-.uuid-box{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:6px;padding:4px 8px;font-size:8px;font-family:monospace;color:#555577;word-break:break-all;margin:3px 0 8px;cursor:pointer;transition:.3s}}
-.uuid-box:hover{{background:rgba(100,80,255,0.04);transform:scale(1.01)}}
-.info-grid{{display:grid;gap:5px;margin:8px 0}}
-.info-item{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.02);border-radius:6px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;transition:.3s}}
-.info-item:hover{{background:rgba(100,80,255,0.04)}}
-.info-label{{font-size:9px;color:#8888BB;display:flex;align-items:center;gap:3px}}
-.info-label i{{font-size:10px;color:#7C6BFF}}
-.info-value{{font-size:11px;font-weight:700;color:#F0EEFF}}
-.info-value.used{{color:#A78BFA}}
-.info-value.proto{{font-size:8px;background:rgba(100,80,255,0.05);padding:1px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.04);}}
-.progress{{margin:8px 0 10px}}
-.progress-bar{{height:3px;border-radius:3px;background:rgba(100,80,255,0.04);overflow:hidden}}
-.progress-fill{{height:100%;border-radius:3px;background:linear-gradient(90deg,#7C6BFF,#5B4BD9,#A78BFA);width:{percent:.1f}%;transition:width 1s ease}}
-.progress-text{{display:flex;justify-content:space-between;font-size:8px;color:#8888BB;margin-top:2px}}
-.progress-text .pct{{font-weight:700;color:#F0EEFF}}
-.vless-section{{background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.03);border-radius:8px;padding:8px 10px;margin:8px 0}}
-.vless-label{{font-size:7px;color:#8888BB;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:4px;margin-bottom:4px}}
-.vless-label i{{color:#7C6BFF;font-size:10px}}
-.vless-link{{font-family:monospace;font-size:8px;color:#A78BFA;word-break:break-all;line-height:1.5;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;border:1px solid rgba(100,80,255,0.02);}}
-.actions{{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}}
-.btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:all .3s;white-space:nowrap;flex:1;justify-content:center}}
-.btn i{{font-size:11px}}
-.btn-primary{{background:linear-gradient(135deg,#7C6BFF,#5B4BD9);color:#fff;box-shadow:0 3px 15px rgba(100,80,255,0.15)}}
-.btn-primary:hover{{transform:translateY(-2px);box-shadow:0 6px 25px rgba(100,80,255,0.25)}}
-.btn-secondary{{background:rgba(100,80,255,0.03);border:1px solid rgba(100,80,255,0.04);color:#8888BB}}
-.btn-secondary:hover{{background:rgba(100,80,255,0.06);color:#F0EEFF;transform:translateY(-2px)}}
-.btn-success{{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.08);color:#34D399}}
-.btn-success:hover{{background:rgba(16,185,129,0.1);transform:translateY(-2px)}}
-.footer{{margin-top:12px;padding-top:10px;border-top:1px solid rgba(100,80,255,0.02);text-align:center;font-size:7px;color:#555577}}
-.footer .eagle{{color:#7C6BFF;font-weight:700}}
-.toast{{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(10,10,30,0.9);backdrop-filter:blur(20px);border:1px solid rgba(100,80,255,0.08);color:#F0EEFF;border-radius:8px;padding:6px 14px;font-size:10px;opacity:0;transition:all .4s;z-index:999;pointer-events:none;display:flex;align-items:center;gap:4px;box-shadow:0 8px 30px rgba(0,0,0,0.3)}}
-.toast.show{{opacity:1;transform:translateX(-50%) translateY(0)}}
-.toast.ok{{border-color:rgba(16,185,129,0.15);color:#34D399}}
-@media(max-width:400px){{.card{{padding:16px 14px 14px}}.user-name{{font-size:15px}}.brand-icon{{width:30px;height:30px;font-size:14px}}.info-item{{padding:4px 8px}}.btn{{font-size:8px;padding:4px 8px}}}}
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+
+:root {{
+  --bg: #0a0a1a;
+  --bg2: #12122a;
+  --bg3: #1a1a3a;
+  --card: rgba(10, 10, 30, 0.8);
+  --card-border: rgba(100, 80, 255, 0.06);
+  --card-hover: rgba(100, 80, 255, 0.1);
+  --text: #F0EEFF;
+  --text2: #8888BB;
+  --text3: #555577;
+  --accent: #7C6BFF;
+  --accent2: #A78BFA;
+  --accent3: #5B4BD9;
+  --green: #10B981;
+  --green-bg: rgba(16, 185, 129, 0.08);
+  --green-text: #34D399;
+  --red: #EF4444;
+  --red-bg: rgba(239, 68, 68, 0.08);
+  --red-text: #F87171;
+  --amber: #F59E0B;
+  --amber-bg: rgba(245, 158, 11, 0.08);
+  --amber-text: #FCD34D;
+  --shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 120px rgba(100, 80, 255, 0.02);
+  --glow: 0 0 80px rgba(100, 80, 255, 0.03);
+  --transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --radius: 14px;
+}}
+
+[data-theme="light"] {{
+  --bg: #f0f0f8;
+  --bg2: #e8e8f0;
+  --bg3: #dddde8;
+  --card: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(100, 80, 255, 0.12);
+  --card-hover: rgba(100, 80, 255, 0.15);
+  --text: #1a1a2e;
+  --text2: #4a4a6a;
+  --text3: #7a7a9a;
+  --shadow: 0 25px 80px rgba(0, 0, 0, 0.08), 0 0 120px rgba(100, 80, 255, 0.02);
+  --glow: 0 0 80px rgba(100, 80, 255, 0.02);
+}}
+
+body {{
+  font-family: 'Vazirmatn', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--bg);
+  color: var(--text);
+  transition: var(--transition);
+  position: relative;
+  overflow-x: hidden;
+}}
+
+/* ===== ستاره‌ها ===== */
+.stars-container {{
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}}
+.star {{
+  position: absolute;
+  border-radius: 50%;
+  background: var(--text);
+  animation: twinkle 4s ease-in-out infinite;
+}}
+@keyframes twinkle {{
+  0%, 100% {{ opacity: 0.1; }}
+  50% {{ opacity: 0.5; }}
+}}
+@keyframes float {{
+  0%, 100% {{ transform: translate(0, 0) scale(1); }}
+  50% {{ transform: translate(20px, -20px) scale(1.03); }}
+}}
+.glow-orb {{
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+  animation: float 8s ease-in-out infinite;
+}}
+.glow-orb1 {{ width: 400px; height: 400px; background: rgba(100, 80, 255, 0.04); top: -100px; right: -50px; }}
+.glow-orb2 {{ width: 300px; height: 300px; background: rgba(167, 139, 250, 0.03); bottom: -50px; left: -30px; animation-delay: 3s; }}
+
+/* ===== کارت اصلی ===== */
+.card {{
+  position: relative;
+  z-index: 10;
+  background: var(--card);
+  backdrop-filter: blur(30px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 22px 20px 18px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  animation: cardIn 0.6s ease;
+  transition: var(--transition);
+}}
+@keyframes cardIn {{
+  from {{ opacity: 0; transform: translateY(30px) scale(0.96); }}
+  to {{ opacity: 1; transform: translateY(0) scale(1); }}
+}}
+
+/* ===== هدر ===== */
+.card-header {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--card-border);
+}}
+.brand {{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}}
+.brand-icon {{
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #7C6BFF, #5B4BD9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 0 30px rgba(100, 80, 255, 0.15);
+}}
+.brand-text {{
+  font-size: 11px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #A78BFA, #7C6BFF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}}
+.brand-sub {{ font-size: 6px; color: var(--text3); -webkit-text-fill-color: var(--text3); }}
+.theme-toggle {{
+  background: rgba(100, 80, 255, 0.05);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text2);
+  transition: var(--transition);
+  font-family: inherit;
+}}
+.theme-toggle:hover {{
+  background: rgba(100, 80, 255, 0.1);
+  transform: scale(1.05);
+}}
+
+/* ===== نام کاربر ===== */
+.user-row {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}}
+.user-name {{
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}}
+.status-badge {{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 700;
+}}
+.status-badge.active {{
+  background: var(--green-bg);
+  color: var(--green-text);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+}}
+.status-badge.inactive {{
+  background: var(--red-bg);
+  color: var(--red-text);
+  border: 1px solid rgba(239, 68, 68, 0.1);
+}}
+.uuid-box {{
+  background: rgba(100, 80, 255, 0.03);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 8px;
+  font-family: monospace;
+  color: var(--text3);
+  word-break: break-all;
+  cursor: pointer;
+  transition: var(--transition);
+  margin: 4px 0 8px;
+  text-align: center;
+}}
+.uuid-box:hover {{
+  background: rgba(100, 80, 255, 0.06);
+  transform: scale(1.01);
+}}
+
+/* ===== اتصالات ===== */
+.conns-section {{
+  background: rgba(100, 80, 255, 0.02);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 6px 0;
+}}
+.conns-section.offline {{ border-color: rgba(239, 68, 68, 0.06); }}
+.conns-header {{
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+}}
+.conns-dot {{
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green-text);
+  animation: pulse 1.5s infinite;
+}}
+@keyframes pulse {{
+  0%, 100% {{ opacity: 1; transform: scale(1); }}
+  50% {{ opacity: 0.3; transform: scale(0.6); }}
+}}
+.conns-list {{ display: flex; flex-wrap: wrap; gap: 3px; }}
+.conn-chip {{
+  font-family: monospace;
+  font-size: 7px;
+  background: rgba(100, 80, 255, 0.04);
+  border: 1px solid var(--card-border);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text2);
+}}
+.conn-chip.more {{
+  background: rgba(100, 80, 255, 0.02);
+  color: var(--text3);
+}}
+
+/* ===== گرید اطلاعات ===== */
+.info-grid {{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 6px 0;
+}}
+.info-item {{
+  background: rgba(100, 80, 255, 0.02);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: var(--transition);
+}}
+.info-item:hover {{ background: rgba(100, 80, 255, 0.04); }}
+.info-label {{
+  font-size: 7px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+}}
+.info-label i {{ font-size: 8px; color: var(--accent); }}
+.info-value {{
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+}}
+.info-value.small {{ font-size: 8px; }}
+.info-value.green {{ color: var(--green-text); }}
+.info-value.used {{ color: var(--accent2); }}
+
+/* ===== تایمر ===== */
+.timer-section {{
+  background: linear-gradient(135deg, rgba(100, 80, 255, 0.04), rgba(167, 139, 250, 0.02));
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 6px 0;
+  text-align: center;
+}}
+.timer-label {{
+  font-size: 7px;
+  color: var(--text3);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}}
+.timer-display {{
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent2);
+  letter-spacing: 2px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 2px;
+}}
+.timer-display.expired {{ color: var(--red-text); }}
+
+/* ===== نوار پیشرفت ===== */
+.progress-section {{
+  margin: 6px 0;
+}}
+.progress-bar {{
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(100, 80, 255, 0.05);
+  overflow: hidden;
+}}
+.progress-fill {{
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #7C6BFF, #5B4BD9, #A78BFA);
+  width: {percent:.1f}%;
+  transition: width 1.2s ease;
+}}
+.progress-text {{
+  display: flex;
+  justify-content: space-between;
+  font-size: 7px;
+  color: var(--text3);
+  margin-top: 2px;
+}}
+.progress-text .pct {{ font-weight: 700; color: var(--text2); }}
+
+/* ===== لینک VLESS ===== */
+.vless-section {{
+  background: rgba(100, 80, 255, 0.02);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: 6px 0;
+}}
+.vless-label {{
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+}}
+.vless-label i {{ color: var(--accent); font-size: 9px; }}
+.vless-link {{
+  font-family: monospace;
+  font-size: 7px;
+  color: var(--accent2);
+  word-break: break-all;
+  line-height: 1.6;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--card-border);
+}}
+.vless-ports {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}}
+.vless-port {{
+  font-size: 7px;
+  background: rgba(100, 80, 255, 0.04);
+  border: 1px solid var(--card-border);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text3);
+  font-family: monospace;
+}}
+
+/* ===== دکمه‌ها ===== */
+.actions {{
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}}
+.btn {{
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  transition: var(--transition);
+  white-space: nowrap;
+  flex: 1;
+  justify-content: center;
+}}
+.btn i {{ font-size: 10px; }}
+.btn-primary {{
+  background: linear-gradient(135deg, #7C6BFF, #5B4BD9);
+  color: #fff;
+  box-shadow: 0 3px 15px rgba(100, 80, 255, 0.15);
+}}
+.btn-primary:hover {{
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(100, 80, 255, 0.25);
+}}
+.btn-secondary {{
+  background: rgba(100, 80, 255, 0.03);
+  border: 1px solid var(--card-border);
+  color: var(--text2);
+}}
+.btn-secondary:hover {{
+  background: rgba(100, 80, 255, 0.06);
+  color: var(--text);
+  transform: translateY(-2px);
+}}
+.btn-success {{
+  background: var(--green-bg);
+  border: 1px solid rgba(16, 185, 129, 0.08);
+  color: var(--green-text);
+}}
+.btn-success:hover {{
+  background: rgba(16, 185, 129, 0.12);
+  transform: translateY(-2px);
+}}
+
+/* ===== فوتر ===== */
+.footer {{
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--card-border);
+  text-align: center;
+  font-size: 6px;
+  color: var(--text3);
+}}
+.footer .eagle {{ color: var(--accent); font-weight: 700; }}
+
+/* ===== توست ===== */
+.toast {{
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(40px);
+  background: var(--card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--card-border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 9px;
+  opacity: 0;
+  transition: var(--transition);
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}}
+.toast.show {{ opacity: 1; transform: translateX(-50%) translateY(0); }}
+.toast.ok {{ border-color: rgba(16, 185, 129, 0.15); color: var(--green-text); }}
+
+/* ===== واکنش‌گرا ===== */
+@media(max-width: 400px) {{
+  .card {{ padding: 14px 12px 12px; }}
+  .user-name {{ font-size: 15px; }}
+  .info-grid {{ grid-template-columns: 1fr 1fr; }}
+  .info-item {{ padding: 3px 6px; }}
+  .info-value {{ font-size: 8px; }}
+  .btn {{ font-size: 8px; padding: 4px 8px; }}
+  .timer-display {{ font-size: 14px; }}
+}}
 </style>
 </head>
 <body>
-<div class="stars-sub">
-    <div class="star-sub" style="width:2px;height:2px;top:10%;left:10%;animation-delay:0s"></div>
-    <div class="star-sub" style="width:3px;height:3px;top:30%;left:40%;animation-delay:1.5s"></div>
-    <div class="star-sub" style="width:1px;height:1px;top:50%;left:70%;animation-delay:0.8s"></div>
-    <div class="star-sub" style="width:2px;height:2px;top:70%;left:20%;animation-delay:2.2s"></div>
-    <div class="star-sub" style="width:3px;height:3px;top:85%;left:80%;animation-delay:0.5s"></div>
+<div class="stars-container">
+    <div class="star" style="width:2px;height:2px;top:8%;left:6%;animation-delay:0s"></div>
+    <div class="star" style="width:3px;height:3px;top:25%;left:35%;animation-delay:1.5s"></div>
+    <div class="star" style="width:1px;height:1px;top:45%;left:65%;animation-delay:0.8s"></div>
+    <div class="star" style="width:2px;height:2px;top:65%;left:15%;animation-delay:2.2s"></div>
+    <div class="star" style="width:3px;height:3px;top:80%;left:75%;animation-delay:0.5s"></div>
+    <div class="star" style="width:1px;height:1px;top:35%;left:85%;animation-delay:1.8s"></div>
+    <div class="star" style="width:2px;height:2px;top:55%;left:45%;animation-delay:2.5s"></div>
 </div>
-<div class="glow-sub glow-sub1"></div><div class="glow-sub glow-sub2"></div>
+<div class="glow-orb glow-orb1"></div>
+<div class="glow-orb glow-orb2"></div>
+
 <div class="toast" id="toast"></div>
-<div class="card">
-    <div class="brand"><div class="brand-icon">🪐</div><div class="brand-text"><div class="name">پنل عقاب</div><div class="sub">اطلاعات اشتراک</div></div></div>
-    <div class="user-header"><div class="user-name"><span class="fire">🪐</span> {label}</div><span class="status {'active' if is_allowed else 'inactive'}"><i class="ti {'ti-circle-check' if is_allowed else 'ti-circle-x'}"></i>{'فعال' if is_allowed else 'غیرفعال'}</span></div>
+
+<div class="card" id="mainCard">
+    <!-- هدر با دکمه تغییر تم -->
+    <div class="card-header">
+        <div class="brand">
+            <div class="brand-icon">🪐</div>
+            <div>
+                <div class="brand-text">پنل عقاب</div>
+                <div class="brand-sub">اشتراک ویژه</div>
+            </div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
+    </div>
+
+    <!-- نام کاربر و وضعیت -->
+    <div class="user-row">
+        <div class="user-name"><span>🪐</span> {label}</div>
+        <span class="status-badge {'active' if is_allowed else 'inactive'}">
+            <i class="ti {'ti-circle-check' if is_allowed else 'ti-circle-x'}"></i>
+            {'فعال' if is_allowed else 'غیرفعال'}
+        </span>
+    </div>
     <div class="uuid-box" onclick="copyUUID()">🔑 {uuid}</div>
+
+    <!-- اتصالات فعال -->
     {conns_html}
+
+    <!-- گرید اطلاعات -->
     <div class="info-grid">
         <div class="info-item"><span class="info-label"><i class="ti ti-database"></i> مصرف</span><span class="info-value used">{used_fmt}</span></div>
         <div class="info-item"><span class="info-label"><i class="ti ti-package"></i> سهمیه</span><span class="info-value">{limit_fmt}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-calendar"></i> باقیمانده</span><span class="info-value">{days_left}</span></div>
         <div class="info-item"><span class="info-label"><i class="ti ti-devices"></i> دستگاه</span><span class="info-value">{max_devices if max_devices > 0 else '∞'}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-clock"></i> آخرین اتصال</span><span class="info-value" style="font-size:9px;">{last_connected_text}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-ip"></i> IP</span><span class="info-value proto">{user_ip}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-fingerprint"></i> FP</span><span class="info-value proto">{fingerprint}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-settings"></i> پروتکل</span><span class="info-value proto">{protocol}</span></div>
+        <div class="info-item"><span class="info-label"><i class="ti ti-ip"></i> IP</span><span class="info-value small">{user_ip}</span></div>
+        <div class="info-item"><span class="info-label"><i class="ti ti-fingerprint"></i> FP</span><span class="info-value small">{fp_emoji} {fp_name}</span></div>
+        <div class="info-item"><span class="info-label"><i class="ti ti-settings"></i> پروتکل</span><span class="info-value small">{protocol}</span></div>
     </div>
-    <div class="progress"><div class="progress-bar"><div class="progress-fill" style="width:{percent:.1f}%"></div></div><div class="progress-text"><span>میزان مصرف</span><span class="pct">{percent:.1f}%</span></div></div>
-    <div class="vless-section"><div class="vless-label"><i class="ti ti-link"></i> لینک کانفیگ</div><div class="vless-link" id="vless-link">{vless_link}</div>
-    {vless_links_html}
+
+    <!-- تایمر باقیمانده -->
+    <div class="timer-section">
+        <div class="timer-label">⏱ زمان باقیمانده</div>
+        <div class="timer-display" id="timerDisplay">{days_left}</div>
     </div>
-    <div class="actions"><button class="btn btn-primary" onclick="copyVless()"><i class="ti ti-copy"></i> کپی</button><button class="btn btn-success" onclick="copySub()"><i class="ti ti-link"></i> ساب</button><button class="btn btn-secondary" onclick="showQR()"><i class="ti ti-qrcode"></i> QR</button></div>
-    <div class="footer"><span class="eagle">🪐</span> پنل عقاب</div>
+
+    <!-- نوار پیشرفت مصرف -->
+    <div class="progress-section">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text"><span>میزان مصرف</span><span class="pct">{percent:.1f}%</span></div>
+    </div>
+
+    <!-- لینک VLESS -->
+    <div class="vless-section">
+        <div class="vless-label"><i class="ti ti-link"></i> لینک کانفیگ</div>
+        <div class="vless-link" id="vlessLink">{vless_link}</div>
+        <div class="vless-ports">
+            {''.join([f'<span class="vless-port">🔌 {p}</span>' for p in ports[:5]])}
+            {f'<span class="vless-port">+{len(ports)-5}</span>' if len(ports) > 5 else ''}
+        </div>
+    </div>
+
+    <!-- دکمه‌ها -->
+    <div class="actions">
+        <button class="btn btn-primary" onclick="copyVless()"><i class="ti ti-copy"></i> کپی</button>
+        <button class="btn btn-success" onclick="copySub()"><i class="ti ti-link"></i> ساب</button>
+        <button class="btn btn-secondary" onclick="showQR()"><i class="ti ti-qrcode"></i> QR</button>
+    </div>
+
+    <div class="footer"><span class="eagle">🪐</span> پنل عقاب · نسخه ۱۰</div>
 </div>
+
 <script>
-const vless=`{vless_link}`;
-const subUrl=`{sub_url}`;
-const uuid=`{uuid}`;
-function toast(msg,type=''){{const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');setTimeout(()=>t.classList.remove('show'),2000);}}
-function copyVless(){{navigator.clipboard.writeText(vless).then(()=>toast('✅ کپی شد','ok'));}}
-function copySub(){{navigator.clipboard.writeText(subUrl).then(()=>toast('✅ کپی شد','ok'));}}
-function copyUUID(){{navigator.clipboard.writeText(uuid).then(()=>toast('✅ کپی شد','ok'));}}
-function showQR(){{window.open('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data='+encodeURIComponent(vless),'_blank');}}
+// ===== داده‌ها =====
+const vless = `{vless_link}`;
+const subUrl = `{sub_url}`;
+const uuid = `{uuid}`;
+const remainingSeconds = {remaining_seconds};
+const isExpired = {str(not is_allowed).lower()};
+
+// ===== توابع عمومی =====
+function toast(msg, type='') {{
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(t._timeout);
+    t._timeout = setTimeout(() => t.classList.remove('show'), 2000);
+}}
+
+function copyVless() {{ navigator.clipboard.writeText(vless).then(() => toast('✅ کپی شد', 'ok')); }}
+function copySub() {{ navigator.clipboard.writeText(subUrl).then(() => toast('✅ کپی شد', 'ok')); }}
+function copyUUID() {{ navigator.clipboard.writeText(uuid).then(() => toast('✅ کپی شد', 'ok')); }}
+function showQR() {{ window.open('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(vless), '_blank'); }}
+
+// ===== مدیریت تم =====
+let currentTheme = localStorage.getItem('eagle-sub-theme') || 'dark';
+
+function toggleTheme() {{
+    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}}
+
+function setTheme(theme) {{
+    currentTheme = theme;
+    localStorage.setItem('eagle-sub-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('themeBtn').textContent = theme === 'dark' ? '☀️' : '🌙';
+}}
+
+// بارگذاری تم ذخیره‌شده
+setTheme(currentTheme);
+
+// ===== تایمر زنده =====
+function formatTime(seconds) {{
+    if (seconds <= 0) return '⏰ منقضی شد';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (days > 0) {{
+        return `${{days}}d ${{String(hours).padStart(2, '0')}}h ${{String(mins).padStart(2, '0')}}m`;
+    }}
+    return `${{String(hours).padStart(2, '0')}}:${{String(mins).padStart(2, '0')}}:${{String(secs).padStart(2, '0')}}`;
+}}
+
+function updateTimer() {{
+    const el = document.getElementById('timerDisplay');
+    if (isExpired) {{
+        el.textContent = '⏰ منقضی شد';
+        el.className = 'timer-display expired';
+        return;
+    }}
+    if (remainingSeconds <= 0) {{
+        el.textContent = '♾️ نامحدود';
+        el.className = 'timer-display';
+        return;
+    }}
+    const now = Math.floor(Date.now() / 1000);
+    const elapsed = Math.floor(Date.now() / 1000) - startTime;
+    const remaining = Math.max(0, remainingSeconds - elapsed);
+    el.textContent = formatTime(remaining);
+    if (remaining === 0) {{
+        el.className = 'timer-display expired';
+        el.textContent = '⏰ منقضی شد';
+    }}
+}}
+
+const startTime = Math.floor(Date.now() / 1000);
+if (remainingSeconds > 0 && !isExpired) {{
+    updateTimer();
+    setInterval(updateTimer, 1000);
+}} else if (isExpired) {{
+    document.getElementById('timerDisplay').textContent = '⏰ منقضی شد';
+    document.getElementById('timerDisplay').className = 'timer-display expired';
+}}
+
+// ===== انیمیشن نوار پیشرفت =====
+setTimeout(() => {{
+    const fill = document.getElementById('progressFill');
+    if (fill) fill.style.width = '{percent:.1f}%';
+}}, 100);
 </script>
 </body></html>"""
