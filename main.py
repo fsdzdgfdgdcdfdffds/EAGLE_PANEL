@@ -1067,7 +1067,7 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         await remove_device_connection(uuid, client_ip)
         logger.info(f"🔌 WS closed [{conn_id}] total={len(connections)}")
 
-# ─── ===== ساب‌لینک با اطلاعات کامل ===== ──────────────────────────────────
+# ===== ساب‌لینک با اطلاعات کامل =====
 
 @app.get("/sub/{uuid}")
 async def subscription_single(request: Request, uuid: str):
@@ -1249,6 +1249,7 @@ async def subscription_single(request: Request, uuid: str):
         "days_left": days_left,
         "used_fmt": fmt_bytes(used_bytes),
         "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
+        "max_devices": link.get("max_devices", 0),
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
