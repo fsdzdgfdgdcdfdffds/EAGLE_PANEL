@@ -204,7 +204,6 @@ const translations = {
 };
 
 let currentLang = localStorage.getItem('eagle-lang') || 'fa';
-let isSuperAdmin = false;
 
 function setLang(lang) {
     currentLang = lang;
@@ -256,12 +255,9 @@ async function loadWorkspaces() {
                 select.appendChild(opt);
             });
             document.getElementById('workspace-field').style.display = 'block';
-            isSuperAdmin = true;
         }
     } catch(e) {
-        // ادمین عادی
         document.getElementById('workspace-field').style.display = 'none';
-        isSuperAdmin = false;
     }
 }
 
@@ -301,7 +297,7 @@ async function handleLogin(e) {
             return;
         }
         
-        if (data.is_super_admin) {
+        if (data.is_main_admin) {
             window.location.href = '/dashboard';
         } else {
             window.location.href = '/dashboard';
@@ -328,7 +324,6 @@ document.getElementById('password').addEventListener('keydown', (e) => {
 document.addEventListener('DOMContentLoaded', async () => {
     setLang(currentLang);
     await loadWorkspaces();
-    // چک کردن لاگین قبلی
     try {
         const r = await fetch('/api/me');
         const d = await r.json();
@@ -805,18 +800,37 @@ body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
 <section class="pg" id="pg-settings">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-settings"></i> تنظیمات</div><div class="tb-sub">مدیریت پنل</div></div></div>
   
-  <!-- تنظیمات Workspace (فقط برای ادمین Workspace) -->
+  <!-- ===== تغییر رمز و یوزرنیم Workspace ===== -->
   <div class="settings-card" id="workspace-settings">
-    <div class="title"><i class="ti ti-buildings"></i> اطلاعات Workspace</div>
-    <div id="workspace-info" style="font-size:11px;color:var(--t2);">
-      <div>📛 نام: <span id="ws-name">—</span></div>
-      <div>📊 سهمیه: <span id="ws-quota">—</span></div>
-      <div>📈 درصد: <span id="ws-percent">—</span></div>
-      <div>👥 کاربران: <span id="ws-users">—</span></div>
+    <div class="title"><i class="ti ti-buildings"></i> تنظیمات حساب کاربری</div>
+    
+    <div class="field">
+      <label>نام کاربری فعلی</label>
+      <input class="fi" id="ws-current-username" type="text" placeholder="نام کاربری فعلی" dir="ltr">
     </div>
-    <div style="margin-top:6px;">
-      <button class="btn btn-pur btn-sm" onclick="resetWorkspaceQuota()" style="width:auto;padding:4px 12px;"><i class="ti ti-rotate"></i> ریست مصرف</button>
+    <div class="field">
+      <label>نام کاربری جدید</label>
+      <input class="fi" id="ws-new-username" type="text" placeholder="نام کاربری جدید" dir="ltr">
     </div>
+    <button class="btn btn-pur" onclick="changeWorkspaceUsername()" style="width:100%;"><i class="ti ti-user"></i> تغییر نام کاربری</button>
+    <div id="ws-username-result" style="margin-top:6px;display:none;font-size:11px;"></div>
+    
+    <div style="border-top:1px solid var(--card-b);margin:10px 0;"></div>
+    
+    <div class="field">
+      <label>رمز فعلی</label>
+      <input class="fi" id="ws-old-password" type="password" placeholder="رمز فعلی" dir="ltr">
+    </div>
+    <div class="field">
+      <label>رمز جدید</label>
+      <input class="fi" id="ws-new-password" type="password" placeholder="حداقل ۴ کاراکتر" dir="ltr">
+    </div>
+    <div class="field">
+      <label>تکرار رمز جدید</label>
+      <input class="fi" id="ws-confirm-password" type="password" placeholder="تکرار" dir="ltr">
+    </div>
+    <button class="btn btn-p" onclick="changeWorkspacePassword()" style="width:100%;"><i class="ti ti-key"></i> تغییر رمز عبور</button>
+    <div id="ws-password-result" style="margin-top:6px;display:none;font-size:11px;"></div>
   </div>
   
   <div class="settings-card">
@@ -835,23 +849,6 @@ body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
       <button class="btn btn-o" onclick="setLang('en')" style="flex:1;font-size:11px;padding:6px 12px" id="lang-en-btn">🇬🇧 English</button>
     </div>
     <div style="font-size:9px;color:var(--t3);margin-top:6px">💡 زبان فعلی: <span id="current-lang-label">فارسی</span></div>
-  </div>
-  
-  <div class="settings-card">
-    <div class="title"><i class="ti ti-user"></i> تغییر نام کاربری</div>
-    <div class="field"><label>نام کاربری فعلی</label><input class="fi" id="current-username" type="text" placeholder="نام کاربری فعلی" dir="ltr"></div>
-    <div class="field"><label>نام کاربری جدید</label><input class="fi" id="new-username" type="text" placeholder="نام کاربری جدید" dir="ltr"></div>
-    <button class="btn btn-p" onclick="changeUsername()"><i class="ti ti-user"></i> تغییر</button>
-    <div id="username-result" style="margin-top:8px;display:none;font-size:11px;"></div>
-  </div>
-  
-  <div class="settings-card">
-    <div class="title"><i class="ti ti-key"></i> تغییر رمز</div>
-    <div class="field"><label>رمز فعلی</label><input class="fi" id="old-password" type="password" placeholder="رمز فعلی" dir="ltr"></div>
-    <div class="field"><label>رمز جدید</label><input class="fi" id="new-password" type="password" placeholder="حداقل ۴ کاراکتر" dir="ltr"></div>
-    <div class="field"><label>تکرار</label><input class="fi" id="confirm-password" type="password" placeholder="تکرار" dir="ltr"></div>
-    <button class="btn btn-p" onclick="changePassword()"><i class="ti ti-key"></i> تغییر</button>
-    <div id="password-result" style="margin-top:8px;display:none;font-size:11px;"></div>
   </div>
   
   <div class="settings-card">
@@ -968,7 +965,7 @@ body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
   </div>
 </section>
 
-<!-- ===== Workspace مدیریت (فقط Super Admin) ===== -->
+<!-- ===== Workspace مدیریت (فقط ادمین اصلی) ===== -->
 <section class="pg" id="pg-workspace">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-buildings"></i> مدیریت Workspace</div><div class="tb-sub">مدیریت فضاهای کاری</div></div>
     <div class="tb-right">
@@ -1104,18 +1101,18 @@ function closeSb(){ sb.classList.remove('open'); overlay.classList.remove('show'
 document.getElementById('open-sb').addEventListener('click', openSb);
 overlay.addEventListener('click', closeSb);
 
-// ===== چک کردن Super Admin =====
-let isSuperAdmin = false;
+// ===== چک کردن ادمین اصلی =====
+let isMainAdmin = false;
 let workspaceId = null;
 
 async function checkUserType() {
     try {
         const r = await fetch('/api/me');
         const d = await r.json();
-        isSuperAdmin = d.is_super_admin || false;
+        isMainAdmin = d.is_main_admin || false;
         workspaceId = d.workspace_id;
         
-        if (isSuperAdmin) {
+        if (isMainAdmin) {
             document.querySelector('[data-pg="workspace"]').style.display = 'block';
         } else {
             document.querySelector('[data-pg="workspace"]').style.display = 'none';
@@ -1139,7 +1136,6 @@ async function loadDashboard() {
     document.getElementById('online-badge').innerHTML = '<span class="dot dg"></span> ' + (data.connections || 0) + ' آنلاین';
     document.getElementById('last-update').textContent = 'بروزرسانی: ' + new Date().toLocaleTimeString('fa-IR');
     
-    // بارگذاری اطلاعات Workspace
     await loadWorkspaceInfo();
     
     const usersR = await authF('/api/workspace/links');
@@ -1163,7 +1159,7 @@ async function loadDashboard() {
 // ===== اطلاعات Workspace =====
 async function loadWorkspaceInfo() {
     try {
-        if (isSuperAdmin) return;
+        if (isMainAdmin) return;
         const r = await authF('/api/workspace/info');
         const data = await r.json();
         document.getElementById('ws-name').textContent = data.name || '—';
@@ -1182,16 +1178,80 @@ async function loadWorkspaceInfo() {
     } catch(e) {}
 }
 
-async function resetWorkspaceQuota() {
-    if (!confirm('آیا مطمئن هستید؟ مصرف Workspace ریست می‌شود.')) return;
+// ===== تغییر نام کاربری Workspace =====
+async function changeWorkspaceUsername() {
+    const current = document.getElementById('ws-current-username').value.trim();
+    const newUser = document.getElementById('ws-new-username').value.trim();
+    const result = document.getElementById('ws-username-result');
+    
+    if (!current || !newUser) {
+        result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ همه فیلدها را پر کنید';
+        return;
+    }
+    if (newUser.length < 3) {
+        result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ حداقل ۳ کاراکتر';
+        return;
+    }
+    
     try {
-        const r = await authF(`/api/admin/workspaces/${workspaceId}/quota/reset`, {method: 'POST'});
-        if (r.ok) {
-            toast('✅ مصرف Workspace ریست شد', 'ok');
-            loadWorkspaceInfo();
-            loadDashboard();
+        const r = await authF('/api/workspace/change-username', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_username: newUser })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ ' + (data.detail || data.message || 'خطا');
+            return;
         }
-    } catch(e) { toast('❌ خطا', 'err'); }
+        result.style.display='block'; result.style.color='#34D399'; result.innerHTML='✅ ' + data.message;
+        document.getElementById('ws-current-username').value = '';
+        document.getElementById('ws-new-username').value = '';
+        toast('✅ نام کاربری تغییر کرد', 'ok');
+    } catch(e) {
+        result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ خطا';
+    }
+}
+
+// ===== تغییر رمز Workspace =====
+async function changeWorkspacePassword() {
+    const oldPw = document.getElementById('ws-old-password').value;
+    const newPw = document.getElementById('ws-new-password').value;
+    const confirmPw = document.getElementById('ws-confirm-password').value;
+    const result = document.getElementById('ws-password-result');
+    
+    if (!oldPw || !newPw || !confirmPw) {
+        result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ همه فیلدها را پر کنید';
+        return;
+    }
+    if (newPw.length < 4) {
+        result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ حداقل ۴ کاراکتر';
+        return;
+    }
+    if (newPw !== confirmPw) {
+        result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ رمزها مطابقت ندارند';
+        return;
+    }
+    
+    try {
+        const r = await authF('/api/workspace/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ ' + (data.detail || data.message || 'خطا');
+            return;
+        }
+        result.style.display='block'; result.style.color='#34D399'; result.innerHTML='✅ ' + data.message;
+        document.getElementById('ws-old-password').value = '';
+        document.getElementById('ws-new-password').value = '';
+        document.getElementById('ws-confirm-password').value = '';
+        toast('✅ رمز تغییر کرد', 'ok');
+    } catch(e) {
+        result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ خطا';
+    }
 }
 
 // ===== اینباند =====
@@ -1660,7 +1720,7 @@ async function restoreBackup(event) {
   event.target.value = '';
 }
 
-// ===== Workspace Management (Super Admin) =====
+// ===== Workspace Management (ادمین اصلی) =====
 async function loadWorkspaces() {
   try {
     const r = await authF('/api/admin/workspaces');
@@ -1734,65 +1794,54 @@ async function deleteWorkspace(wsId) {
   } catch(e) { toast('❌ خطا', 'err'); }
 }
 
-// ===== تغییر نام کاربری =====
-async function changeUsername() {
-  const current = document.getElementById('current-username').value.trim();
-  const newUser = document.getElementById('new-username').value.trim();
-  const result = document.getElementById('username-result');
-  if (!current || !newUser) {
-    result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ همه فیلدها را پر کنید'; return;
-  }
-  if (newUser.length < 3) {
-    result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ حداقل ۳ کاراکتر'; return;
-  }
-  try {
-    const r = await authF('/api/change-username', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ current_username: current, new_username: newUser })
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ ' + (data.detail || data.message || 'خطا');
-      return;
-    }
-    result.style.display='block'; result.style.color='#34D399'; result.innerHTML='✅ ' + data.message;
-    document.getElementById('current-username').value = '';
-    document.getElementById('new-username').value = '';
-    toast('✅ نام کاربری تغییر کرد', 'ok');
-  } catch(e) { result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ خطا'; }
-}
+// ===== مودال ساخت Workspace =====
+document.getElementById('workspace-settings').innerHTML += `
+<div class="modal-bg" id="modal-workspace">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-workspace')"><i class="ti ti-x"></i></button>
+    <div class="modal-title"><i class="ti ti-buildings"></i> ساخت Workspace جدید</div>
+    <div class="fg"><label>نام Workspace</label><input class="fi" id="ws-name-input" placeholder="مثلاً: شرکت الف"></div>
+    <div class="fg"><label>نام کاربری ادمین</label><input class="fi" id="ws-admin-username" placeholder="نام کاربری"></div>
+    <div class="fg"><label>رمز عبور ادمین</label><input class="fi" id="ws-admin-password" type="password" placeholder="حداقل ۴ کاراکتر"></div>
+    <div class="fg"><label>سهمیه (GB)</label><input class="fi" id="ws-quota-input" type="number" min="0" value="50" placeholder="۰ = نامحدود"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button class="btn btn-p" onclick="saveWorkspace()" style="flex:2"><i class="ti ti-check"></i> ساخت</button>
+      <button class="btn btn-o" onclick="closeModal('modal-workspace')" style="flex:1">انصراف</button>
+    </div>
+  </div>
+</div>
+`;
 
-// ===== تغییر رمز =====
-async function changePassword() {
-  const oldPw = document.getElementById('old-password').value;
-  const newPw = document.getElementById('new-password').value;
-  const confirmPw = document.getElementById('confirm-password').value;
-  const result = document.getElementById('password-result');
-  if (!oldPw || !newPw || !confirmPw) {
-    result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ همه فیلدها را پر کنید'; return;
+async function saveWorkspace() {
+  const name = document.getElementById('ws-name-input').value.trim();
+  const username = document.getElementById('ws-admin-username').value.trim();
+  const password = document.getElementById('ws-admin-password').value.trim();
+  const quota = parseFloat(document.getElementById('ws-quota-input').value) || 0;
+  
+  if (!name || !username || !password) {
+    toast('❌ همه فیلدها را پر کنید', 'err');
+    return;
   }
-  if (newPw.length < 4) {
-    result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ حداقل ۴ کاراکتر'; return;
+  if (password.length < 4) {
+    toast('❌ رمز عبور حداقل 4 کاراکتر', 'err');
+    return;
   }
-  if (newPw !== confirmPw) {
-    result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ رمزها مطابقت ندارند'; return;
-  }
+  
   try {
-    const r = await authF('/api/change-password', {
+    const r = await authF('/api/admin/workspaces', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+      body: JSON.stringify({ name, admin_username: username, admin_password: password, quota_gb: quota })
     });
-    const data = await r.json();
-    if (!r.ok) {
-      result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ ' + (data.detail || data.message || 'خطا');
-      return;
+    if (r.ok) {
+      closeModal('modal-workspace');
+      document.getElementById('ws-name-input').value = '';
+      document.getElementById('ws-admin-username').value = '';
+      document.getElementById('ws-admin-password').value = '';
+      document.getElementById('ws-quota-input').value = '50';
+      toast('✅ Workspace ساخته شد', 'ok');
+      loadWorkspaces();
     }
-    result.style.display='block'; result.style.color='#34D399'; result.innerHTML='✅ رمز تغییر کرد!';
-    document.getElementById('old-password').value = '';
-    document.getElementById('new-password').value = '';
-    document.getElementById('confirm-password').value = '';
-    toast('✅ رمز تغییر کرد', 'ok');
-  } catch(e) { result.style.display='block'; result.style.color='#F87171'; result.innerHTML='❌ خطا'; }
+  } catch(e) { toast('❌ خطا', 'err'); }
 }
 
 // ===== تم RGB =====
@@ -1837,16 +1886,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const r = await fetch('/api/me');
     const d = await r.json();
     if (!d.authenticated) location.href = '/login';
-    isSuperAdmin = d.is_super_admin || false;
+    isMainAdmin = d.is_main_admin || false;
   } catch(e) { location.href = '/login'; }
   
   await checkUserType();
   
-  // بارگذاری تم
   let theme = localStorage.getItem('eagle-theme') || 'dark';
   setTheme(theme);
   
-  // بارگذاری زبان
   let lang = localStorage.getItem('eagle-lang') || 'fa';
   setLang(lang);
   
@@ -1857,9 +1904,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadConnections();
   loadLogs();
   loadSettings();
-  if (isSuperAdmin) loadWorkspaces();
+  if (isMainAdmin) loadWorkspaces();
   
-  // جستجو و فیلتر
   document.getElementById('search-users')?.addEventListener('input', loadUsers);
   document.getElementById('filter-status')?.addEventListener('change', loadUsers);
   document.getElementById('log-level-filter')?.addEventListener('change', loadLogs);
@@ -1876,7 +1922,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 # ===== تابع صفحه ساب‌لینک =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
-    """صفحه HTML زیبا برای نمایش اطلاعات کانفیگ"""
     from datetime import datetime
     
     used = link.get('used_bytes', 0)
