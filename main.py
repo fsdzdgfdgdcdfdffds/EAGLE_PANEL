@@ -1071,7 +1071,7 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
 
 @app.get("/sub/{uuid}")
 async def subscription_single(request: Request, uuid: str):
-    """ساب‌لینک با اطلاعات کامل حجم، زمان، IP و سرعت"""
+    """ساب‌لینک با طراحی حرفه‌ای، تایمر زنده و تغییر تم"""
     import base64
     
     # تشخیص User-Agent
@@ -1153,6 +1153,7 @@ async def subscription_single(request: Request, uuid: str):
     limit_bytes = link.get("limit_bytes", 0)
     used_bytes = link.get("used_bytes", 0)
     expires_at = link.get("expires_at")
+    max_devices = link.get("max_devices", 0)
     
     # محاسبه درصد مصرف
     percent = 0
@@ -1249,6 +1250,7 @@ async def subscription_single(request: Request, uuid: str):
         "days_left": days_left,
         "used_fmt": fmt_bytes(used_bytes),
         "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
+        "max_devices": max_devices,
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
