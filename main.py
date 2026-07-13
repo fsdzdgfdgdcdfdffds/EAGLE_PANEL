@@ -12,6 +12,7 @@ from urllib.parse import quote
 from collections import deque, defaultdict
 from pathlib import Path
 import socket
+import base64
 
 from fastapi import FastAPI, Request, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response, HTMLResponse, JSONResponse, RedirectResponse
@@ -93,10 +94,8 @@ SETTINGS: dict = {
 PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
 DEFAULT_PROTOCOL = "vless-ws"
 
-# ─── لیست پورت‌های پیشفرض ──────────────────────────────────────────────────
 DEFAULT_PORTS = [443, 8443, 2053, 2096, 2087, 2083, 8080]
 
-# ─── لیست فینگرپرینت‌ها ─────────────────────────────────────────────────────
 FINGERPRINTS = {
     "chrome": "🌐 Chrome",
     "firefox": "🦊 Firefox",
@@ -395,12 +394,16 @@ async def dashboard_stats(_=Depends(require_auth)):
     else:
         speed = 0
     
+    # محاسبه مصرف امروز
+    today = now_ir().strftime("%Y-%m-%d")
+    today_traffic = sum(v for k, v in hourly_traffic.items() if k.startswith(today))
+    
     return {
         "traffic": {
             "total": stats["total_bytes"],
             "total_fmt": fmt_bytes(stats["total_bytes"]),
-            "today": sum(hourly_traffic.values()),
-            "today_fmt": fmt_bytes(sum(hourly_traffic.values()))
+            "today": today_traffic,
+            "today_fmt": fmt_bytes(today_traffic)
         },
         "requests": stats["total_requests"],
         "uptime": uptime(),
@@ -466,10 +469,8 @@ async def create_link(request: Request, _=Depends(require_auth)):
     config_password = body.get("password", "").strip()
     password_hash = hash_password(config_password) if config_password else None
     
-    # ===== پورت‌ها =====
     ports = body.get("ports", [443])
     if isinstance(ports, list) and len(ports) > 0:
-        # فیلتر پورت‌های معتبر
         ports = [p for p in ports if isinstance(p, int) and 1 <= p <= 65535]
     else:
         ports = [443]
@@ -492,7 +493,7 @@ async def create_link(request: Request, _=Depends(require_auth)):
             "max_devices": max_devices,
             "fingerprint": fingerprint,
             "password_hash": password_hash,
-            "ports": ports,  # لیست پورت‌ها
+            "ports": ports,
         }
 
     if sub_id:
@@ -507,7 +508,6 @@ async def create_link(request: Request, _=Depends(require_auth)):
     host = get_host()
     
     remark = f"عقاب-{label}"
-    # لینک اصلی با اولین پورت
     main_link = generate_vless_link(uid, host, remark=remark, protocol=protocol, fingerprint=fingerprint, port=ports[0])
     
     link_data = {
@@ -1071,12 +1071,11 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         await remove_device_connection(uuid, client_ip)
         logger.info(f"🔌 WS closed [{conn_id}] total={len(connections)}")
 
-# ─── Subscriptions ─────────────────────────────────────────────────────────
+# ─── ===== ساب‌لینک با اطلاعات کامل (مثل Hiddify) ===== ──────────────────
 
 @app.get("/sub/{uuid}")
 async def subscription_single(request: Request, uuid: str):
-    """ساب‌لینک با چند کانفیگ (بر اساس پورت‌های انتخاب شده)"""
-    import base64
+    """ساب‌لینک با اطلاعات کامل حجم، زمان، IP و سرعت"""
     
     # تشخیص User-Agent
     user_agent = request.headers.get("user-agent", "").lower()
@@ -1154,26 +1153,63 @@ async def subscription_single(request: Request, uuid: str):
     protocol = link.get("protocol", DEFAULT_PROTOCOL)
     fingerprint = link.get("fingerprint", "chrome")
     ports = link.get("ports", [443])
-    remark_base = f"عقاب-{label}"
+    limit_bytes = link.get("limit_bytes", 0)
+    used_bytes = link.get("used_bytes", 0)
+    expires_at = link.get("expires_at")
     
-    # ===== ساخت چند کانفیگ با پورت‌های مختلف =====
+    # محاسبه درصد مصرف
+    percent = 0
+    if limit_bytes > 0:
+        percent = min(100, (used_bytes / limit_bytes) * 100)
+    
+    # محاسبه روزهای باقی‌مونده
+    days_left = "نامحدود"
+    if expires_at:
+        try:
+            exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+            days = (exp_date - datetime.now().astimezone()).days
+            days_left = f"{days} روز" if days > 0 else "منقضی"
+        except:
+            days_left = "نامشخص"
+    
+    # گرفتن IP کاربر و سرعت
+    user_ip = "نامشخص"
+    for c in connections.values():
+        if c.get("uuid") == uuid:
+            user_ip = c.get("ip", "نامشخص")
+            break
+    
+    # ساخت لینک‌های VLESS با پورت‌های مختلف
     vless_links = []
     for i, port in enumerate(ports):
-        remark = f"{remark_base}-p{port}" if len(ports) > 1 else remark_base
+        remark = f"{label}-p{port}" if len(ports) > 1 else label
         vless_links.append(generate_vless_link(
-            uuid, 
-            host, 
-            remark=remark,
-            protocol=protocol,
-            fingerprint=fingerprint,
-            port=port
+            uuid, host, remark=remark, protocol=protocol, 
+            fingerprint=fingerprint, port=port
         ))
     
-    # ===== اگر کلاینت باشد → ساب‌لینک با چند کانفیگ =====
+    # ===== اگر کلاینت باشد → کانفیگ با اطلاعات کامل =====
     if not is_browser:
-        content = base64.b64encode("\n".join(vless_links).encode()).decode()
+        # ساخت کانفیگ با اطلاعات اضافی (برای کلاینت‌های پیشرفته)
+        config_lines = []
+        for link_str in vless_links:
+            config_lines.append(link_str)
+        
+        # اضافه کردن اطلاعات به عنوان کامنت (برای کلاینت‌هایی که پشتیبانی می‌کنن)
+        info_lines = [
+            f"# نام: {label}",
+            f"# مصرف: {fmt_bytes(used_bytes)} / {fmt_bytes(limit_bytes) if limit_bytes > 0 else 'نامحدود'}",
+            f"# درصد: {percent:.1f}%",
+            f"# زمان باقی‌مانده: {days_left}",
+            f"# IP: {user_ip}",
+            f"# پورت‌ها: {', '.join(str(p) for p in ports)}",
+        ]
+        
+        content = "\n".join(info_lines + config_lines)
+        content_b64 = base64.b64encode(content.encode()).decode()
+        
         return Response(
-            content=content,
+            content=content_b64,
             media_type="text/plain",
             headers={
                 "Content-Disposition": f"attachment; filename=config_{uuid[:8]}.txt",
@@ -1182,10 +1218,11 @@ async def subscription_single(request: Request, uuid: str):
                 "Expires": "0",
                 "profile-title": quote(label),
                 "profile-update-interval": "12",
+                "profile-web-page-url": f"https://{host}/info/{uuid}",
             }
         )
     
-    # ===== اگر مرورگر باشد → صفحه اطلاعات با چند کانفیگ =====
+    # ===== اگر مرورگر باشد → صفحه اطلاعات =====
     from pages import get_sub_page_html
     
     active_connections_list = []
@@ -1201,22 +1238,36 @@ async def subscription_single(request: Request, uuid: str):
             if not last_connected or c.get("connected_at") > last_connected:
                 last_connected = c.get("connected_at")
     
+    # محاسبه سرعت لحظه‌ای
+    current_speed = 0
+    if len(hourly_traffic) > 0:
+        recent = list(hourly_traffic.values())[-3:]
+        if recent:
+            current_speed = sum(recent) / 30
+    
     link_data = {
         **link,
         "expired": is_link_expired(link),
         "active_connections": active_connections_count,
         "active_connections_list": active_connections_list,
         "last_connected_at": last_connected,
-        "vless_links": vless_links,  # لیست کانفیگ‌ها
-        "vless_link": vless_links[0] if vless_links else "",  # برای سازگاری
+        "vless_links": vless_links,
+        "vless_link": vless_links[0] if vless_links else "",
         "sub_url": f"https://{host}/sub/{uuid}",
+        "user_ip": user_ip,
+        "current_speed": current_speed,
+        "current_speed_fmt": fmt_bytes(current_speed) + "/s" if current_speed > 0 else "0 B/s",
+        "percent": percent,
+        "days_left": days_left,
+        "used_fmt": fmt_bytes(used_bytes),
+        "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
 
+
 @app.get("/sub-all")
 async def subscription_all(_=Depends(require_auth)):
-    import base64
     host = get_host()
     async with LINKS_LOCK:
         lines = []
@@ -1232,9 +1283,9 @@ async def subscription_all(_=Depends(require_auth)):
     content = base64.b64encode("\n".join(lines).encode()).decode()
     return Response(content=content, media_type="text/plain")
 
+
 @app.get("/sub-group/{uuid_key}")
 async def sub_group_subscription(uuid_key: str, request: Request):
-    import base64
     async with SUBS_LOCK:
         sub = next((s for s in SUBS.values() if s.get("uuid_key") == uuid_key), None)
     if not sub:
@@ -1269,6 +1320,144 @@ async def sub_group_subscription(uuid_key: str, request: Request):
             "profile-update-interval": "12",
         }
     )
+
+
+@app.get("/info/{uuid}")
+async def info_page(uuid: str, request: Request):
+    """صفحه اطلاعات کامل برای مرورگر"""
+    from pages import get_sub_page_html
+    
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+    
+    if not link:
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🦅 کاربر یافت نشد</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+        <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
+        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(59,130,246,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+        .icon{font-size:64px;margin-bottom:16px}
+        h2{font-size:22px;font-weight:800;margin-bottom:8px}
+        p{color:#6A6A8A;font-size:13px;line-height:1.8}
+        </style>
+        </head>
+        <body>
+        <div class="card">
+            <div class="icon">🦅</div>
+            <h2>کاربر یافت نشد</h2>
+            <p>لینک اطلاعات معتبر نیست یا کاربر حذف شده است.</p>
+        </div>
+        </body>
+        </html>
+        """, status_code=404)
+    
+    if not is_link_allowed(link):
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>⛔ کاربر غیرفعال</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+        <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
+        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+        .icon{font-size:64px;margin-bottom:16px}
+        h2{font-size:22px;font-weight:800;margin-bottom:8px}
+        p{color:#6A6A8A;font-size:13px;line-height:1.8}
+        .status{color:#F87171}
+        </style>
+        </head>
+        <body>
+        <div class="card">
+            <div class="icon">⛔</div>
+            <h2>کاربر غیرفعال یا منقضی</h2>
+            <p class="status">این کانفیگ فعال نیست یا تاریخ انقضای آن گذشته است.</p>
+        </div>
+        </body>
+        </html>
+        """, status_code=403)
+    
+    host = get_host()
+    label = link.get("label", "کاربر")
+    protocol = link.get("protocol", DEFAULT_PROTOCOL)
+    fingerprint = link.get("fingerprint", "chrome")
+    ports = link.get("ports", [443])
+    limit_bytes = link.get("limit_bytes", 0)
+    used_bytes = link.get("used_bytes", 0)
+    expires_at = link.get("expires_at")
+    max_devices = link.get("max_devices", 0)
+    
+    # محاسبه درصد مصرف
+    percent = 0
+    if limit_bytes > 0:
+        percent = min(100, (used_bytes / limit_bytes) * 100)
+    
+    # محاسبه روزهای باقی‌مونده
+    days_left = "نامحدود"
+    if expires_at:
+        try:
+            exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+            days = (exp_date - datetime.now().astimezone()).days
+            days_left = f"{days} روز" if days > 0 else "منقضی"
+        except:
+            days_left = "نامشخص"
+    
+    # گرفتن IP کاربر و سرعت
+    user_ip = "نامشخص"
+    for c in connections.values():
+        if c.get("uuid") == uuid:
+            user_ip = c.get("ip", "نامشخص")
+            break
+    
+    # ساخت لینک‌های VLESS
+    vless_links = []
+    for i, port in enumerate(ports):
+        remark = f"{label}-p{port}" if len(ports) > 1 else label
+        vless_links.append(generate_vless_link(
+            uuid, host, remark=remark, protocol=protocol, 
+            fingerprint=fingerprint, port=port
+        ))
+    
+    # اتصالات فعال
+    active_connections_list = []
+    for c in connections.values():
+        if c.get("uuid") == uuid:
+            active_connections_list.append(c)
+    active_connections_count = len(active_connections_list)
+    
+    last_connected = None
+    for c in connections.values():
+        if c.get("uuid") == uuid:
+            if not last_connected or c.get("connected_at") > last_connected:
+                last_connected = c.get("connected_at")
+    
+    link_data = {
+        **link,
+        "expired": is_link_expired(link),
+        "active_connections": active_connections_count,
+        "active_connections_list": active_connections_list,
+        "last_connected_at": last_connected,
+        "vless_links": vless_links,
+        "vless_link": vless_links[0] if vless_links else "",
+        "sub_url": f"https://{host}/sub/{uuid}",
+        "user_ip": user_ip,
+        "percent": percent,
+        "days_left": days_left,
+        "used_fmt": fmt_bytes(used_bytes),
+        "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
+        "max_devices": max_devices,
+    }
+    
+    return HTMLResponse(content=get_sub_page_html(uuid, link_data))
+
 
 # ─── HTML Pages ─────────────────────────────────────────────────────────────
 
