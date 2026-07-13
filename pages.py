@@ -1,4 +1,3 @@
-
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -370,6 +369,127 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .stat-card .number.small{font-size:13px}
 .stat-card .label{font-size:9px;color:var(--t3);margin-top:2px;font-weight:500}
 .stat-card .sub{font-size:7px;color:var(--t3);margin-top:0px;opacity:.6}
+
+/* ===== استایل جدید کاربران ===== */
+.stat-mini {
+  background:var(--card);
+  border:1px solid var(--card-b);
+  border-radius:8px;
+  padding:8px 12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.stat-mini-icon { font-size:16px; }
+.stat-mini-num { font-size:16px; font-weight:800; color:var(--t1); }
+.stat-mini-label { font-size:9px; color:var(--t3); }
+
+.users-table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+.users-table thead th {
+  padding:10px 12px;
+  text-align:right;
+  color:var(--t2);
+  font-size:9px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  border-bottom:1px solid var(--card-b);
+  background:rgba(100,80,255,0.02);
+}
+.users-table tbody td {
+  padding:8px 12px;
+  border-bottom:1px solid rgba(100,80,255,0.02);
+  color:var(--t1);
+  vertical-align:middle;
+}
+.users-table tbody tr:hover {
+  background:rgba(100,80,255,0.02);
+}
+.users-table .status-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:1px 10px;
+  border-radius:12px;
+  font-size:9px;
+  font-weight:700;
+}
+.users-table .status-badge.active {
+  background:var(--green-bg);
+  color:var(--green-t);
+}
+.users-table .status-badge.expired {
+  background:var(--red-bg);
+  color:var(--red-t);
+}
+.users-table .status-badge.disabled {
+  background:var(--amber-bg);
+  color:var(--amber-t);
+}
+.users-table .usage-bar {
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.users-table .usage-bar .bar {
+  width:80px;
+  height:3px;
+  border-radius:3px;
+  background:rgba(100,80,255,0.05);
+  overflow:hidden;
+}
+.users-table .usage-bar .bar .fill {
+  height:100%;
+  border-radius:3px;
+  background:linear-gradient(90deg,#7C6BFF,#5B4BD9,#A78BFA);
+  transition:width .6s ease;
+}
+.users-table .usage-text {
+  font-size:9px;
+  color:var(--t2);
+  white-space:nowrap;
+}
+.users-table .action-btns {
+  display:flex;
+  gap:3px;
+  justify-content:center;
+}
+.users-table .action-btns .btn {
+  padding:2px 6px;
+  font-size:8px;
+  border-radius:4px;
+}
+.user-name-cell {
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.user-name-cell .avatar {
+  width:24px;
+  height:24px;
+  border-radius:6px;
+  background:linear-gradient(135deg,#7C6BFF,#5B4BD9);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+  color:#fff;
+  flex-shrink:0;
+}
+.user-name-cell .name {
+  font-weight:600;
+  color:var(--t1);
+}
+.user-name-cell .uuid-short {
+  font-size:7px;
+  color:var(--t3);
+  font-family:monospace;
+}
+
 .user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .user-card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--card-b);border-radius:var(--radius);padding:12px 14px;transition:all .3s;position:relative;overflow:hidden}
 .user-card::before{content:'';position:absolute;top:-50%;right:-50%;width:150px;height:150px;background:radial-gradient(circle,rgba(100,80,255,0.02),transparent 70%);pointer-events:none}
@@ -405,7 +525,7 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .btn-icon{width:22px;height:22px;padding:0;justify-content:center}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
 .modal-bg.open{display:flex}
-.modal{background:var(--card);backdrop-filter:blur(30px);border:1px solid var(--card-b);border-radius:14px;padding:20px 18px;max-width:440px;width:calc(100% - 20px);max-height:90vh;overflow-y:auto;position:relative;animation:pageIn .3s ease;box-shadow:var(--shadow)}
+.modal{background:var(--card);backdrop-filter:blur(30px);border:1px solid var(--card-b);border-radius:14px;padding:20px 18px;max-width:520px;width:calc(100% - 20px);max-height:90vh;overflow-y:auto;position:relative;animation:pageIn .3s ease;box-shadow:var(--shadow)}
 .modal-close{position:absolute;top:10px;left:10px;background:rgba(100,80,255,0.05);border:1px solid var(--card-b);color:var(--t2);width:24px;height:24px;border-radius:6px;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:.2s}
 .modal-close:hover{background:var(--red-bg);color:var(--red-t)}
 .modal-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:12px;display:flex;align-items:center;gap:6px}
@@ -460,6 +580,7 @@ select.fi{appearance:none;cursor:pointer}
   .mob-top{display:flex}
   .stats-grid{grid-template-columns:repeat(3,1fr)}
   .user-grid{grid-template-columns:1fr}
+  .stat-mini{grid-template-columns:1fr 1fr}
 }
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr 1fr}
@@ -467,6 +588,11 @@ select.fi{appearance:none;cursor:pointer}
   .bottom-nav .nav-item{min-width:32px;padding:2px 4px}
   .bottom-nav .nav-item i{font-size:14px}
   .bottom-nav .nav-item span{font-size:6px}
+  .users-table thead th{font-size:7px;padding:6px 4px}
+  .users-table tbody td{font-size:9px;padding:6px 4px}
+  .users-table .usage-bar .bar{width:40px}
+  .stat-mini{padding:6px 8px}
+  .stat-mini-num{font-size:13px}
 }
 @media(min-width:769px){.bottom-nav{display:none !important}}
 </style>
@@ -484,23 +610,36 @@ select.fi{appearance:none;cursor:pointer}
 <div class="glow-main glow-left"></div><div class="glow-main glow-right"></div>
 <div class="toast" id="toast"></div>
 
-<!-- ===== مودال ساخت کاربر با فینگرپرینت ===== -->
+<!-- ===== مودال ساخت کاربر ===== -->
 <div class="modal-bg" id="modal-user">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-user')"><i class="ti ti-x"></i></button>
-    <div class="modal-title"><i class="ti ti-user-plus"></i> 🪐 ساخت کاربر جدید</div>
+    <div class="modal-title"><i class="ti ti-user-plus"></i> ساخت کاربر جدید</div>
     
-    <div class="fg"><label><i class="ti ti-tag"></i> نام کاربری</label><input class="fi" id="user-label" placeholder="مثلاً: کاربر علی"></div>
-    
-    <div class="fg-grid">
-      <div class="fg"><label><i class="ti ti-database"></i> حجم (GB)</label><input class="fi" id="user-quota" type="number" min="0.5" step="0.5" value="2"></div>
-      <div class="fg"><label><i class="ti ti-calendar"></i> انقضا (روز)</label><input class="fi" id="user-exp" type="number" min="0" value="30"></div>
-      <div class="fg"><label><i class="ti ti-devices"></i> دستگاه</label><input class="fi" id="user-devices" type="number" min="0" max="10" value="1"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="fg" style="grid-column:1/2;">
+        <label><i class="ti ti-tag"></i> نام کاربری</label>
+        <input class="fi" id="user-label" placeholder="مثلاً: علی" value="کاربر">
+      </div>
+      
+      <div class="fg">
+        <label><i class="ti ti-database"></i> حجم (GB)</label>
+        <input class="fi" id="user-quota" type="number" min="0.5" step="0.5" value="2">
+      </div>
+      
+      <div class="fg">
+        <label><i class="ti ti-calendar"></i> انقضا (روز)</label>
+        <input class="fi" id="user-exp" type="number" min="0" value="30">
+      </div>
+      
+      <div class="fg">
+        <label><i class="ti ti-devices"></i> دستگاه</label>
+        <input class="fi" id="user-devices" type="number" min="0" max="10" value="1">
+      </div>
     </div>
     
-    <!-- ✅ انتخاب فینگرپرینت با استیکر -->
     <div class="fg">
-      <label><i class="ti ti-fingerprint"></i> فینگرپرینت</label>
+      <label><i class="ti ti-fingerprint"></i> انگشت‌نگاری (فینگرپرینت)</label>
       <select class="fi" id="user-fingerprint">
         <option value="chrome">🌐 Chrome</option>
         <option value="firefox">🦊 Firefox</option>
@@ -512,41 +651,64 @@ select.fi{appearance:none;cursor:pointer}
         <option value="random">🎲 Random</option>
         <option value="none">🚫 None</option>
       </select>
-      <div style="font-size:7px;color:var(--t3);margin-top:2px;">💡 فینگرپرینت مناسب دستگاه خود را انتخاب کنید</div>
     </div>
     
-    <div class="fg"><label><i class="ti ti-lock"></i> رمز (اختیاری)</label><input class="fi" id="user-password" type="password" placeholder="برای حذف/ویرایش" dir="ltr"></div>
+    <div class="fg">
+      <label><i class="ti ti-lock"></i> رمز (اختیاری)</label>
+      <input class="fi" id="user-password" type="password" placeholder="برای ویرایش/حذف" dir="ltr">
+    </div>
     
     <div style="display:flex;gap:6px;margin-top:10px">
-      <button class="btn btn-p" onclick="saveUser()" style="flex:2"><i class="ti ti-check"></i> ساخت</button>
+      <button class="btn btn-p" onclick="saveUser()" style="flex:2"><i class="ti ti-check"></i> ساخت کاربر</button>
       <button class="btn btn-o" onclick="closeModal('modal-user')" style="flex:1">انصراف</button>
     </div>
   </div>
 </div>
 
-<!-- ===== مودال ویرایش با فینگرپرینت ===== -->
+<!-- ===== مودال ویرایش ===== -->
 <div class="modal-bg" id="modal-edit">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-edit')"><i class="ti ti-x"></i></button>
-    <div class="modal-title"><i class="ti ti-edit"></i> 🪐 ویرایش کاربر</div>
+    <div class="modal-title"><i class="ti ti-edit"></i> ویرایش کاربر</div>
     <input type="hidden" id="edit-uuid">
     
-    <div class="fg" id="edit-password-section"><label><i class="ti ti-lock"></i> رمز</label><input class="fi" id="edit-password" type="password" placeholder="رمز کانفیگ" dir="ltr"></div>
-    <div class="fg"><label><i class="ti ti-tag"></i> نام</label><input class="fi" id="edit-label" placeholder="نام کاربری"></div>
-    
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <div class="fg"><label><i class="ti ti-database"></i> حجم (GB)</label><input class="fi" id="edit-quota" type="number" min="0" step="0.5"></div>
-      <div class="fg"><label><i class="ti ti-calendar"></i> انقضا (روز)</label><input class="fi" id="edit-exp" type="number" min="0"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="fg" style="grid-column:1/2;">
+        <label><i class="ti ti-tag"></i> نام</label>
+        <input class="fi" id="edit-label" placeholder="نام کاربری">
+      </div>
+      
+      <div class="fg" id="edit-password-section">
+        <label><i class="ti ti-lock"></i> رمز جدید</label>
+        <input class="fi" id="edit-password" type="password" placeholder="برای تغییر" dir="ltr">
+      </div>
+      
+      <div class="fg">
+        <label><i class="ti ti-database"></i> حجم (GB)</label>
+        <input class="fi" id="edit-quota" type="number" min="0" step="0.5">
+      </div>
+      
+      <div class="fg">
+        <label><i class="ti ti-calendar"></i> انقضا (روز)</label>
+        <input class="fi" id="edit-exp" type="number" min="0">
+      </div>
+      
+      <div class="fg">
+        <label><i class="ti ti-devices"></i> دستگاه</label>
+        <input class="fi" id="edit-devices" type="number" min="0" max="10">
+      </div>
+      
+      <div class="fg">
+        <label><i class="ti ti-toggle-left"></i> وضعیت</label>
+        <select class="fi" id="edit-status">
+          <option value="true">✅ فعال</option>
+          <option value="false">❌ غیرفعال</option>
+        </select>
+      </div>
     </div>
     
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <div class="fg"><label><i class="ti ti-devices"></i> دستگاه</label><input class="fi" id="edit-devices" type="number" min="0" max="10"></div>
-      <div class="fg"><label><i class="ti ti-toggle-left"></i> وضعیت</label><select class="fi" id="edit-status"><option value="true">✅ فعال</option><option value="false">❌ غیرفعال</option></select></div>
-    </div>
-    
-    <!-- ✅ انتخاب فینگرپرینت در ویرایش -->
     <div class="fg">
-      <label><i class="ti ti-fingerprint"></i> فینگرپرینت</label>
+      <label><i class="ti ti-fingerprint"></i> انگشت‌نگاری</label>
       <select class="fi" id="edit-fingerprint">
         <option value="chrome">🌐 Chrome</option>
         <option value="firefox">🦊 Firefox</option>
@@ -567,6 +729,7 @@ select.fi{appearance:none;cursor:pointer}
   </div>
 </div>
 
+<!-- ===== مودال حذف ===== -->
 <div class="modal-bg" id="modal-delete">
   <div class="modal" style="max-width:340px">
     <button class="modal-close" onclick="closeModal('modal-delete')"><i class="ti ti-x"></i></button>
@@ -642,12 +805,56 @@ select.fi{appearance:none;cursor:pointer}
   </div>
 </section>
 
-<!-- ===== کاربران ===== -->
+<!-- ===== کاربران با طراحی جدید ===== -->
 <section class="pg" id="pg-users">
-  <div class="topbar"><div><div class="tb-title"><i class="ti ti-users"></i> کاربران</div><div class="tb-sub" id="users-count">۰ کاربر</div></div>
-    <div class="tb-right"><button class="btn btn-p btn-sm" onclick="openModal('modal-user')"><i class="ti ti-plus"></i> جدید</button></div>
+  <div class="topbar">
+    <div>
+      <div class="tb-title"><i class="ti ti-users"></i> کاربران</div>
+      <div class="tb-sub">لیست کانفیگ‌ها، سهمیه و انقضا</div>
+    </div>
+    <div class="tb-right">
+      <button class="btn btn-o btn-sm" onclick="loadUsers()"><i class="ti ti-refresh"></i></button>
+    </div>
   </div>
-  <div id="users-grid" class="user-grid"><div class="empty"><i class="ti ti-users"></i><p>هیچ کاربری وجود ندارد</p></div></div>
+
+  <!-- کارت‌های آمار سریع -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+    <div class="stat-mini"><span class="stat-mini-icon">👥</span><span class="stat-mini-num" id="users-total">0</span><span class="stat-mini-label">کل کاربران</span></div>
+    <div class="stat-mini"><span class="stat-mini-icon">🟢</span><span class="stat-mini-num" id="users-active">0</span><span class="stat-mini-label">فعال</span></div>
+    <div class="stat-mini"><span class="stat-mini-icon">🔴</span><span class="stat-mini-num" id="users-expired">0</span><span class="stat-mini-label">منقضی</span></div>
+    <div class="stat-mini"><span class="stat-mini-icon">📊</span><span class="stat-mini-num" id="users-traffic">0</span><span class="stat-mini-label">مصرف کل</span></div>
+  </div>
+
+  <!-- جدول کاربران -->
+  <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(20px);">
+    <div style="overflow-x:auto;">
+      <table class="users-table" id="users-table">
+        <thead>
+          <tr>
+            <th>نام</th>
+            <th>اکانت</th>
+            <th>وضعیت</th>
+            <th>مصرف دیتا</th>
+            <th>مدت</th>
+            <th style="text-align:center;">عملیات</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--t3);">هیچ کاربری وجود ندارد</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- فوتر جدول -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--card-b);flex-wrap:wrap;gap:8px;">
+      <div style="font-size:9px;color:var(--t3);">
+        <span id="users-count-label">۰ کاربر</span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-p btn-sm" onclick="openModal('modal-user')"><i class="ti ti-plus"></i> افزودن کاربر جدید</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ===== اینباند ===== -->
@@ -787,6 +994,7 @@ function setLang(lang) {
         document.querySelector('#pg-logs .tb-title').innerHTML = '<i class="ti ti-notes"></i> Logs';
         document.querySelector('#pg-backup .tb-title').innerHTML = '<i class="ti ti-database"></i> Backup';
         document.querySelector('#pg-settings .settings-card:first-child .title').innerHTML = '<i class="ti ti-language"></i> Panel Language';
+        document.querySelector('#pg-users .tb-sub').textContent = 'Per-user links, quotas, and expiry';
     } else {
         document.querySelector('.tb-title:first-child').innerHTML = '<i class="ti ti-layout-dashboard"></i> خانه';
         document.querySelector('#pg-users .tb-title').innerHTML = '<i class="ti ti-users"></i> کاربران';
@@ -796,6 +1004,7 @@ function setLang(lang) {
         document.querySelector('#pg-logs .tb-title').innerHTML = '<i class="ti ti-notes"></i> لاگ‌ها';
         document.querySelector('#pg-backup .tb-title').innerHTML = '<i class="ti ti-database"></i> بکاپ';
         document.querySelector('#pg-settings .settings-card:first-child .title').innerHTML = '<i class="ti ti-language"></i> زبان پنل';
+        document.querySelector('#pg-users .tb-sub').textContent = 'لیست کانفیگ‌ها، سهمیه و انقضا';
     }
 }
 
@@ -898,81 +1107,94 @@ async function updateInbound() {
   } catch(e) { toast('❌ خطا', 'err'); }
 }
 
-// ===== کاربران با نمایش فینگرپرینت =====
+// ===== کاربران با جدول جدید =====
 async function loadUsers() {
   try {
     const r = await authF('/api/links');
     const { links=[] } = await r.json();
-    const grid = document.getElementById('users-grid');
-    document.getElementById('users-count').textContent = links.length + ' کاربر';
+    const tbody = document.getElementById('users-tbody');
+    const total = links.length;
+    const active = links.filter(l => l.active && !l.expired).length;
+    const expired = links.filter(l => l.expired).length;
+    const totalTraffic = links.reduce((sum, l) => sum + (l.used_bytes || 0), 0);
+    
+    document.getElementById('users-total').textContent = total;
+    document.getElementById('users-active').textContent = active;
+    document.getElementById('users-expired').textContent = expired;
+    document.getElementById('users-traffic').textContent = fmtB(totalTraffic);
+    document.getElementById('users-count-label').textContent = total + ' کاربر';
     
     if (!links.length) {
-      grid.innerHTML = '<div class="empty"><i class="ti ti-users"></i><p>هیچ کاربری وجود ندارد</p></div>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--t3);">هیچ کاربری وجود ندارد</td></tr>';
       return;
     }
     
-    // ✅ مپ فینگرپرینت به استیکر
     const fpEmoji = {
-      chrome: '🌐',
-      firefox: '🦊',
-      safari: '🧭',
-      edge: '🌊',
-      ios: '📱',
-      android: '🤖',
-      safari_ios: '🍏',
-      random: '🎲',
-      none: '🚫'
+      chrome: '🌐', firefox: '🦊', safari: '🧭', edge: '🌊',
+      ios: '📱', android: '🤖', safari_ios: '🍏', random: '🎲', none: '🚫'
     };
     
-    grid.innerHTML = links.map(l => {
+    tbody.innerHTML = links.map(l => {
+      const isActive = l.active && !l.expired;
+      const statusClass = isActive ? 'active' : (l.expired ? 'expired' : 'disabled');
+      const statusText = isActive ? 'فعال' : (l.expired ? 'منقضی' : 'غیرفعال');
       const pct = l.limit_bytes === 0 ? 0 : Math.min(100, (l.used_bytes / l.limit_bytes) * 100);
-      const active = l.active && !l.expired;
-      const statusClass = active ? 'on' : 'off';
-      const statusText = active ? '🟢' : '🔴';
-      const lastSeen = l.last_connected_at ? new Date(l.last_connected_at).toLocaleString('fa-IR') : '—';
+      const usedFmt = fmtB(l.used_bytes || 0);
+      const limitFmt = l.limit_bytes === 0 ? '∞' : fmtB(l.limit_bytes);
       const fp = l.fingerprint || 'chrome';
-      const fpEmojiChar = fpEmoji[fp] || '🌐';
-      const fpNames = {
+      const fpName = {
         chrome: 'Chrome', firefox: 'Firefox', safari: 'Safari',
         edge: 'Edge', ios: 'iOS', android: 'Android',
         safari_ios: 'Safari iOS', random: 'Random', none: 'None'
-      };
-      const fpName = fpNames[fp] || fp.charAt(0).toUpperCase() + fp.slice(1);
+      }[fp] || fp;
       
-      return `<div class="user-card">
-        <div class="head">
-          <div class="name">🪐 ${esc(l.label)} ${l.has_password ? '<span class="lock-badge">🔒</span>' : ''}</div>
-          <span class="status ${statusClass}">${statusText}</span>
-        </div>
-        <div class="uuid">🔑 ${esc(l.uuid)}</div>
-        <div class="info">
-          <span>📊 ${fmtB(l.used_bytes || 0)}</span>
-          <span>📦 ${l.limit_bytes === 0 ? '∞' : fmtB(l.limit_bytes)}</span>
-          <span>📱 ${l.max_devices || '∞'}</span>
-          <span>${l.expired ? '⛔' : '✅'}</span>
-        </div>
-        <!-- ✅ نمایش فینگرپرینت با استیکر -->
-        <div style="font-size:8px;color:var(--t3);margin-bottom:3px;">
-          🖥️ فینگرپرینت: <span style="color:var(--accent);font-weight:600;">${fpEmojiChar} ${fpName}</span>
-        </div>
-        <div class="last-seen"><i class="ti ti-clock"></i> ${lastSeen}</div>
-        <div class="quota-info"><span>مصرف</span><span>${pct.toFixed(0)}%</span></div>
-        <div class="quota-bar"><div class="quota-fill" style="width:${pct}%"></div></div>
-        <div class="actions">
-          <button class="btn btn-o btn-sm" onclick="navigator.clipboard.writeText('${esc(l.vless_link)}').then(()=>toast('✅ کپی شد','ok'))"><i class="ti ti-copy"></i></button>
-          <button class="btn btn-pur btn-sm" onclick="navigator.clipboard.writeText('${esc(l.sub_url)}').then(()=>toast('✅ کپی شد','ok'))"><i class="ti ti-link"></i></button>
-          <button class="btn btn-amber btn-sm" onclick="resetUsage('${l.uuid}')"><i class="ti ti-rotate"></i></button>
-          <button class="btn btn-pur btn-sm btn-icon" onclick="openEditModal('${l.uuid}')"><i class="ti ti-edit"></i></button>
-          <button class="btn btn-d btn-sm btn-icon" onclick="openDeleteModal('${l.uuid}')"><i class="ti ti-trash"></i></button>
-        </div>
-      </div>`;
+      // محاسبه مدت
+      let duration = '∞';
+      if (l.expires_at) {
+        try {
+          const exp = new Date(l.expires_at);
+          const now = new Date();
+          const days = Math.ceil((exp - now) / (1000*60*60*24));
+          duration = days > 0 ? days + ' روز' : 'منقضی';
+        } catch(e) { duration = '—'; }
+      }
+      
+      const avatarLetter = (l.label || 'U')[0].toUpperCase();
+      
+      return `<tr>
+        <td>
+          <div class="user-name-cell">
+            <div class="avatar">${avatarLetter}</div>
+            <div>
+              <div class="name">${esc(l.label)}</div>
+              <div class="uuid-short">${l.uuid.slice(0,8)}…</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:9px;color:var(--t2);">${fpEmoji[fp] || '🌐'} ${fpName}</td>
+        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+        <td>
+          <div class="usage-bar">
+            <span class="usage-text">${usedFmt} / ${limitFmt}</span>
+            <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+          </div>
+        </td>
+        <td style="font-size:10px;color:var(--t2);">${duration}</td>
+        <td>
+          <div class="action-btns">
+            <button class="btn btn-o btn-sm" onclick="navigator.clipboard.writeText('${esc(l.vless_link)}').then(()=>toast('✅ کپی شد','ok'))" title="کپی لینک"><i class="ti ti-copy"></i></button>
+            <button class="btn btn-pur btn-sm" onclick="openEditModal('${l.uuid}')" title="ویرایش"><i class="ti ti-edit"></i></button>
+            <button class="btn btn-d btn-sm" onclick="openDeleteModal('${l.uuid}')" title="حذف"><i class="ti ti-trash"></i></button>
+          </div>
+        </td>
+      </tr>`;
     }).join('');
   } catch(e) {
     console.error(e);
   }
 }
 
-// ===== ساخت کاربر با فینگرپرینت =====
+// ===== ساخت کاربر =====
 async function saveUser() {
   const label = document.getElementById('user-label').value.trim() || 'کاربر';
   const quota = parseFloat(document.getElementById('user-quota').value) || 0;
@@ -999,7 +1221,7 @@ async function saveUser() {
     });
     if (!r.ok) throw new Error();
     
-    document.getElementById('user-label').value = '';
+    document.getElementById('user-label').value = 'کاربر';
     document.getElementById('user-quota').value = '2';
     document.getElementById('user-exp').value = '30';
     document.getElementById('user-devices').value = '1';
@@ -1014,7 +1236,7 @@ async function saveUser() {
   }
 }
 
-// ===== ویرایش کاربر با فینگرپرینت =====
+// ===== ویرایش کاربر =====
 async function openEditModal(uuid) {
   try {
     const r = await authF('/api/links');
