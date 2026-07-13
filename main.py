@@ -117,6 +117,8 @@ FINGERPRINTS = {
 # ─── Telegram Session ─────────────────────────────────────────────────────────
 TELEGRAM_SESSIONS: dict = {}
 TELEGRAM_SESSIONS_LOCK = asyncio.Lock()
+TELEGRAM_PENDING: dict = {}  # برای پاسخ به callback_query
+TELEGRAM_PENDING_LOCK = asyncio.Lock()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ===== Functions =====
@@ -247,11 +249,12 @@ async def remove_device_connection(uuid: str, client_ip: str):
                 if not device_connections[uuid]:
                     del device_connections[uuid]
 
+# ─── Telegram Functions ──────────────────────────────────────────────────────
+
 async def send_telegram_message(chat_id, message, keyboard=None):
-    """ارسال پیام به تلگرام"""
+    """ارسال پیام به تلگرام (سریع)"""
     token = SETTINGS.get("telegram_bot_token", "")
     if not token:
-        logger.warning("Telegram token not set")
         return False
     
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -265,13 +268,9 @@ async def send_telegram_message(chat_id, message, keyboard=None):
         payload["reply_markup"] = json.dumps({"inline_keyboard": keyboard})
     
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.post(url, json=payload, timeout=30)
-            if r.status_code == 200:
-                return True
-            else:
-                logger.error(f"Telegram send error: {r.text}")
-                return False
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.post(url, json=payload)
+            return r.status_code == 200
     except Exception as e:
         logger.error(f"Telegram send error: {e}")
         return False
@@ -287,15 +286,28 @@ async def send_telegram_document(chat_id, content, filename):
     data = {"chat_id": chat_id}
     
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.post(url, data=data, files=files, timeout=60)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            r = await client.post(url, data=data, files=files)
             return r.status_code == 200
     except Exception as e:
         logger.error(f"Telegram document send error: {e}")
         return False
 
+async def answer_callback(callback_id):
+    """پاسخ به callback_query (سریع)"""
+    token = SETTINGS.get("telegram_bot_token", "")
+    if not token:
+        return
+    
+    url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(url, json={"callback_query_id": callback_id})
+    except:
+        pass
+
 async def setup_telegram_webhook():
-    """تنظیم WebHook برای بات تلگرام"""
+    """تنظیم WebHook"""
     token = SETTINGS.get("telegram_bot_token", "")
     if not token:
         return
@@ -305,8 +317,8 @@ async def setup_telegram_webhook():
     url = f"https://api.telegram.org/bot{token}/setWebhook"
     
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.post(url, json={"url": webhook_url}, timeout=30)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(url, json={"url": webhook_url})
             if r.status_code == 200:
                 logger.info(f"✅ Telegram webhook set to {webhook_url}")
             else:
@@ -396,10 +408,7 @@ async def startup():
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
     await load_state()
-    
-    # تنظیم WebHook تلگرام
     await setup_telegram_webhook()
-    
     log_activity("system", "🪐 Eagle Gateway v10 Pro راه‌اندازی شد", "ok")
     logger.info(f"🪐 Eagle Gateway v10 Pro started on port {CONFIG['port']}")
 
@@ -471,7 +480,6 @@ async def toggle_rgb(request: Request, _=Depends(require_auth)):
 
 @app.post("/api/settings/telegram")
 async def set_telegram_settings(request: Request, _=Depends(require_auth)):
-    """تنظیم توکن و Chat ID تلگرام"""
     body = await request.json()
     token = body.get("token", "").strip()
     chat_id = body.get("chat_id", "").strip()
@@ -483,35 +491,28 @@ async def set_telegram_settings(request: Request, _=Depends(require_auth)):
     
     await save_state()
     await setup_telegram_webhook()
-    
     log_activity("settings", "تنظیمات تلگرام به‌روزرسانی شد", "ok")
     return {"ok": True, "message": "تنظیمات تلگرام ذخیره شد"}
 
 @app.post("/api/telegram/test")
 async def test_telegram(request: Request, _=Depends(require_auth)):
-    """تست اتصال به تلگرام"""
     chat_id = SETTINGS.get("telegram_chat_id", "")
     if not chat_id:
         return {"ok": False, "message": "Chat ID تنظیم نشده است"}
     
     message = "✅ <b>تست اتصال</b>\n\nاین پیام برای تست ارسال شد.\nزمان: " + now_ir().strftime("%Y-%m-%d %H:%M:%S")
-    
     result = await send_telegram_message(chat_id, message)
     if result:
         return {"ok": True, "message": "پیام تست با موفقیت ارسال شد"}
     else:
-        return {"ok": False, "message": "خطا در ارسال پیام. توکن یا Chat ID را بررسی کنید"}
+        return {"ok": False, "message": "خطا در ارسال پیام"}
 
 @app.get("/api/telegram/status")
 async def get_telegram_status(_=Depends(require_auth)):
-    """دریافت وضعیت تلگرام"""
     token = SETTINGS.get("telegram_bot_token", "")
     chat_id = SETTINGS.get("telegram_chat_id", "")
-    
-    is_active = bool(token and chat_id)
-    
     return {
-        "active": is_active,
+        "active": bool(token and chat_id),
         "has_token": bool(token),
         "has_chat_id": bool(chat_id),
         "token_preview": token[:10] + "..." if len(token) > 10 else token,
@@ -1056,13 +1057,11 @@ async def check_and_use(uid: str, n: int) -> bool:
         if limit > 0 and used / limit > 0.8 and not link.get("alert_80"):
             link["alert_80"] = True
             log_activity("warning", f"⚠️ مصرف کانفیگ {link.get('label')} به 80% رسید", "warn")
-            # ارسال اعلان تلگرام
             await send_telegram_alert(link.get('label'), used, limit)
         
         return True
 
 async def send_telegram_alert(label: str, used: int, limit: int):
-    """ارسال اعلان به تلگرام"""
     chat_id = SETTINGS.get("telegram_chat_id", "")
     if not chat_id:
         return
@@ -1072,115 +1071,93 @@ async def send_telegram_alert(label: str, used: int, limit: int):
 
 📌 کاربر: <b>{label}</b>
 📊 مصرف: <b>{fmt_bytes(used)}</b> از <b>{fmt_bytes(limit)}</b>
-📈 درصد: <b>{percent:.1f}%</b>
-
-لطفاً نسبت به تمدید یا افزایش حجم اقدام کنید."""
+📈 درصد: <b>{percent:.1f}%</b>"""
 
     await send_telegram_message(chat_id, message)
 
-# ─── ===== بخش بات تلگرام با دکمه‌ها ===== ──────────────────────────────────
+# ─── ===== بخش بات تلگرام (بهینه شده) ===== ──────────────────────────────────
 
 @app.post("/webhook/telegram")
 async def telegram_webhook(request: Request):
-    """WebHook تلگرام"""
+    """WebHook تلگرام (بهینه)"""
     token = SETTINGS.get("telegram_bot_token", "")
     if not token:
-        return {"ok": False, "message": "Bot token not set"}
+        return {"ok": False}
     
     try:
         body = await request.json()
-        logger.info(f"Telegram webhook received: {json.dumps(body, ensure_ascii=False)[:200]}")
-    except Exception as e:
-        logger.error(f"Telegram webhook parse error: {e}")
+    except:
         return {"ok": False}
     
-    message = body.get("message")
-    callback_query = body.get("callback_query")
-    
-    if message:
-        chat_id = message.get("chat", {}).get("id")
-        text = message.get("text", "").strip()
-        user = message.get("from", {})
-        username = user.get("username", "کاربر")
-        
-        # بررسی دستورات
-        if text.startswith("/"):
-            if text == "/start":
-                await send_main_menu(chat_id, username)
-            elif text == "/new":
-                await start_new_user(chat_id)
-            elif text == "/list":
-                await send_user_list(chat_id)
-            elif text.startswith("/config"):
-                parts = text.split()
-                if len(parts) > 1:
-                    await send_user_config(chat_id, parts[1])
-                else:
-                    await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /config xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-            elif text.startswith("/renew"):
-                parts = text.split()
-                if len(parts) > 1:
-                    await renew_user(chat_id, parts[1])
-                else:
-                    await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /renew xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-            elif text.startswith("/delete"):
-                parts = text.split()
-                if len(parts) > 1:
-                    await delete_user(chat_id, parts[1])
-                else:
-                    await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /delete xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-            else:
-                await send_telegram_message(
-                    chat_id,
-                    "❌ دستور نامعتبر!\n\n"
-                    "📌 دستورات موجود:\n"
-                    "/start - منوی اصلی\n"
-                    "/new - ساخت کاربر جدید\n"
-                    "/list - لیست کاربران\n"
-                    "/config [UUID] - دریافت کانفیگ\n"
-                    "/renew [UUID] - تمدید کاربر\n"
-                    "/delete [UUID] - حذف کاربر"
-                )
-        else:
-            # پیام متنی - بررسی اینکه کاربر در حال ساخت کاربر هست
-            await handle_text_message(chat_id, text, username)
-    
-    elif callback_query:
-        chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
-        data = callback_query.get("data", "")
-        username = callback_query.get("from", {}).get("username", "کاربر")
-        message_id = callback_query.get("message", {}).get("message_id")
-        
-        await handle_callback(chat_id, data, username)
-        
-        # پاسخ به Callback Query
-        try:
-            import httpx
-            token = SETTINGS.get("telegram_bot_token", "")
-            if token:
-                url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
-                async with httpx.AsyncClient() as client:
-                    await client.post(url, json={"callback_query_id": callback_query.get("id")}, timeout=10)
-        except:
-            pass
-    
+    # پردازش در پس‌زمینه
+    asyncio.create_task(process_telegram_update(body))
     return {"ok": True}
 
+async def process_telegram_update(body: dict):
+    """پردازش آپدیت تلگرام در پس‌زمینه"""
+    try:
+        message = body.get("message")
+        callback_query = body.get("callback_query")
+        
+        if message:
+            chat_id = message.get("chat", {}).get("id")
+            text = message.get("text", "").strip()
+            user = message.get("from", {})
+            username = user.get("username", "کاربر")
+            
+            if text.startswith("/"):
+                if text == "/start":
+                    await send_main_menu(chat_id, username)
+                elif text == "/new":
+                    await start_new_user(chat_id)
+                elif text == "/list":
+                    await send_user_list(chat_id)
+                elif text.startswith("/config"):
+                    parts = text.split()
+                    if len(parts) > 1:
+                        await send_user_config(chat_id, parts[1])
+                    else:
+                        await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /config xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+                elif text.startswith("/renew"):
+                    parts = text.split()
+                    if len(parts) > 1:
+                        await renew_user(chat_id, parts[1])
+                    else:
+                        await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /renew xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+                elif text.startswith("/delete"):
+                    parts = text.split()
+                    if len(parts) > 1:
+                        await delete_user(chat_id, parts[1])
+                    else:
+                        await send_telegram_message(chat_id, "❌ لطفاً UUID کاربر را وارد کنید.\nمثال: /delete xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+                else:
+                    await send_telegram_message(chat_id, "❌ دستور نامعتبر!\n/start برای منو")
+            else:
+                # پیام متنی - ساخت کاربر
+                await handle_text_message(chat_id, text, username)
+        
+        elif callback_query:
+            chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
+            data = callback_query.get("data", "")
+            username = callback_query.get("from", {}).get("username", "کاربر")
+            callback_id = callback_query.get("id")
+            
+            # پاسخ سریع به callback
+            await answer_callback(callback_id)
+            
+            await handle_callback(chat_id, data, username)
+    
+    except Exception as e:
+        logger.error(f"Telegram process error: {e}")
+
 async def send_main_menu(chat_id, username):
-    """ارسال منوی اصلی"""
     keyboard = [
-        [
-            {"text": "📝 ساخت کاربر جدید", "callback_data": "new_user"},
-            {"text": "📊 لیست کاربران", "callback_data": "list_users"}
-        ],
-        [
-            {"text": "📥 دریافت کانفیگ", "callback_data": "get_config"},
-            {"text": "🔄 تمدید کاربر", "callback_data": "renew_user"}
-        ],
-        [
-            {"text": "❌ حذف کاربر", "callback_data": "delete_user"},
-            {"text": "ℹ️ راهنما", "callback_data": "help"}
-        ]
+        [{"text": "📝 ساخت کاربر جدید", "callback_data": "new_user"}],
+        [{"text": "📊 لیست کاربران", "callback_data": "list_users"}],
+        [{"text": "📥 دریافت کانفیگ", "callback_data": "get_config"}],
+        [{"text": "🔄 تمدید کاربر", "callback_data": "renew_user"}],
+        [{"text": "❌ حذف کاربر", "callback_data": "delete_user"}],
+        [{"text": "ℹ️ راهنما", "callback_data": "help"}]
     ]
     
     message = f"""🪐 <b>به پنل عقاب خوش آمدید!</b>
@@ -1188,99 +1165,57 @@ async def send_main_menu(chat_id, username):
 👤 کاربر: <b>@{username}</b>
 📅 تاریخ: {now_ir().strftime("%Y-%m-%d %H:%M")}
 
-از منوی زیر یکی از گزینه‌ها را انتخاب کنید:"""
+از منوی زیر انتخاب کنید:"""
     
     await send_telegram_message(chat_id, message, keyboard)
 
 async def handle_text_message(chat_id, text, username):
-    """پردازش پیام‌های متنی - برای ساخت کاربر"""
-    # بررسی اینکه کاربر در حال ساخت کاربر هست
+    """پردازش پیام متنی - ساخت کاربر"""
     async with TELEGRAM_SESSIONS_LOCK:
         session = TELEGRAM_SESSIONS.get(str(chat_id))
     
     if session and session.get("action") == "creating_user":
         await handle_create_user_step(chat_id, text, session)
-        return
-    
-    # اگر در حال ساخت نبود، راهنما بفرست
-    await send_telegram_message(
-        chat_id,
-        "❌ لطفاً از دکمه‌های منو استفاده کنید یا دستور /start را بزنید.",
-        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
-    )
+    else:
+        await send_telegram_message(chat_id, "❌ لطفاً از دکمه‌ها استفاده کنید یا /start را بزنید.")
 
 async def handle_create_user_step(chat_id, text, session):
-    """پردازش مراحل ساخت کاربر"""
     step = session.get("step", "label")
     data = session.get("data", {})
     
     if step == "label":
-        # ذخیره نام کاربری
         if len(text) < 2:
-            await send_telegram_message(
-                chat_id,
-                "❌ نام کاربری باید حداقل ۲ کاراکتر باشد. لطفاً دوباره وارد کنید:",
-                [[{"text": "❌ انصراف", "callback_data": "main_menu"}]]
-            )
+            await send_telegram_message(chat_id, "❌ نام باید حداقل ۲ کاراکتر باشد.")
             return
         
         data["label"] = text.strip()
         
-        # رفتن به مرحله بعد: انتخاب حجم
         async with TELEGRAM_SESSIONS_LOCK:
             TELEGRAM_SESSIONS[str(chat_id)]["step"] = "quota"
             TELEGRAM_SESSIONS[str(chat_id)]["data"] = data
         
         keyboard = [
-            [
-                {"text": "1 GB", "callback_data": "quota_1"},
-                {"text": "2 GB", "callback_data": "quota_2"},
-                {"text": "5 GB", "callback_data": "quota_5"}
-            ],
-            [
-                {"text": "10 GB", "callback_data": "quota_10"},
-                {"text": "20 GB", "callback_data": "quota_20"},
-                {"text": "50 GB", "callback_data": "quota_50"}
-            ],
-            [
-                {"text": "نامحدود", "callback_data": "quota_0"},
-                {"text": "❌ انصراف", "callback_data": "main_menu"}
-            ]
+            [{"text": "1 GB", "callback_data": "quota_1"}, {"text": "2 GB", "callback_data": "quota_2"}],
+            [{"text": "5 GB", "callback_data": "quota_5"}, {"text": "10 GB", "callback_data": "quota_10"}],
+            [{"text": "نامحدود", "callback_data": "quota_0"}, {"text": "❌ انصراف", "callback_data": "main_menu"}]
         ]
         
-        await send_telegram_message(
-            chat_id,
-            f"✅ نام کاربری <b>{data['label']}</b> ذخیره شد!\n\n"
-            "📊 لطفاً <b>حجم</b> مورد نظر را انتخاب کنید:",
-            keyboard
-        )
+        await send_telegram_message(chat_id, f"✅ نام <b>{data['label']}</b> ذخیره شد!\nحجم را انتخاب کنید:", keyboard)
     
     elif step == "quota":
-        # کاربر باید از دکمه استفاده کنه
         try:
             quota = float(text.strip())
             if quota < 0:
-                await send_telegram_message(chat_id, "❌ حجم نمی‌تواند منفی باشد.")
-                return
+                raise ValueError
             data["quota"] = quota
             await finish_create_user(chat_id, data)
         except:
-            await send_telegram_message(
-                chat_id,
-                "❌ لطفاً از دکمه‌ها برای انتخاب حجم استفاده کنید.",
-                [[{"text": "🔙 مرحله قبل", "callback_data": "back_to_label"}]]
-            )
+            await send_telegram_message(chat_id, "❌ لطفاً از دکمه‌ها استفاده کنید.")
 
 async def finish_create_user(chat_id, data):
-    """پایان ساخت کاربر و ایجاد در پنل"""
     label = data.get("label", "کاربر")
     quota = data.get("quota", 2)
-    exp_days = 30
-    max_devices = 1
-    fingerprint = "chrome"
-    ports = [443]
     
-    # ساخت کاربر
     uid = generate_uuid()
     async with LINKS_LOCK:
         LINKS[uid] = {
@@ -1289,15 +1224,15 @@ async def finish_create_user(chat_id, data):
             "used_bytes": 0,
             "created_at": datetime.now().isoformat(),
             "active": True,
-            "expires_at": (datetime.now() + timedelta(days=exp_days)).isoformat(),
-            "note": f"ساخته شده از بات توسط کاربر {chat_id}",
+            "expires_at": (datetime.now() + timedelta(days=30)).isoformat(),
+            "note": f"ساخته شده از بات",
             "is_default": False,
             "sub_id": None,
             "protocol": DEFAULT_PROTOCOL,
-            "max_devices": max_devices,
-            "fingerprint": fingerprint,
+            "max_devices": 1,
+            "fingerprint": "chrome",
             "password_hash": None,
-            "ports": ports,
+            "ports": [443],
         }
     
     await save_state()
@@ -1305,29 +1240,23 @@ async def finish_create_user(chat_id, data):
     
     host = get_host()
     sub_url = f"https://{host}/sub/{uid}"
-    vless_link = generate_vless_link(uid, host, remark=f"عقاب-{label}", fingerprint=fingerprint, port=443)
+    vless_link = generate_vless_link(uid, host, remark=f"عقاب-{label}", fingerprint="chrome", port=443)
     
-    # پاک کردن سشن
     async with TELEGRAM_SESSIONS_LOCK:
         if str(chat_id) in TELEGRAM_SESSIONS:
             del TELEGRAM_SESSIONS[str(chat_id)]
     
-    await send_telegram_message(
-        chat_id,
-        f"✅ <b>کاربر {label} با موفقیت ساخته شد!</b>\n\n"
+    await send_telegram_message(chat_id,
+        f"✅ <b>کاربر {label} ساخته شد!</b>\n\n"
         f"🔹 UUID: <code>{uid}</code>\n"
         f"📊 حجم: {fmt_bytes(int(quota * 1024**3)) if quota > 0 else 'نامحدود'}\n"
-        f"📅 انقضا: {exp_days} روز\n"
-        f"🔗 لینک ساب: <code>{sub_url}</code>\n"
-        f"🔗 لینک کانفیگ: <code>{vless_link}</code>\n\n"
-        f"📌 لینک ساب رو در کلاینت خود وارد کنید.",
+        f"📅 انقضا: 30 روز\n"
+        f"🔗 ساب: <code>{sub_url}</code>\n"
+        f"🔗 کانفیگ: <code>{vless_link}</code>",
         [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
     )
 
 async def handle_callback(chat_id, data, username):
-    """پردازش کلیک روی دکمه‌ها"""
-    
-    # ===== منوها =====
     if data == "main_menu":
         await send_main_menu(chat_id, username)
     
@@ -1347,27 +1276,15 @@ async def handle_callback(chat_id, data, username):
         await show_user_list_for_delete(chat_id)
     
     elif data == "help":
-        help_text = """🪐 <b>راهنمای پنل عقاب</b>
-
-📌 <b>دستورات:</b>
-• /start - نمایش منوی اصلی
-• /new - ساخت کاربر جدید
-• /list - نمایش لیست کاربران
-• /config [UUID] - دریافت کانفیگ
-• /renew [UUID] - تمدید کاربر
-• /delete [UUID] - حذف کاربر
-
-📌 <b>دکمه‌ها:</b>
-• ساخت کاربر جدید - با تنظیمات دلخواه
-• لیست کاربران - نمایش همه کاربران با مصرف
-• دریافت کانفیگ - انتخاب از لیست
-• تمدید کاربر - افزایش حجم و زمان
-• حذف کاربر - حذف کاربر از پنل
-
-🔹 <b>نکته:</b> برای دریافت UUID کاربر، از لیست کاربران استفاده کنید."""
-        await send_telegram_message(chat_id, help_text)
+        await send_telegram_message(chat_id,
+            "🪐 <b>راهنما</b>\n\n"
+            "📌 /start - منو\n"
+            "📌 /new - ساخت کاربر\n"
+            "📌 /list - لیست کاربران\n"
+            "📌 /config [UUID] - کانفیگ\n"
+            "📌 /renew [UUID] - تمدید\n"
+            "📌 /delete [UUID] - حذف")
     
-    # ===== انتخاب حجم =====
     elif data.startswith("quota_"):
         quota = float(data.replace("quota_", ""))
         async with TELEGRAM_SESSIONS_LOCK:
@@ -1376,22 +1293,8 @@ async def handle_callback(chat_id, data, username):
                 session["data"]["quota"] = quota
                 await finish_create_user(chat_id, session["data"])
             else:
-                await send_telegram_message(chat_id, "❌ خطا! لطفاً دوباره /new را بزنید.")
+                await send_telegram_message(chat_id, "❌ لطفاً /new را بزنید.")
     
-    elif data == "back_to_label":
-        async with TELEGRAM_SESSIONS_LOCK:
-            session = TELEGRAM_SESSIONS.get(str(chat_id))
-            if session:
-                session["step"] = "label"
-                session["data"] = {}
-        
-        await send_telegram_message(
-            chat_id,
-            "🔙 برگشت به مرحله نام کاربری.\nلطفاً <b>نام کاربری</b> را وارد کنید:",
-            [[{"text": "❌ انصراف", "callback_data": "main_menu"}]]
-        )
-    
-    # ===== انتخاب کاربر برای کانفیگ =====
     elif data.startswith("select_config_"):
         uuid = data.replace("select_config_", "")
         await send_user_config(chat_id, uuid)
@@ -1409,147 +1312,100 @@ async def handle_callback(chat_id, data, username):
         await send_user_list(chat_id, page)
     
     else:
-        await send_telegram_message(chat_id, "❌ گزینه نامعتبر!", [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]])
+        await send_telegram_message(chat_id, "❌ گزینه نامعتبر!")
 
 async def start_new_user(chat_id):
-    """شروع فرآیند ساخت کاربر جدید"""
     async with TELEGRAM_SESSIONS_LOCK:
-        TELEGRAM_SESSIONS[str(chat_id)] = {
-            "action": "creating_user",
-            "step": "label",
-            "data": {}
-        }
+        TELEGRAM_SESSIONS[str(chat_id)] = {"action": "creating_user", "step": "label", "data": {}}
     
-    keyboard = [[{"text": "❌ انصراف", "callback_data": "main_menu"}]]
-    await send_telegram_message(
-        chat_id,
-        "📝 <b>ساخت کاربر جدید</b>\n\n"
-        "لطفاً <b>نام کاربری</b> را وارد کنید:\n"
-        "(مثلاً: علی یا کاربر_1)",
-        keyboard
+    await send_telegram_message(chat_id,
+        "📝 <b>ساخت کاربر جدید</b>\n\nلطفاً <b>نام کاربری</b> را وارد کنید:",
+        [[{"text": "❌ انصراف", "callback_data": "main_menu"}]]
     )
 
 async def send_user_list(chat_id, page=0):
-    """ارسال لیست کاربران"""
     async with LINKS_LOCK:
         users = list(LINKS.items())
     
     if not users:
-        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
         return
     
     per_page = 5
-    total_pages = (len(users) + per_page - 1) // per_page
+    total = (len(users) + per_page - 1) // per_page
     start = page * per_page
     end = min(start + per_page, len(users))
     
-    message = f"📊 <b>لیست کاربران (صفحه {page+1}/{total_pages})</b>\n\n"
-    
+    msg = f"📊 کاربران ({page+1}/{total})\n\n"
     for uid, link in users[start:end]:
         label = link.get("label", "بدون نام")
         used = link.get("used_bytes", 0)
         limit = link.get("limit_bytes", 0)
-        active = link.get("active", True)
-        expired = is_link_expired(link)
+        active = link.get("active", True) and not is_link_expired(link)
         
-        status = "🟢 فعال" if (active and not expired) else "🔴 غیرفعال"
-        used_fmt = fmt_bytes(used)
-        limit_fmt = fmt_bytes(limit) if limit > 0 else "∞"
-        
-        message += f"• <b>{label}</b>\n"
-        message += f"  📌 UUID: <code>{uid[:8]}...{uid[-8:]}</code>\n"
-        message += f"  📊 مصرف: {used_fmt} / {limit_fmt}\n"
-        message += f"  📌 وضعیت: {status}\n\n"
+        msg += f"• <b>{label}</b>\n"
+        msg += f"  مصرف: {fmt_bytes(used)} / {fmt_bytes(limit) if limit > 0 else '∞'}\n"
+        msg += f"  وضعیت: {'🟢 فعال' if active else '🔴 غیرفعال'}\n"
+        msg += f"  UUID: <code>{uid[:8]}...</code>\n\n"
     
-    keyboard = []
-    nav_buttons = []
-    
+    kb = []
+    nav = []
     if page > 0:
-        nav_buttons.append({"text": "⬅️ قبلی", "callback_data": f"list_page_{page-1}"})
-    if page < total_pages - 1:
-        nav_buttons.append({"text": "➡️ بعدی", "callback_data": f"list_page_{page+1}"})
+        nav.append({"text": "⬅️", "callback_data": f"list_page_{page-1}"})
+    if page < total - 1:
+        nav.append({"text": "➡️", "callback_data": f"list_page_{page+1}"})
+    if nav:
+        kb.append(nav)
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
     
-    if nav_buttons:
-        keyboard.append(nav_buttons)
-    
-    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(chat_id, message, keyboard)
+    await send_telegram_message(chat_id, msg, kb)
 
 async def show_user_list_for_config(chat_id):
-    """نمایش لیست کاربران برای دریافت کانفیگ"""
     async with LINKS_LOCK:
-        users = list(LINKS.items())
+        users = list(LINKS.items())[:10]
     
     if not users:
-        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
         return
     
-    keyboard = []
-    for uid, link in users[:10]:
-        label = link.get("label", "بدون نام")
-        keyboard.append([
-            {"text": f"📥 {label}", "callback_data": f"select_config_{uid}"}
-        ])
+    kb = []
+    for uid, link in users:
+        kb.append([{"text": f"📥 {link.get('label', 'بدون نام')}", "callback_data": f"select_config_{uid}"}])
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
     
-    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(
-        chat_id,
-        "📥 <b>دریافت کانفیگ</b>\n\nلطفاً کاربر مورد نظر را انتخاب کنید:",
-        keyboard
-    )
+    await send_telegram_message(chat_id, "📥 کاربر را انتخاب کنید:", kb)
 
 async def show_user_list_for_renew(chat_id):
-    """نمایش لیست کاربران برای تمدید"""
     async with LINKS_LOCK:
-        users = list(LINKS.items())
+        users = list(LINKS.items())[:10]
     
     if not users:
-        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
         return
     
-    keyboard = []
-    for uid, link in users[:10]:
-        label = link.get("label", "بدون نام")
-        keyboard.append([
-            {"text": f"🔄 {label}", "callback_data": f"select_renew_{uid}"}
-        ])
+    kb = []
+    for uid, link in users:
+        kb.append([{"text": f"🔄 {link.get('label', 'بدون نام')}", "callback_data": f"select_renew_{uid}"}])
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
     
-    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(
-        chat_id,
-        "🔄 <b>تمدید کاربر</b>\n\nلطفاً کاربر مورد نظر را انتخاب کنید:",
-        keyboard
-    )
+    await send_telegram_message(chat_id, "🔄 کاربر را برای تمدید انتخاب کنید:", kb)
 
 async def show_user_list_for_delete(chat_id):
-    """نمایش لیست کاربران برای حذف"""
     async with LINKS_LOCK:
-        users = list(LINKS.items())
+        users = list(LINKS.items())[:10]
     
     if not users:
-        await send_telegram_message(chat_id, "📭 هیچ کاربری وجود ندارد!")
+        await send_telegram_message(chat_id, "📭 کاربری وجود ندارد!")
         return
     
-    keyboard = []
-    for uid, link in users[:10]:
-        label = link.get("label", "بدون نام")
-        keyboard.append([
-            {"text": f"❌ {label}", "callback_data": f"select_delete_{uid}"}
-        ])
+    kb = []
+    for uid, link in users:
+        kb.append([{"text": f"❌ {link.get('label', 'بدون نام')}", "callback_data": f"select_delete_{uid}"}])
+    kb.append([{"text": "🏠 منو", "callback_data": "main_menu"}])
     
-    keyboard.append([{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}])
-    
-    await send_telegram_message(
-        chat_id,
-        "❌ <b>حذف کاربر</b>\n\n⚠️ این کار غیرقابل بازگشت است!\nلطفاً کاربر مورد نظر را انتخاب کنید:",
-        keyboard
-    )
+    await send_telegram_message(chat_id, "❌ کاربر را برای حذف انتخاب کنید:", kb)
 
 async def send_user_config(chat_id, uuid):
-    """ارسال کانفیگ کاربر"""
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
     
@@ -1559,35 +1415,21 @@ async def send_user_config(chat_id, uuid):
     
     host = get_host()
     label = link.get("label", "کاربر")
-    protocol = link.get("protocol", DEFAULT_PROTOCOL)
-    fingerprint = link.get("fingerprint", "chrome")
     ports = link.get("ports", [443])
     
     vless_links = []
-    for i, port in enumerate(ports):
-        remark = f"{label}-p{port}" if len(ports) > 1 else label
-        vless_links.append(generate_vless_link(
-            uuid, host, remark=remark, protocol=protocol, 
-            fingerprint=fingerprint, port=port
-        ))
+    for port in ports:
+        vless_links.append(generate_vless_link(uuid, host, remark=label, fingerprint="chrome", port=port))
     
     content = "\n\n".join(vless_links)
+    await send_telegram_document(chat_id, content, f"config_{uuid[:8]}.txt")
     
-    await send_telegram_document(
-        chat_id,
-        content,
-        f"config_{uuid[:8]}.txt"
-    )
-    
-    sub_url = f"https://{host}/sub/{uuid}"
-    await send_telegram_message(
-        chat_id,
-        f"🔗 <b>لینک ساب‌لینک</b>\n<code>{sub_url}</code>\n\n📌 این لینک رو در کلاینت خود وارد کنید.",
-        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
+    await send_telegram_message(chat_id,
+        f"🔗 ساب‌لینک: <code>https://{host}/sub/{uuid}</code>",
+        [[{"text": "🏠 منو", "callback_data": "main_menu"}]]
     )
 
 async def renew_user(chat_id, uuid):
-    """تمدید کاربر"""
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
     
@@ -1595,57 +1437,38 @@ async def renew_user(chat_id, uuid):
         await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
         return
     
-    current_exp = link.get("expires_at")
-    if current_exp:
+    if link.get("expires_at"):
         try:
-            exp_date = datetime.fromisoformat(current_exp)
-            new_exp = exp_date + timedelta(days=30)
-            link["expires_at"] = new_exp.isoformat()
+            exp = datetime.fromisoformat(link["expires_at"])
+            link["expires_at"] = (exp + timedelta(days=30)).isoformat()
         except:
             link["expires_at"] = (datetime.now() + timedelta(days=30)).isoformat()
     else:
         link["expires_at"] = (datetime.now() + timedelta(days=30)).isoformat()
     
-    current_limit = link.get("limit_bytes", 0)
-    if current_limit > 0:
-        link["limit_bytes"] = current_limit + (5 * 1024**3)
+    if link.get("limit_bytes", 0) > 0:
+        link["limit_bytes"] += 5 * 1024**3
     
     link["active"] = True
-    
     await save_state()
-    log_activity("renew", f"کاربر {link.get('label')} تمدید شد", "ok")
     
-    label = link.get("label", "کاربر")
-    new_limit = link.get("limit_bytes", 0)
-    new_exp = link.get("expires_at", "نامحدود")
-    
-    await send_telegram_message(
-        chat_id,
-        f"✅ <b>کاربر {label} تمدید شد!</b>\n\n"
-        f"📊 حجم جدید: {fmt_bytes(new_limit)}\n"
-        f"📅 تاریخ انقضا: {new_exp[:16] if new_exp != 'نامحدود' else new_exp}\n\n"
-        f"🔗 لینک ساب: https://{get_host()}/sub/{uuid}",
-        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
+    await send_telegram_message(chat_id,
+        f"✅ <b>{link.get('label')}</b> تمدید شد!\n"
+        f"📅 انقضا: {link['expires_at'][:16]}\n"
+        f"📊 حجم: {fmt_bytes(link.get('limit_bytes', 0))}",
+        [[{"text": "🏠 منو", "callback_data": "main_menu"}]]
     )
 
 async def delete_user(chat_id, uuid):
-    """حذف کاربر"""
     async with LINKS_LOCK:
         if uuid not in LINKS:
             await send_telegram_message(chat_id, "❌ کاربر یافت نشد!")
             return
-        link = LINKS[uuid]
-        label = link.get("label", "بدون نام")
+        label = LINKS[uuid].get("label", "بدون نام")
         del LINKS[uuid]
     
     await save_state()
-    log_activity("delete", f"کاربر {label} از طریق بات حذف شد", "err")
-    
-    await send_telegram_message(
-        chat_id,
-        f"✅ <b>کاربر {label} با موفقیت حذف شد!</b>",
-        [[{"text": "🏠 منوی اصلی", "callback_data": "main_menu"}]]
-    )
+    await send_telegram_message(chat_id, f"✅ <b>{label}</b> حذف شد!", [[{"text": "🏠 منو", "callback_data": "main_menu"}]])
 
 # ─── ادامه WebSocket Tunnel ──────────────────────────────────────────────
 
