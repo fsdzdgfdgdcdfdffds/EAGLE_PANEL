@@ -279,7 +279,6 @@ setLang(currentLang);
 </script>
 </body></html>"""
 
-# ===== صفحه داشبورد =====
 DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -547,30 +546,14 @@ body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
     <div class="fg">
       <label><i class="ti ti-plug"></i> پورت‌ها (انتخاب چندگانه)</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;">
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="443" checked> 443
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="8443"> 8443
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="2053"> 2053
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="2096"> 2096
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="2087"> 2087
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="2083"> 2083
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="8080"> 8080
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);">
-          <input type="checkbox" class="port-check" value="80"> 80
-        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="443" checked> 443</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="8443"> 8443</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="2053"> 2053</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="2096"> 2096</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="2087"> 2087</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="2083"> 2083</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="8080"> 8080</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;background:rgba(100,80,255,0.03);padding:3px 8px;border-radius:4px;border:1px solid var(--card-b);"><input type="checkbox" class="port-check" value="80"> 80</label>
       </div>
       <div style="font-size:7px;color:var(--t3);margin-top:2px;">💡 هر پورت = یک کانفیگ جداگانه در ساب‌لینک</div>
     </div>
@@ -736,10 +719,11 @@ body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
   <div id="conns-grid" class="conn-grid"><div class="empty"><i class="ti ti-plug-off"></i><p>هیچ اتصالی وجود ندارد</p></div></div>
 </section>
 
-<!-- ===== تنظیمات ===== -->
+<!-- ===== تنظیمات با تلگرام ===== -->
 <section class="pg" id="pg-settings">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-settings"></i> تنظیمات</div><div class="tb-sub">مدیریت پنل</div></div></div>
   
+  <!-- انتخاب تم -->
   <div class="settings-card">
     <div class="title"><i class="ti ti-color-swatch"></i> تم پنل</div>
     <div style="display:flex;gap:8px;margin-top:4px;">
@@ -771,6 +755,37 @@ body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
     <div class="title"><i class="ti ti-plug"></i> پورت اینباند</div>
     <div class="field"><label>پورت</label><input class="fi" id="inbound-port-setting" type="number" min="1" max="65535" value="443"></div>
     <button class="btn btn-p" onclick="updateInbound()"><i class="ti ti-check"></i> ذخیره</button>
+  </div>
+  
+  <!-- ===== تنظیمات تلگرام ===== -->
+  <div class="settings-card">
+    <div class="title"><i class="ti ti-brand-telegram"></i> بات تلگرام</div>
+    
+    <div class="field">
+      <label>توکن بات</label>
+      <input class="fi" id="telegram-token" type="text" placeholder="توکن بات را وارد کنید" dir="ltr">
+      <div style="font-size:7px;color:var(--t3);margin-top:2px;">💡 از @BotFather در تلگرام دریافت کنید</div>
+    </div>
+    
+    <div class="field">
+      <label>شناسه چت (Chat ID)</label>
+      <input class="fi" id="telegram-chat-id" type="text" placeholder="Chat ID را وارد کنید" dir="ltr">
+      <div style="font-size:7px;color:var(--t3);margin-top:2px;">💡 از @userinfobot در تلگرام دریافت کنید</div>
+    </div>
+    
+    <div style="display:flex;gap:6px;margin-top:4px;">
+      <button class="btn btn-p" onclick="saveTelegramSettings()" style="flex:2"><i class="ti ti-device-floppy"></i> ذخیره تنظیمات</button>
+      <button class="btn btn-pur" onclick="testTelegram()" style="flex:1"><i class="ti ti-message"></i> تست</button>
+    </div>
+    
+    <div id="telegram-result" style="margin-top:8px;display:none;font-size:11px;"></div>
+    
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--card-b);">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);">
+        <span>وضعیت: <span id="telegram-status" style="color:var(--red-t);">❌ غیرفعال</span></span>
+        <span id="telegram-info">توکن: تنظیم نشده</span>
+      </div>
+    </div>
   </div>
   
   <div class="settings-card">
@@ -1204,12 +1219,102 @@ async function restoreBackup(event) {
     event.target.value = '';
 }
 
+// ===== تنظیمات تلگرام =====
+async function loadTelegramStatus() {
+    try {
+        const r = await authF('/api/telegram/status');
+        const data = await r.json();
+        const statusEl = document.getElementById('telegram-status');
+        const infoEl = document.getElementById('telegram-info');
+        
+        if (data.active) {
+            statusEl.textContent = '✅ فعال';
+            statusEl.style.color = '#34D399';
+            infoEl.textContent = 'توکن: ' + data.token_preview + ' | Chat: ' + data.chat_id;
+        } else if (data.has_token && !data.has_chat_id) {
+            statusEl.textContent = '⚠️ توکن تنظیم شده، Chat ID خالی';
+            statusEl.style.color = '#FCD34D';
+            infoEl.textContent = 'توکن: ' + data.token_preview;
+        } else {
+            statusEl.textContent = '❌ غیرفعال';
+            statusEl.style.color = '#F87171';
+            infoEl.textContent = 'تنظیم نشده';
+        }
+        
+        // پر کردن فیلدها
+        document.getElementById('telegram-token').value = data.has_token ? data.token_preview + '...' : '';
+        document.getElementById('telegram-chat-id').value = data.chat_id || '';
+    } catch(e) {
+        console.error('Telegram status error:', e);
+    }
+}
+
+async function saveTelegramSettings() {
+    const token = document.getElementById('telegram-token').value.trim();
+    const chatId = document.getElementById('telegram-chat-id').value.trim();
+    const result = document.getElementById('telegram-result');
+    
+    if (!token || !chatId) {
+        result.style.display = 'block';
+        result.style.color = '#F87171';
+        result.innerHTML = '❌ لطفاً توکن و Chat ID را وارد کنید';
+        return;
+    }
+    
+    try {
+        const r = await authF('/api/settings/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, chat_id: chatId })
+        });
+        const data = await r.json();
+        
+        result.style.display = 'block';
+        if (r.ok) {
+            result.style.color = '#34D399';
+            result.innerHTML = '✅ ' + data.message;
+            await loadTelegramStatus();
+        } else {
+            result.style.color = '#F87171';
+            result.innerHTML = '❌ ' + (data.message || 'خطا');
+        }
+    } catch(e) {
+        result.style.display = 'block';
+        result.style.color = '#F87171';
+        result.innerHTML = '❌ خطا در ارتباط با سرور';
+    }
+}
+
+async function testTelegram() {
+    const result = document.getElementById('telegram-result');
+    result.style.display = 'block';
+    result.style.color = '#FCD34D';
+    result.innerHTML = '⏳ در حال ارسال پیام تست...';
+    
+    try {
+        const r = await authF('/api/telegram/test', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await r.json();
+        
+        if (data.ok) {
+            result.style.color = '#34D399';
+            result.innerHTML = '✅ ' + data.message;
+        } else {
+            result.style.color = '#F87171';
+            result.innerHTML = '❌ ' + (data.message || 'خطا');
+        }
+    } catch(e) {
+        result.style.color = '#F87171';
+        result.innerHTML = '❌ خطا در ارتباط با سرور';
+    }
+}
+
 // ===== بارگذاری اولیه =====
 document.addEventListener('DOMContentLoaded', async () => {
     try { const r = await fetch('/api/me'); const d = await r.json(); if (!d.authenticated) location.href = '/login'; } catch(e) { location.href = '/login'; }
     await loadThemeFromServer();
     setLang(currentLang);
     await loadRGBStatus();
+    await loadTelegramStatus();
     loadDashboard();
     loadInbound();
     loadUsers();
@@ -1250,7 +1355,7 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     vless_link = vless_links[0] if vless_links else ""
     sub_url = link.get('sub_url', '')
     is_allowed = active and not expired
-    max_devices = link.get('max_devices', 0)
+    
     last_connected_text = "—"
     if last_connected:
         try:
@@ -1277,7 +1382,6 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     else:
         conns_html = f"""<div style="background:rgba(100,80,255,0.02);border:1px solid rgba(100,80,255,0.04);border-radius:10px;padding:6px 10px;margin:8px 0;text-align:center"><span style="font-size:9px;color:#555577">🔴 بدون اتصال فعال</span></div>"""
     
-    # ساخت لینک‌های کانفیگ
     vless_links_html = ""
     if len(vless_links) > 1:
         vless_links_html = "<div style='margin-top:6px;font-size:8px;color:#8888BB'>"
