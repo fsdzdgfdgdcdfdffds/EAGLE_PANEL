@@ -1,4 +1,4 @@
-# pages.py - پنل تخت جمشید با Multi-Node + ربات تلگرام + نمودار + QR Code
+# pages.py - پنل تخت جمشید نسخه ساده
 
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -256,10 +256,6 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .btn-amber:hover{background:rgba(245,158,11,0.15);transform:translateY(-1px)}
 .btn-sm{padding:2px 6px;font-size:8px;border-radius:4px}
 .btn-icon{width:22px;height:22px;padding:0;justify-content:center}
-.btn-telegram{background:rgba(68,168,228,0.08);color:#44A8E4;border:1px solid rgba(68,168,228,0.1)}
-.btn-telegram:hover{background:rgba(68,168,228,0.15);transform:translateY(-1px)}
-.btn-node{background:rgba(16,185,129,0.08);color:#34D399;border:1px solid rgba(16,185,129,0.1)}
-.btn-node:hover{background:rgba(16,185,129,0.15);transform:translateY(-1px)}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
 .modal-bg.open{display:flex}
@@ -293,17 +289,13 @@ select.fi{appearance:none;cursor:pointer}
 .settings-card .field label{font-size:9px;color:var(--t3);display:block;margin-bottom:2px;font-weight:600}
 .settings-card .field input{width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--card-b);background:rgba(0,0,20,.2);color:var(--t1);font-family:inherit;font-size:11px;outline:none;transition:.3s}
 .settings-card .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(212,175,55,.06)}
-.settings-card .field input[type="password"]{font-family:monospace}
 .settings-card .btn{width:100%;justify-content:center;margin-top:3px;font-size:11px;padding:6px}
 .settings-card .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-b)}
 .settings-card .toggle-row .toggle-label{font-size:11px;color:var(--t2);display:flex;align-items:center;gap:5px}
-.settings-card .btn-group{display:flex;gap:6px;margin-top:6px}
-.settings-card .btn-group .btn{flex:1}
 .switch{position:relative;width:36px;height:20px;background:var(--t3);border-radius:10px;cursor:pointer;transition:.4s;flex-shrink:0}
+.switch.on{background:linear-gradient(135deg,#D4A843,#B8922E)}
 .switch .slider{position:absolute;top:2px;right:2px;width:16px;height:16px;background:#1a1208;border-radius:50%;transition:.4s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 2px 4px rgba(0,0,0,0.2)}
 .switch.on .slider{right:18px}
-.switch.bot-on{background:linear-gradient(135deg,#44A8E4,#1E7EBE)}
-.switch.bot-on .slider{right:18px}
 
 .toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(50px);background:var(--card);backdrop-filter:blur(30px);border:1px solid var(--card-b);color:var(--t1);border-radius:8px;padding:8px 16px;font-size:11px;opacity:0;transition:all .4s cubic-bezier(0.34,1.56,0.64,1);z-index:999;pointer-events:none;box-shadow:var(--shadow);display:flex;align-items:center;gap:5px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -366,11 +358,6 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
       <div class="fg"><label><i class="ti ti-calendar"></i> <span id="f-label-expiry">انقضا (روز)</span></label><input class="fi" id="user-exp" type="number" min="0" value="30"></div>
       <div class="fg"><label><i class="ti ti-devices"></i> <span id="f-label-devices">دستگاه</span></label><input class="fi" id="user-devices" type="number" min="0" max="10" value="1"></div>
     </div>
-    <div class="fg"><label><i class="ti ti-server"></i> <span id="f-label-node">Node</span></label>
-      <select class="fi" id="user-node">
-        <option value="">پیش‌فرض (پنل اصلی)</option>
-      </select>
-    </div>
     <div class="fg"><label><i class="ti ti-fingerprint"></i> <span id="f-label-fingerprint">انگشت‌نگاری</span></label>
       <select class="fi" id="user-fingerprint">
         <option value="chrome">🌐 Chrome</option><option value="firefox">🦊 Firefox</option>
@@ -397,11 +384,6 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
       <div class="fg"><label><i class="ti ti-calendar"></i> <span id="e-label-expiry">انقضا (روز)</span></label><input class="fi" id="edit-exp" type="number" min="0"></div>
       <div class="fg"><label><i class="ti ti-devices"></i> <span id="e-label-devices">دستگاه</span></label><input class="fi" id="edit-devices" type="number" min="0" max="10"></div>
       <div class="fg"><label><i class="ti ti-toggle-left"></i> <span id="e-label-status">وضعیت</span></label><select class="fi" id="edit-status"><option value="true">✅ فعال</option><option value="false">❌ غیرفعال</option></select></div>
-    </div>
-    <div class="fg"><label><i class="ti ti-server"></i> <span id="e-label-node">Node</span></label>
-      <select class="fi" id="edit-node">
-        <option value="">پیش‌فرض (پنل اصلی)</option>
-      </select>
     </div>
     <div class="fg"><label><i class="ti ti-fingerprint"></i> <span id="e-label-fingerprint">انگشت‌نگاری</span></label>
       <select class="fi" id="edit-fingerprint">
@@ -435,44 +417,6 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
     <div id="qrcode-container" style="display:flex;justify-content:center;padding:10px 0;"></div>
     <p style="font-size:9px;color:var(--t3);margin-top:4px" id="qr-desc">اسکن کنید تا ساب‌لینک اضافه شود</p>
     <button class="btn btn-p btn-sm" onclick="downloadQR()" style="margin-top:6px"><i class="ti ti-download"></i> <span id="qr-download">دانلود QR</span></button>
-  </div>
-</div>
-
-<!-- Modal Node -->
-<div class="modal-bg" id="modal-node">
-  <div class="modal" style="max-width:480px">
-    <button class="modal-close" onclick="closeModal('modal-node')"><i class="ti ti-x"></i></button>
-    <div class="modal-title"><i class="ti ti-server"></i> <span id="modal-node-title">ساخت Node جدید</span></div>
-    <input type="hidden" id="edit-node-id">
-    <div class="fg">
-        <label><i class="ti ti-tag"></i> <span id="n-label-name">نام</span></label>
-        <input class="fi" id="node-name" placeholder="مثلاً: آمریکا" value="Node جدید">
-    </div>
-    <div class="fg">
-        <label><i class="ti ti-map-pin"></i> <span id="n-label-location">لوکیشن</span></label>
-        <input class="fi" id="node-location" placeholder="🇺🇸 آمریکا (US West)">
-    </div>
-    <div class="fg">
-        <label><i class="ti ti-world"></i> <span id="n-label-host">هاست</span></label>
-        <input class="fi" id="node-host" placeholder="your-app.up.railway.app">
-    </div>
-    <div class="fg" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div>
-            <label><i class="ti ti-plug"></i> <span id="n-label-port">پورت</span></label>
-            <input class="fi" id="node-port" type="number" value="443">
-        </div>
-        <div>
-            <label><i class="ti ti-toggle-left"></i> <span id="n-label-status">وضعیت</span></label>
-            <select class="fi" id="node-status">
-                <option value="true">✅ فعال</option>
-                <option value="false">❌ غیرفعال</option>
-            </select>
-        </div>
-    </div>
-    <div style="display:flex;gap:6px;margin-top:10px">
-        <button class="btn btn-p" onclick="saveNode()" style="flex:2"><i class="ti ti-check"></i> <span id="btn-save-node">ذخیره</span></button>
-        <button class="btn btn-o" onclick="closeModal('modal-node')" style="flex:1"><span id="btn-cancel-node">انصراف</span></button>
-    </div>
   </div>
 </div>
 
@@ -588,22 +532,6 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
 <section class="pg" id="pg-settings">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-settings"></i> <span id="settings-title">تنظیمات</span></div><div class="tb-sub" id="settings-sub">مدیریت پنل</div></div></div>
   
-  <!-- Node Management -->
-  <div class="settings-card">
-    <div class="title"><i class="ti ti-server"></i> <span id="set-nodes-title">🌐 مدیریت Nodeها</span></div>
-    <div id="nodes-container" style="margin-bottom:8px;max-height:300px;overflow-y:auto">
-      <!-- Nodeها اینجا نمایش داده میشن -->
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-node btn-sm" onclick="openNodeModal()" style="flex:1">
-            <i class="ti ti-plus"></i> <span id="add-node-btn">افزودن Node</span>
-        </button>
-        <button class="btn btn-o btn-sm" onclick="loadNodes()" style="flex:1">
-            <i class="ti ti-refresh"></i> <span id="refresh-nodes-btn">بروزرسانی</span>
-        </button>
-    </div>
-  </div>
-  
   <!-- Theme -->
   <div class="settings-card"><div class="title"><i class="ti ti-color-swatch"></i> <span id="set-theme-title">تم پنل</span></div><div style="display:flex;gap:8px;margin-top:4px;"><button class="btn" onclick="setTheme('dark')" id="theme-dark-btn" style="flex:1;font-size:11px;padding:6px 12px;background:var(--card);border:1px solid var(--card-b);color:var(--t1);transition:all .3s">🌙 <span id="set-dark">تاریک</span></button><button class="btn" onclick="setTheme('light')" id="theme-light-btn" style="flex:1;font-size:11px;padding:6px 12px;background:var(--card);border:1px solid var(--card-b);color:var(--t1);transition:all .3s">☀️ <span id="set-light">روشن</span></button></div><div style="font-size:9px;color:var(--t3);margin-top:6px;">💡 <span id="set-current-theme">تم فعلی</span>: <span id="current-theme-label">تاریک</span></div></div>
   
@@ -616,27 +544,6 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
   <!-- RGB -->
   <div class="settings-card"><div class="title"><i class="ti ti-color-swatch"></i> <span id="set-rgb-title">تم RGB</span></div><div class="toggle-row"><div class="toggle-label"><i class="ti ti-color-palette" style="background:linear-gradient(135deg,#ff0000,#00ff00,#0000ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent"></i> RGB</div><div class="switch" id="rgb-switch" onclick="toggleRGB()"><div class="slider"></div></div></div></div>
   
-  <!-- Telegram Bot -->
-  <div class="settings-card">
-    <div class="title"><i class="ti ti-brand-telegram"></i> <span id="set-bot-title">ربات تلگرام</span></div>
-    <div class="field">
-        <label id="set-bot-token">توکن ربات</label>
-        <input class="fi" id="bot-token" type="password" placeholder="توکن را وارد کنید" dir="ltr">
-    </div>
-    <div class="field">
-        <label id="set-bot-chat-id">چت آیدی ادمین</label>
-        <input class="fi" id="bot-chat-id" type="text" placeholder="مثلاً: 123456789" dir="ltr">
-    </div>
-    <div class="toggle-row">
-        <div class="toggle-label"><i class="ti ti-toggle-left"></i> <span id="set-bot-enabled">فعال/غیرفعال</span></div>
-        <div class="switch" id="bot-switch" onclick="toggleBot()"><div class="slider"></div></div>
-    </div>
-    <div style="display:flex;gap:6px;margin-top:6px">
-        <button class="btn btn-telegram btn-sm" onclick="testBot()" style="flex:1"><i class="ti ti-send"></i> <span id="set-bot-test">ارسال تست</span></button>
-        <button class="btn btn-o btn-sm" onclick="loadBotSettings()" style="flex:1"><i class="ti ti-refresh"></i> <span id="set-bot-refresh">بروزرسانی</span></button>
-    </div>
-    <div id="bot-status" style="margin-top:6px;font-size:9px;color:var(--t3)"></div>
-  </div>
 </section>
 
 <!-- صفحه لاگ‌ها -->
@@ -678,35 +585,24 @@ const translations = {
     set_current_theme: 'تم فعلی', set_lang: 'زبان پنل', set_current_lang: 'زبان فعلی',
     set_pass: 'تغییر رمز', set_old_pass: 'رمز فعلی', set_new_pass: 'رمز جدید',
     set_confirm_pass: 'تکرار', set_change_btn: 'تغییر', set_rgb: 'تم RGB',
-    set_bot_title: 'ربات تلگرام', set_bot_token: 'توکن ربات',
-    set_bot_chat_id: 'چت آیدی ادمین', set_bot_enabled: 'فعال/غیرفعال',
-    set_bot_test: 'ارسال تست', set_bot_refresh: 'بروزرسانی',
-    set_nodes_title: '🌐 مدیریت Nodeها',
-    add_node_btn: 'افزودن Node', refresh_nodes_btn: 'بروزرسانی',
     backup_title: 'بکاپ', backup_sub: 'ذخیره و بازیابی',
     backup_download: 'بکاپ‌گیری', backup_download_btn: 'دانلود', backup_restore_btn: 'بازیابی',
     logs_title: 'لاگ‌ها',
     modal_user_title: 'ساخت کاربر جدید',
     f_label_name: 'نام کاربری', f_label_quota: 'حجم (GB)',
     f_label_expiry: 'انقضا (روز)', f_label_devices: 'دستگاه',
-    f_label_node: 'Node', f_label_fingerprint: 'انگشت‌نگاری',
-    f_label_password: 'رمز (اختیاری)',
+    f_label_fingerprint: 'انگشت‌نگاری', f_label_password: 'رمز (اختیاری)',
     btn_create_user: 'ساخت کاربر', btn_cancel: 'انصراف',
     modal_edit_title: 'ویرایش کاربر',
     e_label_name: 'نام', e_label_password: 'رمز جدید',
     e_label_quota: 'حجم (GB)', e_label_expiry: 'انقضا (روز)',
     e_label_devices: 'دستگاه', e_label_status: 'وضعیت',
-    e_label_node: 'Node', e_label_fingerprint: 'انگشت‌نگاری',
+    e_label_fingerprint: 'انگشت‌نگاری',
     btn_save: 'ذخیره',
     modal_delete_title: 'حذف کاربر', delete_desc: 'برای حذف، رمز کانفیگ را وارد کنید.',
     d_label_password: 'رمز', btn_delete: 'حذف',
     qr_title: 'QR Code', qr_desc: 'اسکن کنید تا ساب‌لینک اضافه شود',
-    qr_download: 'دانلود QR',
-    modal_node_title: 'ساخت Node جدید',
-    n_label_name: 'نام', n_label_location: 'لوکیشن',
-    n_label_host: 'هاست', n_label_port: 'پورت',
-    n_label_status: 'وضعیت', btn_save_node: 'ذخیره',
-    btn_cancel_node: 'انصراف'
+    qr_download: 'دانلود QR'
   },
   en: {
     nav_home: 'Home', nav_users: 'Users', nav_inbound: 'Inbound',
@@ -731,35 +627,24 @@ const translations = {
     set_current_theme: 'Current Theme', set_lang: 'Language', set_current_lang: 'Current Language',
     set_pass: 'Change Password', set_old_pass: 'Current Password', set_new_pass: 'New Password',
     set_confirm_pass: 'Confirm', set_change_btn: 'Change', set_rgb: 'RGB Mode',
-    set_bot_title: 'Telegram Bot', set_bot_token: 'Bot Token',
-    set_bot_chat_id: 'Admin Chat ID', set_bot_enabled: 'Enable/Disable',
-    set_bot_test: 'Send Test', set_bot_refresh: 'Refresh',
-    set_nodes_title: '🌐 Node Management',
-    add_node_btn: 'Add Node', refresh_nodes_btn: 'Refresh',
     backup_title: 'Backup', backup_sub: 'Save & Restore',
     backup_download: 'Backup', backup_download_btn: 'Download', backup_restore_btn: 'Restore',
     logs_title: 'Logs',
     modal_user_title: 'Create New User',
     f_label_name: 'Username', f_label_quota: 'Quota (GB)',
     f_label_expiry: 'Expiry (Days)', f_label_devices: 'Devices',
-    f_label_node: 'Node', f_label_fingerprint: 'Fingerprint',
-    f_label_password: 'Password (Optional)',
+    f_label_fingerprint: 'Fingerprint', f_label_password: 'Password (Optional)',
     btn_create_user: 'Create User', btn_cancel: 'Cancel',
     modal_edit_title: 'Edit User',
     e_label_name: 'Name', e_label_password: 'New Password',
     e_label_quota: 'Quota (GB)', e_label_expiry: 'Expiry (Days)',
     e_label_devices: 'Devices', e_label_status: 'Status',
-    e_label_node: 'Node', e_label_fingerprint: 'Fingerprint',
+    e_label_fingerprint: 'Fingerprint',
     btn_save: 'Save',
     modal_delete_title: 'Delete User', delete_desc: 'Enter the config password to delete.',
     d_label_password: 'Password', btn_delete: 'Delete',
     qr_title: 'QR Code', qr_desc: 'Scan to add subscription',
-    qr_download: 'Download QR',
-    modal_node_title: 'Create New Node',
-    n_label_name: 'Name', n_label_location: 'Location',
-    n_label_host: 'Host', n_label_port: 'Port',
-    n_label_status: 'Status', btn_save_node: 'Save',
-    btn_cancel_node: 'Cancel'
+    qr_download: 'Download QR'
   }
 };
 
@@ -772,8 +657,6 @@ let currentTheme = localStorage.getItem('persepolis-theme') || 'dark';
 let trafficChart = null;
 let chartPeriod = '7d';
 let qrCodeInstance = null;
-let botEnabled = false;
-let editingNodeId = null;
 
 // ===== توابع تم =====
 function setTheme(theme) {
@@ -900,16 +783,6 @@ function updateUITexts() {
   document.getElementById('set-confirm-pass').textContent = t.set_confirm_pass;
   document.getElementById('set-change-btn').textContent = t.set_change_btn;
   document.getElementById('set-rgb-title').textContent = t.set_rgb;
-  document.getElementById('set-nodes-title').textContent = t.set_nodes_title;
-  document.getElementById('add-node-btn').textContent = t.add_node_btn;
-  document.getElementById('refresh-nodes-btn').textContent = t.refresh_nodes_btn;
-  
-  document.getElementById('set-bot-title').textContent = t.set_bot_title;
-  document.getElementById('set-bot-token').textContent = t.set_bot_token;
-  document.getElementById('set-bot-chat-id').textContent = t.set_bot_chat_id;
-  document.getElementById('set-bot-enabled').textContent = t.set_bot_enabled;
-  document.getElementById('set-bot-test').textContent = t.set_bot_test;
-  document.getElementById('set-bot-refresh').textContent = t.set_bot_refresh;
   
   document.getElementById('backup-title').textContent = t.backup_title;
   document.getElementById('backup-sub').textContent = t.backup_sub;
@@ -924,7 +797,6 @@ function updateUITexts() {
   document.getElementById('f-label-quota').textContent = t.f_label_quota;
   document.getElementById('f-label-expiry').textContent = t.f_label_expiry;
   document.getElementById('f-label-devices').textContent = t.f_label_devices;
-  document.getElementById('f-label-node').textContent = t.f_label_node;
   document.getElementById('f-label-fingerprint').textContent = t.f_label_fingerprint;
   document.getElementById('f-label-password').textContent = t.f_label_password;
   document.getElementById('btn-create-user').textContent = t.btn_create_user;
@@ -937,7 +809,6 @@ function updateUITexts() {
   document.getElementById('e-label-expiry').textContent = t.e_label_expiry;
   document.getElementById('e-label-devices').textContent = t.e_label_devices;
   document.getElementById('e-label-status').textContent = t.e_label_status;
-  document.getElementById('e-label-node').textContent = t.e_label_node;
   document.getElementById('e-label-fingerprint').textContent = t.e_label_fingerprint;
   document.getElementById('btn-save').textContent = t.btn_save;
   document.getElementById('btn-cancel2').textContent = t.btn_cancel;
@@ -951,15 +822,6 @@ function updateUITexts() {
   document.getElementById('qr-title').textContent = t.qr_title;
   document.getElementById('qr-desc').textContent = t.qr_desc;
   document.getElementById('qr-download').textContent = t.qr_download;
-  
-  document.getElementById('modal-node-title').textContent = t.modal_node_title;
-  document.getElementById('n-label-name').textContent = t.n_label_name;
-  document.getElementById('n-label-location').textContent = t.n_label_location;
-  document.getElementById('n-label-host').textContent = t.n_label_host;
-  document.getElementById('n-label-port').textContent = t.n_label_port;
-  document.getElementById('n-label-status').textContent = t.n_label_status;
-  document.getElementById('btn-save-node').textContent = t.btn_save_node;
-  document.getElementById('btn-cancel-node').textContent = t.btn_cancel_node;
   
   document.getElementById('current-theme-label').textContent = currentTheme === 'light' ? (currentLang === 'fa' ? 'روشن' : 'Light') : (currentLang === 'fa' ? 'تاریک' : 'Dark');
   document.getElementById('current-lang-label').textContent = currentLang === 'fa' ? 'فارسی' : 'English';
@@ -1013,7 +875,7 @@ function navTo(name) {
     inbound: loadInbound,
     connections: loadConnections,
     logs: loadLogs,
-    settings: () => { loadNodes(); loadBotSettings(); }
+    settings: () => {}
   };
   if (loaders[name]) loaders[name]();
 }
@@ -1132,179 +994,6 @@ async function loadChart(period) {
   } catch(e) { console.error(e); }
 }
 
-// ===== بارگذاری Nodeها =====
-async function loadNodes() {
-  try {
-    const r = await authF('/api/nodes');
-    const data = await r.json();
-    const nodes = data.nodes || [];
-    const container = document.getElementById('nodes-container');
-    
-    // بروزرسانی سلکت‌های Node
-    const selects = ['user-node', 'edit-node'];
-    selects.forEach(id => {
-      const sel = document.getElementById(id);
-      if (sel) {
-        const currentVal = sel.value;
-        sel.innerHTML = '<option value="">' + (currentLang === 'fa' ? 'پیش‌فرض (پنل اصلی)' : 'Default (Main Panel)') + '</option>';
-        nodes.forEach(n => {
-          if (n.enabled) {
-            const opt = document.createElement('option');
-            opt.value = n.id;
-            opt.textContent = n.location + ' ' + n.name;
-            sel.appendChild(opt);
-          }
-        });
-        if (currentVal) sel.value = currentVal;
-      }
-    });
-    
-    if (!nodes.length) {
-      container.innerHTML = '<div class="empty" style="padding:10px"><i class="ti ti-server"></i><p style="font-size:9px">' + (currentLang === 'fa' ? 'هیچ Node ای وجود ندارد' : 'No nodes') + '</p></div>';
-      return;
-    }
-    
-    container.innerHTML = nodes.map(n => {
-      const status = n.enabled ? '🟢 ' + (currentLang === 'fa' ? 'فعال' : 'Active') : '🔴 ' + (currentLang === 'fa' ? 'غیرفعال' : 'Disabled');
-      const statusColor = n.enabled ? '#34D399' : '#F87171';
-      return `
-      <div style="background:rgba(212,175,55,0.02);border:1px solid rgba(212,175,55,0.04);border-radius:8px;padding:8px 10px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-weight:600;color:var(--t1)">${esc(n.location)} ${esc(n.name)}</div>
-          <div style="font-size:8px;color:var(--t3);font-family:monospace">${esc(n.host)}:${n.port}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:8px;color:${statusColor}">${status}</span>
-          <button class="btn btn-pur btn-sm" onclick="editNode('${n.id}')" title="${currentLang === 'fa' ? 'ویرایش' : 'Edit'}"><i class="ti ti-edit"></i></button>
-          <button class="btn btn-d btn-sm" onclick="deleteNode('${n.id}')" title="${currentLang === 'fa' ? 'حذف' : 'Delete'}"><i class="ti ti-trash"></i></button>
-        </div>
-      </div>
-      `;
-    }).join('');
-  } catch(e) { console.error(e); }
-}
-
-function openNodeModal(nodeData = null) {
-  editingNodeId = nodeData ? nodeData.id : null;
-  document.getElementById('modal-node-title').textContent = nodeData ? (currentLang === 'fa' ? 'ویرایش Node' : 'Edit Node') : (currentLang === 'fa' ? 'ساخت Node جدید' : 'Create New Node');
-  document.getElementById('node-name').value = nodeData ? nodeData.name : 'Node جدید';
-  document.getElementById('node-location').value = nodeData ? nodeData.location : '🌍 ' + (currentLang === 'fa' ? 'جهانی' : 'Global');
-  document.getElementById('node-host').value = nodeData ? nodeData.host : '';
-  document.getElementById('node-port').value = nodeData ? nodeData.port : 443;
-  document.getElementById('node-status').value = nodeData ? String(nodeData.enabled) : 'true';
-  openModal('modal-node');
-}
-
-async function editNode(nodeId) {
-  try {
-    const r = await authF('/api/nodes');
-    const data = await r.json();
-    const node = data.nodes.find(n => n.id === nodeId);
-    if (node) { openNodeModal(node); }
-    else { toast('❌ ' + (currentLang === 'fa' ? 'Node یافت نشد' : 'Node not found'), 'err'); }
-  } catch(e) { toast('❌ ' + (currentLang === 'fa' ? 'خطا' : 'Error'), 'err'); }
-}
-
-async function saveNode() {
-  const name = document.getElementById('node-name').value.trim();
-  const location = document.getElementById('node-location').value.trim();
-  const host = document.getElementById('node-host').value.trim();
-  const port = parseInt(document.getElementById('node-port').value) || 443;
-  const enabled = document.getElementById('node-status').value === 'true';
-  
-  if (!name || !host) {
-    toast('❌ ' + (currentLang === 'fa' ? 'نام و هاست الزامی است!' : 'Name and host are required!'), 'err');
-    return;
-  }
-  
-  const data = { name, location, host, port, enabled };
-  const url = editingNodeId ? `/api/nodes/${editingNodeId}` : '/api/nodes';
-  const method = editingNodeId ? 'PATCH' : 'POST';
-  
-  try {
-    const r = await authF(url, {
-      method: method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!r.ok) throw new Error();
-    closeModal('modal-node');
-    toast('✅ ' + (currentLang === 'fa' ? 'Node ذخیره شد' : 'Node saved'), 'ok');
-    loadNodes();
-  } catch(e) { toast('❌ ' + (currentLang === 'fa' ? 'خطا' : 'Error'), 'err'); }
-}
-
-async function deleteNode(nodeId) {
-  if (!confirm(currentLang === 'fa' ? 'آیا از حذف این Node مطمئنید؟' : 'Are you sure to delete this node?')) return;
-  try {
-    const r = await authF(`/api/nodes/${nodeId}`, { method: 'DELETE' });
-    if (!r.ok) throw new Error();
-    toast('✅ ' + (currentLang === 'fa' ? 'Node حذف شد' : 'Node deleted'), 'ok');
-    loadNodes();
-  } catch(e) { toast('❌ ' + (currentLang === 'fa' ? 'خطا' : 'Error'), 'err'); }
-}
-
-// ===== بارگذاری ربات =====
-async function loadBotSettings() {
-  try {
-    const r = await authF('/api/bot/settings');
-    const data = await r.json();
-    document.getElementById('bot-token').value = data.token || '';
-    document.getElementById('bot-chat-id').value = data.admin_chat_id || '';
-    botEnabled = data.enabled || false;
-    updateBotUI();
-    document.getElementById('bot-status').textContent = data.running ? '✅ ' + (currentLang === 'fa' ? 'ربات آنلاین' : 'Bot online') : '❌ ' + (currentLang === 'fa' ? 'ربات آفلاین' : 'Bot offline');
-    document.getElementById('bot-status').style.color = data.running ? '#34D399' : '#F87171';
-  } catch(e) { console.error(e); }
-}
-
-function updateBotUI() {
-  const sw = document.getElementById('bot-switch');
-  if (botEnabled) { sw.classList.add('bot-on'); }
-  else { sw.classList.remove('bot-on'); }
-}
-
-async function toggleBot() {
-  const token = document.getElementById('bot-token').value.trim();
-  const chatId = document.getElementById('bot-chat-id').value.trim();
-  if (!token || !chatId) {
-    toast('❌ ' + (currentLang === 'fa' ? 'توکن و چت آیدی را وارد کنید!' : 'Enter token and chat ID!'), 'err');
-    return;
-  }
-  const newState = !botEnabled;
-  try {
-    const r = await authF('/api/bot/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: token, admin_chat_id: chatId, enabled: newState })
-    });
-    const data = await r.json();
-    botEnabled = data.enabled;
-    updateBotUI();
-    toast(data.enabled ? '✅ ' + (currentLang === 'fa' ? 'ربات فعال شد' : 'Bot enabled') : '❌ ' + (currentLang === 'fa' ? 'ربات غیرفعال شد' : 'Bot disabled'), data.enabled ? 'ok' : 'err');
-    loadBotSettings();
-  } catch(e) { toast('❌ ' + (currentLang === 'fa' ? 'خطا' : 'Error'), 'err'); }
-}
-
-async function testBot() {
-  const chatId = document.getElementById('bot-chat-id').value.trim();
-  const token = document.getElementById('bot-token').value.trim();
-  if (!chatId) {
-    toast('❌ ' + (currentLang === 'fa' ? 'چت آیدی را وارد کنید!' : 'Enter chat ID!'), 'err');
-    return;
-  }
-  try {
-    const r = await authF('/api/bot/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, token: token })
-    });
-    const data = await r.json();
-    if (data.ok) { toast('✅ ' + (currentLang === 'fa' ? 'پیام تست ارسال شد!' : 'Test message sent!'), 'ok'); }
-    else { toast('❌ ' + (currentLang === 'fa' ? 'خطا: ' : 'Error: ') + (data.detail || 'Unknown'), 'err'); }
-  } catch(e) { toast('❌ ' + (currentLang === 'fa' ? 'خطا در ارسال تست' : 'Test send error'), 'err'); }
-}
-
 // ===== بارگذاری داشبورد =====
 async function loadDashboard() {
   try {
@@ -1329,7 +1018,7 @@ async function loadDashboard() {
     if (!recent.length) {
       grid.innerHTML = '<div class="empty" style="padding:10px"><i class="ti ti-users"></i><p style="font-size:9px">' + (currentLang === 'fa' ? 'هیچ کاربری وجود ندارد' : 'No users') + '</p></div>';
     } else {
-      grid.innerHTML = recent.map(l => `<div style="background:rgba(212,175,55,0.02);border-radius:4px;padding:4px 6px;display:flex;justify-content:space-between;align-items:center;transition:transform .3s"><div><div style="font-size:9px;font-weight:600;color:var(--t1)">${esc(l.label)}</div><div style="font-size:7px;color:var(--t3)">${l.active ? '🟢' : '🔴'} ${l.node_name || 'پیش‌فرض'}</div></div><div style="font-size:8px;color:var(--t2)">${fmtB(l.used_bytes||0)}</div></div>`).join('');
+      grid.innerHTML = recent.map(l => `<div style="background:rgba(212,175,55,0.02);border-radius:4px;padding:4px 6px;display:flex;justify-content:space-between;align-items:center;transition:transform .3s"><div><div style="font-size:9px;font-weight:600;color:var(--t1)">${esc(l.label)}</div><div style="font-size:7px;color:var(--t3)">${l.active ? '🟢' : '🔴'}</div></div><div style="font-size:8px;color:var(--t2)">${fmtB(l.used_bytes||0)}</div></div>`).join('');
     }
     
     loadChart(chartPeriod);
@@ -1390,8 +1079,7 @@ async function loadUsers() {
         } catch(e) { duration = '—'; }
       }
       const avatarLetter = (l.label || 'U')[0].toUpperCase();
-      const nodeName = l.node_name || 'پیش‌فرض';
-      return `<tr><td><div class="user-name-cell"><div class="avatar">${avatarLetter}</div><div><div class="name">${esc(l.label)}</div><div class="uuid-short">${l.uuid.slice(0,8)}… 🌐 ${esc(nodeName)}</div></div></div></td><td style="font-size:9px;color:var(--t2);">${fpEmoji[fp] || '🌐'} ${fpName}</td><td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${statusText}</span></td><td><div class="usage-bar"><span class="usage-text">${usedFmt} / ${limitFmt}</span><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div></td><td style="font-size:10px;color:var(--t2);">${duration}</td><td><div class="action-btns"><button class="btn btn-pur btn-sm" onclick="showQR('${l.sub_url}')" title="QR Code"><i class="ti ti-qrcode"></i></button><button class="btn btn-pur btn-sm" onclick="navigator.clipboard.writeText('${esc(l.sub_url)}').then(()=>toast('${currentLang === 'fa' ? '✅ کپی ساب' : '✅ Copied'}','ok'))" title="${currentLang === 'fa' ? 'کپی ساب‌لینک' : 'Copy sub'}"><i class="ti ti-link"></i></button><button class="btn btn-amber btn-sm" onclick="resetUsage('${l.uuid}')" title="${currentLang === 'fa' ? 'ریست مصرف' : 'Reset usage'}"><i class="ti ti-rotate"></i></button><button class="btn btn-pur btn-sm" onclick="openEditModal('${l.uuid}')" title="${currentLang === 'fa' ? 'ویرایش' : 'Edit'}"><i class="ti ti-edit"></i></button><button class="btn btn-d btn-sm" onclick="openDeleteModal('${l.uuid}')" title="${currentLang === 'fa' ? 'حذف' : 'Delete'}"><i class="ti ti-trash"></i></button></div></td></tr>`;
+      return `<tr><td><div class="user-name-cell"><div class="avatar">${avatarLetter}</div><div><div class="name">${esc(l.label)}</div><div class="uuid-short">${l.uuid.slice(0,8)}…</div></div></div></td><td style="font-size:9px;color:var(--t2);">${fpEmoji[fp] || '🌐'} ${fpName}</td><td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${statusText}</span></td><td><div class="usage-bar"><span class="usage-text">${usedFmt} / ${limitFmt}</span><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div></td><td style="font-size:10px;color:var(--t2);">${duration}</td><td><div class="action-btns"><button class="btn btn-pur btn-sm" onclick="showQR('${l.sub_url}')" title="QR Code"><i class="ti ti-qrcode"></i></button><button class="btn btn-pur btn-sm" onclick="navigator.clipboard.writeText('${esc(l.sub_url)}').then(()=>toast('${currentLang === 'fa' ? '✅ کپی ساب' : '✅ Copied'}','ok'))" title="${currentLang === 'fa' ? 'کپی ساب‌لینک' : 'Copy sub'}"><i class="ti ti-link"></i></button><button class="btn btn-amber btn-sm" onclick="resetUsage('${l.uuid}')" title="${currentLang === 'fa' ? 'ریست مصرف' : 'Reset usage'}"><i class="ti ti-rotate"></i></button><button class="btn btn-pur btn-sm" onclick="openEditModal('${l.uuid}')" title="${currentLang === 'fa' ? 'ویرایش' : 'Edit'}"><i class="ti ti-edit"></i></button><button class="btn btn-d btn-sm" onclick="openDeleteModal('${l.uuid}')" title="${currentLang === 'fa' ? 'حذف' : 'Delete'}"><i class="ti ti-trash"></i></button></div></td></tr>`;
     }).join('');
   } catch(e) { console.error(e); }
 }
@@ -1431,13 +1119,12 @@ async function saveUser() {
   const devices = parseInt(document.getElementById('user-devices').value) || 0;
   const password = document.getElementById('user-password').value.trim();
   const fingerprint = document.getElementById('user-fingerprint').value || 'chrome';
-  const nodeId = document.getElementById('user-node').value || null;
   
   try {
     const r = await authF('/api/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days: exp, max_devices: devices, password, fingerprint, protocol: 'vless-ws', node_id: nodeId })
+      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days: exp, max_devices: devices, password, fingerprint, protocol: 'vless-ws' })
     });
     if (!r.ok) throw new Error();
     document.getElementById('user-label').value = 'کاربر';
@@ -1467,7 +1154,6 @@ async function openEditModal(uuid) {
     document.getElementById('edit-devices').value = link.max_devices || 0;
     document.getElementById('edit-status').value = link.active ? 'true' : 'false';
     document.getElementById('edit-fingerprint').value = link.fingerprint || 'chrome';
-    document.getElementById('edit-node').value = link.node_id || '';
     document.getElementById('edit-password-section').style.display = link.has_password ? 'block' : 'none';
     openModal('modal-edit');
   } catch(e) { toast((currentLang === 'fa' ? 'خطا' : 'Error'), 'err'); }
@@ -1482,13 +1168,12 @@ async function saveEdit() {
   const devices = parseInt(document.getElementById('edit-devices').value) || 0;
   const active = document.getElementById('edit-status').value === 'true';
   const fingerprint = document.getElementById('edit-fingerprint').value || 'chrome';
-  const nodeId = document.getElementById('edit-node').value || null;
   
   try {
     const r = await authF('/api/links/' + uuid, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days: exp, max_devices: devices, active, password, fingerprint, node_id: nodeId })
+      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days: exp, max_devices: devices, active, password, fingerprint })
     });
     if (!r.ok) {
       if (r.status === 403) { toast('❌ ' + (currentLang === 'fa' ? 'رمز اشتباه' : 'Wrong password'), 'err'); return; }
@@ -1714,8 +1399,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadUsers();
   loadConnections();
   loadLogs();
-  loadNodes();
-  loadBotSettings();
   
   setInterval(() => {
     if (document.getElementById('pg-dashboard').classList.contains('on')) loadDashboard();
@@ -1729,7 +1412,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 # ===== تابع ساب‌لینک حرفه‌ای =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
-    """صفحه ساب‌لینک با منوی کشویی تم و اطلاعات Node"""
+    """صفحه ساب‌لینک با منوی کشویی تم"""
     from datetime import datetime
     
     used = link.get('used_bytes', 0)
@@ -1752,7 +1435,6 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     vless_link = link.get('vless_link', '')
     time_link = link.get('time_link', '')
     volume_link = link.get('volume_link', '')
-    node_name = link.get('node_name', 'پیش‌فرض')
     
     is_allowed = active and not expired
     
@@ -1899,7 +1581,6 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .brand-sub{{font-size:6px;color:var(--text3)}}
 .user-row{{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}}
 .user-name{{font-size:18px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px}}
-.user-name .node-badge{{font-size:9px;font-weight:600;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:12px;color:var(--accent2)}}
 .status-badge{{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:9px;font-weight:700}}
 .status-badge.active{{background:var(--green-bg);color:var(--green-text);border:1px solid rgba(16,185,129,0.1)}}
 .status-badge.inactive{{background:var(--red-bg);color:var(--red-text);border:1px solid rgba(239,68,68,0.1)}}
@@ -1975,10 +1656,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
     </div>
 
     <div class="user-row">
-        <div class="user-name">
-            <span>🏛️</span> {label}
-            <span class="node-badge">🌐 {node_name}</span>
-        </div>
+        <div class="user-name"><span>🏛️</span> {label}</div>
         <span class="status-badge {'active' if is_allowed else 'inactive'}">
             <i class="ti {'ti-circle-check' if is_allowed else 'ti-circle-x'}"></i>
             {'فعال' if is_allowed else 'غیرفعال'}
@@ -2012,7 +1690,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
         <button class="btn btn-secondary" onclick="copyVless()" id="copyVlessBtn"><i class="ti ti-copy"></i> کپی کانفیگ</button>
     </div>
 
-    <div class="footer"><span class="eagle">🏛️</span> تخت جمشید · نسخه ۱۰ · 🌐 {node_name}</div>
+    <div class="footer"><span class="eagle">🏛️</span> تخت جمشید · نسخه ۱۰</div>
 </div>
 
 <script>
