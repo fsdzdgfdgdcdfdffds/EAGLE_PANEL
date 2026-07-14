@@ -27,7 +27,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler()]
 )
-logger = logging.getLogger("Eagle-Gateway")
+logger = logging.getLogger("Persepolis-Gateway")
 
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
@@ -40,7 +40,7 @@ CONFIG = {
 }
 
 # ─── App ──────────────────────────────────────────────────────────────────────
-app = FastAPI(title="🪐 Eagle Gateway v10 Pro", docs_url=None, redoc_url=None)
+app = FastAPI(title="🏛️ Persepolis Gateway v10", docs_url=None, redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,7 +52,7 @@ app.add_middleware(
 
 # ─── State ────────────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
-DATA_FILE = DATA_DIR / "eagle_state.json"
+DATA_FILE = DATA_DIR / "persepolis_state.json"
 SAVE_LOCK = asyncio.Lock()
 
 # ─── In-Memory State ─────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ DEVICE_CONNECTIONS_LOCK = asyncio.Lock()
 http_client: httpx.AsyncClient | None = None
 
 # ─── Auth ──────────────────────────────────────────────────────────────────────
-SESSION_COOKIE = "eagle_session"
+SESSION_COOKIE = "persepolis_session"
 SESSION_TTL = 60 * 60 * 24 * 7
 AUTH = {"password_hash": hashlib.sha256(f"{CONFIG['admin_password']}{CONFIG['secret']}".encode()).hexdigest()}
 SESSIONS: dict = {}
@@ -136,6 +136,20 @@ def fmt_bytes(b: int) -> str:
         return f"{b/1024**3:.2f} GB"
     return f"{b/1024**4:.2f} TB"
 
+def fmt_bytes_short(b: int) -> tuple:
+    """برمی‌گردونه (عدد, واحد) برای نمایش کوتاه"""
+    if not b or b == 0:
+        return ("0", "B")
+    if b < 1024:
+        return (str(b), "B")
+    if b < 1024**2:
+        return (f"{b/1024:.1f}", "KB")
+    if b < 1024**3:
+        return (f"{b/1024**2:.2f}", "MB")
+    if b < 1024**4:
+        return (f"{b/1024**3:.2f}", "GB")
+    return (f"{b/1024**4:.2f}", "TB")
+
 def client_ip(request: Request) -> str:
     fwd = request.headers.get("x-forwarded-for")
     if fwd:
@@ -185,7 +199,7 @@ def generate_vless_link(uuid: str, host: str, remark: str = "", protocol: str = 
                         fingerprint: str = "chrome", port: int = 443, 
                         sni: str = None) -> str:
     if not remark:
-        remark = "عقاب"
+        remark = "تختجمشید"
     
     if not sni:
         sni = host
@@ -315,8 +329,8 @@ async def startup():
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
     await load_state()
     
-    log_activity("system", "🪐 Eagle Gateway v10 Pro راه‌اندازی شد", "ok")
-    logger.info(f"🪐 Eagle Gateway v10 Pro started on port {CONFIG['port']}")
+    log_activity("system", "🏛️ Persepolis Gateway v10 راه‌اندازی شد", "ok")
+    logger.info(f"🏛️ Persepolis Gateway v10 started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -503,7 +517,7 @@ async def create_link(request: Request, _=Depends(require_auth)):
     log_activity("link", f"کانفیگ «{label}» ساخته شد با {len(ports)} پورت", "ok")
     host = get_host()
     
-    remark = f"عقاب-{label}"
+    remark = f"تختجمشید-{label}"
     main_link = generate_vless_link(uid, host, remark=remark, protocol=protocol, fingerprint=fingerprint, port=ports[0])
     
     link_data = {
@@ -530,7 +544,7 @@ async def list_links(_=Depends(require_auth)):
         ports = d.get("ports", [443])
         first_port = ports[0] if ports else 443
         label = d.get("label", "کاربر")
-        remark = f"عقاب-{label}"
+        remark = f"تختجمشید-{label}"
         
         last_connected = None
         for c in connections.values():
@@ -1067,11 +1081,11 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         await remove_device_connection(uuid, client_ip)
         logger.info(f"🔌 WS closed [{conn_id}] total={len(connections)}")
 
-# ─── ===== ساب‌لینک با اطلاعات کامل ===== ──────────────────────────────────
+# ─── ===== ساب‌لینک با اطلاعات کامل در هدر فایل ===== ──────────────────────────────────
 
 @app.get("/sub/{uuid}")
 async def subscription_single(request: Request, uuid: str):
-    """ساب‌لینک با طراحی حرفه‌ای، تایمر زنده و تغییر تم"""
+    """ساب‌لینک با اطلاعات کامل حجم و زمان در هدر فایل"""
     import base64
     
     # تشخیص User-Agent
@@ -1090,21 +1104,21 @@ async def subscription_single(request: Request, uuid: str):
             <!DOCTYPE html>
             <html lang="fa" dir="rtl">
             <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>🦅 کاربر یافت نشد</title>
+            <title>🏛️ کاربر یافت نشد</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
             <style>
             *{margin:0;padding:0;box-sizing:border-box}
-            body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-            .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(59,130,246,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+            body{font-family:'Vazirmatn',sans-serif;background:#0a0a1a;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F5ECD7}
+            .card{background:rgba(10,10,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(212,175,55,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
             .icon{font-size:64px;margin-bottom:16px}
             h2{font-size:22px;font-weight:800;margin-bottom:8px}
-            p{color:#6A6A8A;font-size:13px;line-height:1.8}
+            p{color:#8A7A4A;font-size:13px;line-height:1.8}
             </style>
             </head>
             <body>
             <div class="card">
-                <div class="icon">🦅</div>
+                <div class="icon">🏛️</div>
                 <h2>کاربر یافت نشد</h2>
                 <p>لینک ساب‌لینک معتبر نیست یا کاربر حذف شده است.</p>
             </div>
@@ -1125,11 +1139,11 @@ async def subscription_single(request: Request, uuid: str):
             <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
             <style>
             *{margin:0;padding:0;box-sizing:border-box}
-            body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-            .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+            body{font-family:'Vazirmatn',sans-serif;background:#0a0a1a;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F5ECD7}
+            .card{background:rgba(10,10,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
             .icon{font-size:64px;margin-bottom:16px}
             h2{font-size:22px;font-weight:800;margin-bottom:8px}
-            p{color:#6A6A8A;font-size:13px;line-height:1.8}
+            p{color:#8A7A4A;font-size:13px;line-height:1.8}
             .status{color:#F87171}
             </style>
             </head>
@@ -1162,13 +1176,19 @@ async def subscription_single(request: Request, uuid: str):
     
     # محاسبه روزهای باقی‌مونده
     days_left = "نامحدود"
+    days_left_num = 0
     if expires_at:
         try:
             exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
             days = (exp_date - datetime.now().astimezone()).days
+            days_left_num = days if days > 0 else 0
             days_left = f"{days} روز" if days > 0 else "منقضی"
         except:
             days_left = "نامشخص"
+    
+    # عدد و واحد برای نمایش کوتاه
+    used_val, used_unit = fmt_bytes_short(used_bytes)
+    limit_val, limit_unit = fmt_bytes_short(limit_bytes) if limit_bytes > 0 else ("∞", "")
     
     # گرفتن IP کاربر
     user_ip = "نامشخص"
@@ -1186,22 +1206,28 @@ async def subscription_single(request: Request, uuid: str):
             fingerprint=fingerprint, port=port
         ))
     
-    # ===== اگر کلاینت باشد → کانفیگ با اطلاعات کامل =====
+    # ===== اگر کلاینت باشد (غیر مرورگر) → کانفیگ با اطلاعات کامل در هدر =====
     if not is_browser:
-        # ساخت کانفیگ با اطلاعات اضافی
+        # ساخت کانفیگ با اطلاعات اضافی به صورت کامنت
+        info_lines = [
+            f"# نام: {label}",
+            f"# UUID: {uuid}",
+            f"# مصرف: {used_val} {used_unit} / {limit_val} {limit_unit}" if limit_bytes > 0 else f"# مصرف: {used_val} {used_unit} / ∞",
+            f"# درصد مصرف: {percent:.1f}%",
+            f"# زمان باقیمانده: {days_left}",
+            f"# IP: {user_ip}",
+            f"# پورت‌ها: {', '.join(str(p) for p in ports)}",
+            f"# پروتکل: {protocol}",
+            f"# انگشت‌نگاری: {fingerprint}",
+            f"# دستگاه‌ها: {max_devices if max_devices > 0 else 'نامحدود'}",
+            f"# وضعیت: {'✅ فعال' if is_link_allowed(link) else '❌ غیرفعال'}",
+            "# ============================================",
+            ""
+        ]
+        
         config_lines = []
         for link_str in vless_links:
             config_lines.append(link_str)
-        
-        # اضافه کردن اطلاعات به عنوان کامنت
-        info_lines = [
-            f"# نام: {label}",
-            f"# مصرف: {fmt_bytes(used_bytes)} / {fmt_bytes(limit_bytes) if limit_bytes > 0 else 'نامحدود'}",
-            f"# درصد: {percent:.1f}%",
-            f"# زمان باقی‌مانده: {days_left}",
-            f"# IP: {user_ip}",
-            f"# پورت‌ها: {', '.join(str(p) for p in ports)}",
-        ]
         
         content = "\n".join(info_lines + config_lines)
         content_b64 = base64.b64encode(content.encode()).decode()
@@ -1214,7 +1240,7 @@ async def subscription_single(request: Request, uuid: str):
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0",
-                "profile-title": quote(label),
+                "profile-title": quote(f"🏛️ {label}"),
                 "profile-update-interval": "12",
                 "profile-web-page-url": f"https://{host}/info/{uuid}",
             }
@@ -1249,7 +1275,11 @@ async def subscription_single(request: Request, uuid: str):
         "percent": percent,
         "days_left": days_left,
         "used_fmt": fmt_bytes(used_bytes),
+        "used_val": used_val,
+        "used_unit": used_unit,
         "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
+        "limit_val": limit_val,
+        "limit_unit": limit_unit,
         "max_devices": max_devices,
     }
     
@@ -1267,7 +1297,7 @@ async def subscription_all(_=Depends(require_auth)):
                 fp = d.get("fingerprint", "chrome")
                 ports = d.get("ports", [443])
                 label = d.get("label", "کاربر")
-                remark_base = f"عقاب-{label}"
+                remark_base = f"تختجمشید-{label}"
                 for i, port in enumerate(ports):
                     remark = f"{remark_base}-p{port}" if len(ports) > 1 else remark_base
                     lines.append(generate_vless_link(uid, host, remark=remark, protocol=d.get("protocol", DEFAULT_PROTOCOL), fingerprint=fp, port=port))
@@ -1298,7 +1328,7 @@ async def sub_group_subscription(uuid_key: str, request: Request):
                 fp = link.get("fingerprint", "chrome")
                 ports = link.get("ports", [443])
                 label = link.get("label", "کاربر")
-                remark_base = f"عقاب-{label}"
+                remark_base = f"تختجمشید-{label}"
                 for i, port in enumerate(ports):
                     remark = f"{remark_base}-p{port}" if len(ports) > 1 else remark_base
                     lines.append(generate_vless_link(lid, host, remark=remark, protocol=link.get("protocol", DEFAULT_PROTOCOL), fingerprint=fp, port=port))
@@ -1327,21 +1357,21 @@ async def info_page(uuid: str, request: Request):
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
         <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>🦅 کاربر یافت نشد</title>
+        <title>🏛️ کاربر یافت نشد</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
         <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(59,130,246,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+        body{font-family:'Vazirmatn',sans-serif;background:#0a0a1a;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F5ECD7}
+        .card{background:rgba(10,10,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(212,175,55,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
         .icon{font-size:64px;margin-bottom:16px}
         h2{font-size:22px;font-weight:800;margin-bottom:8px}
-        p{color:#6A6A8A;font-size:13px;line-height:1.8}
+        p{color:#8A7A4A;font-size:13px;line-height:1.8}
         </style>
         </head>
         <body>
         <div class="card">
-            <div class="icon">🦅</div>
+            <div class="icon">🏛️</div>
             <h2>کاربر یافت نشد</h2>
             <p>لینک اطلاعات معتبر نیست یا کاربر حذف شده است.</p>
         </div>
@@ -1359,11 +1389,11 @@ async def info_page(uuid: str, request: Request):
         <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
         <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Vazirmatn',sans-serif;background:#0a0a0f;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F0F0FF}
-        .card{background:rgba(15,15,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
+        body{font-family:'Vazirmatn',sans-serif;background:#0a0a1a;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#F5ECD7}
+        .card{background:rgba(10,10,30,0.85);backdrop-filter:blur(30px);border:1px solid rgba(239,68,68,0.12);border-radius:28px;padding:40px;max-width:420px;text-align:center}
         .icon{font-size:64px;margin-bottom:16px}
         h2{font-size:22px;font-weight:800;margin-bottom:8px}
-        p{color:#6A6A8A;font-size:13px;line-height:1.8}
+        p{color:#8A7A4A;font-size:13px;line-height:1.8}
         .status{color:#F87171}
         </style>
         </head>
@@ -1426,6 +1456,9 @@ async def info_page(uuid: str, request: Request):
             if not last_connected or c.get("connected_at") > last_connected:
                 last_connected = c.get("connected_at")
     
+    used_val, used_unit = fmt_bytes_short(used_bytes)
+    limit_val, limit_unit = fmt_bytes_short(limit_bytes) if limit_bytes > 0 else ("∞", "")
+    
     link_data = {
         **link,
         "expired": is_link_expired(link),
@@ -1439,7 +1472,11 @@ async def info_page(uuid: str, request: Request):
         "percent": percent,
         "days_left": days_left,
         "used_fmt": fmt_bytes(used_bytes),
+        "used_val": used_val,
+        "used_unit": used_unit,
         "limit_fmt": fmt_bytes(limit_bytes) if limit_bytes > 0 else "نامحدود",
+        "limit_val": limit_val,
+        "limit_unit": limit_unit,
         "max_devices": max_devices,
     }
     
@@ -1467,19 +1504,19 @@ async def root():
     return HTMLResponse("""
     <!DOCTYPE html>
     <html>
-    <head><meta charset="UTF-8"><title>🪐 Eagle Gateway</title>
+    <head><meta charset="UTF-8"><title>🏛️ Persepolis Gateway</title>
     <style>
-    body{font-family:sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-    .card{text-align:center;padding:40px;background:rgba(20,20,40,0.7);border-radius:20px;border:1px solid rgba(100,80,255,0.2)}
+    body{font-family:sans-serif;background:#0a0a1a;color:#F5ECD7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .card{text-align:center;padding:40px;background:rgba(20,15,10,0.7);border-radius:20px;border:1px solid rgba(212,175,55,0.2)}
     h1{font-size:48px;margin:0}
-    .sub{color:#888}
-    a{color:#7C6BFF;text-decoration:none;font-weight:bold}
+    .sub{color:#8A7A4A}
+    a{color:#D4A843;text-decoration:none;font-weight:bold}
     </style>
     </head>
     <body>
     <div class="card">
-        <h1>🪐</h1>
-        <h2>Eagle Gateway v10 Pro</h2>
+        <h1>🏛️</h1>
+        <h2>Persepolis Gateway v10 Pro</h2>
         <p class="sub">پنل مدیریت فیلترشکن</p>
         <a href="/login">ورود به پنل →</a>
     </div>
