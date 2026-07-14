@@ -1,4 +1,4 @@
-# pages.py - پنل تخت جمشید با تم‌های ۱۰ گانه و ساب‌لینک حرفه‌ای
+# pages.py - صفحات پنل تخت جمشید
 
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -11,7 +11,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0a0a1a;--card:rgba(10,10,30,0.75);--card-b:rgba(100,80,255,0.12);--accent:#D4A843;--accent2:#F5D060;--accent3:#B8922E;--t1:#F5ECD7;--t2:#C4A35A;--t3:#8A7A4A;--border:rgba(212,175,55,0.08);--glow:0 0 80px rgba(212,175,55,0.05)}
+:root{--bg:#0a0a1a;--card:rgba(10,10,30,0.75);--card-b:rgba(212,175,55,0.12);--accent:#D4A843;--accent2:#F5D060;--accent3:#B8922E;--t1:#F5ECD7;--t2:#C4A35A;--t3:#8A7A4A;--border:rgba(212,175,55,0.08);--glow:0 0 80px rgba(212,175,55,0.05)}
 body{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a1a,#1a1208,#0a0a1a);padding:20px;color:var(--t1);position:relative;overflow:hidden}
 .stars{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .star{position:absolute;border-radius:50%;background:#F5D060;animation:twinkle 3s ease-in-out infinite}
@@ -525,11 +525,10 @@ document.addEventListener('DOMContentLoaded',async()=>{try{const r=await fetch('
 </body></html>"""
 
 
-# ===== تابع ساب‌لینک حرفه‌ای با منوی کشویی تم و فقط دکمه کپی ساب =====
+# ===== تابع ساب‌لینک حرفه‌ای با منوی کشویی تم =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
-    """صفحه ساب‌لینک با منوی کشویی تم و فقط دکمه کپی ساب"""
+    """صفحه ساب‌لینک با منوی کشویی تم"""
     from datetime import datetime
-    from main import get_host, generate_vless_link
     
     used = link.get('used_bytes', 0)
     limit = link.get('limit_bytes', 0)
@@ -543,47 +542,15 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     active_connections = link.get('active_connections', 0)
     active_connections_list = link.get('active_connections_list', [])
     sub_url = link.get('sub_url', '')
-    
-    host = get_host()
-    vless_link = generate_vless_link(
-        uuid, host, 
-        remark=f"تختجمشید-{label}",
-        protocol=protocol,
-        fingerprint=fingerprint,
-        port=ports[0] if ports else 443
-    )
-    
-    percent = 0
-    if limit > 0:
-        percent = min(100, (used / limit) * 100)
-    
-    expires_at = link.get('expires_at')
-    if expires_at:
-        try:
-            exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-            days_left = (exp_date - datetime.now().astimezone()).days
-            if days_left < 0:
-                days_left = 0
-        except:
-            days_left = 'نامشخص'
-    else:
-        days_left = 'نامحدود'
+    used_val = link.get('used_val', '0')
+    used_unit = link.get('used_unit', 'B')
+    limit_val = link.get('limit_val', '∞')
+    limit_unit = link.get('limit_unit', '')
+    percent = link.get('percent', 0)
+    days_left = link.get('days_left', 'نامحدود')
+    vless_link = link.get('vless_link', '')
     
     is_allowed = active and not expired
-    
-    def fmt_bytes(b):
-        if not b or b == 0:
-            return '0 B'
-        if b < 1024:
-            return f'{b} B'
-        if b < 1024**2:
-            return f'{b/1024:.1f} KB'
-        if b < 1024**3:
-            return f'{b/1024**2:.2f} MB'
-        return f'{b/1024**3:.2f} GB'
-    
-    used_fmt = fmt_bytes(used)
-    limit_fmt = 'نامحدود' if limit == 0 else fmt_bytes(limit)
     
     # ساخت اتصالات
     conns_html = ""
@@ -596,14 +563,14 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:6px">
         """
-        for conn in active_connections_list[:10]:
+        for conn in active_connections_list[:5]:
             ip = conn.get('ip', 'نامشخص')
             conns_html += f"""
                 <span style="font-family:monospace;font-size:10px;background:rgba(212,175,55,0.04);border:1px solid rgba(212,175,55,0.04);padding:3px 10px;border-radius:6px;color:#C4A35A">🔵 {ip}</span>
             """
-        if len(active_connections_list) > 10:
+        if len(active_connections_list) > 5:
             conns_html += f"""
-                <span style="font-family:monospace;font-size:10px;background:rgba(212,175,55,0.02);padding:3px 10px;border-radius:6px;color:#8A7A4A">+{len(active_connections_list)-10} بیشتر</span>
+                <span style="font-family:monospace;font-size:10px;background:rgba(212,175,55,0.02);padding:3px 10px;border-radius:6px;color:#8A7A4A">+{len(active_connections_list)-5} بیشتر</span>
             """
         conns_html += """
             </div>
@@ -616,18 +583,18 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
         </div>
         """
     
-    # منوی تم‌ها با رنگ‌های طلایی و کهن
+    # منوی تم‌ها
     theme_names = {
-        'persepolis_gold':'🏛️ طلای تخت جمشید',
-        'persepolis_dark':'🌙 شب تخت جمشید',
-        'persepolis_sun':'☀️ آفتاب تخت جمشید',
-        'persepolis_royal':'👑 سلطنتی تخت جمشید',
-        'persepolis_stone':'🗿 سنگی تخت جمشید',
-        'persepolis_light':'✨ روشن تخت جمشید',
-        'persepolis_warm':'🔥 گرم تخت جمشید',
-        'persepolis_cool':'❄️ خنک تخت جمشید',
-        'persepolis_ancient':'🏺 کهن تخت جمشید',
-        'persepolis_modern':'💎 مدرن تخت جمشید'
+        'persepolis_gold':'🏛️ طلایی',
+        'persepolis_dark':'🌙 شب',
+        'persepolis_sun':'☀️ آفتاب',
+        'persepolis_royal':'👑 سلطنتی',
+        'persepolis_stone':'🗿 سنگی',
+        'persepolis_light':'✨ روشن',
+        'persepolis_warm':'🔥 گرم',
+        'persepolis_cool':'❄️ خنک',
+        'persepolis_ancient':'🏺 کهن',
+        'persepolis_modern':'💎 مدرن'
     }
     theme_colors = {
         'persepolis_gold':'linear-gradient(135deg,#D4A843,#F5D060)',
@@ -742,8 +709,6 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .vless-label{{font-size:7px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:4px;margin-bottom:3px}}
 .vless-label i{{color:var(--accent);font-size:9px}}
 .vless-link{{font-family:monospace;font-size:7px;color:var(--accent2);word-break:break-all;line-height:1.6;background:rgba(0,0,0,0.15);padding:4px 6px;border-radius:4px;border:1px solid var(--card-border)}}
-.vless-ports{{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}}
-.vless-port{{font-size:7px;background:rgba(212,175,55,0.04);border:1px solid var(--card-border);padding:1px 6px;border-radius:3px;color:var(--text3);font-family:monospace}}
 .actions{{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}}
 .btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:var(--transition);white-space:nowrap;flex:1;justify-content:center}}
 .btn i{{font-size:10px}}
@@ -805,17 +770,12 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
     {conns_html}
 
     <div class="info-grid">
-        <div class="info-item"><span class="info-label"><i class="ti ti-database"></i> مصرف</span><span class="info-value used">{used_fmt}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-package"></i> سهمیه</span><span class="info-value">{limit_fmt}</span></div>
+        <div class="info-item"><span class="info-label"><i class="ti ti-database"></i> مصرف</span><span class="info-value used">{used_val} {used_unit}</span></div>
+        <div class="info-item"><span class="info-label"><i class="ti ti-package"></i> سهمیه</span><span class="info-value">{limit_val} {limit_unit}</span></div>
         <div class="info-item"><span class="info-label"><i class="ti ti-devices"></i> دستگاه</span><span class="info-value">{str(max_devices) if max_devices > 0 else '∞'}</span></div>
         <div class="info-item"><span class="info-label"><i class="ti ti-fingerprint"></i> FP</span><span class="info-value small">{fingerprint}</span></div>
         <div class="info-item"><span class="info-label"><i class="ti ti-settings"></i> پروتکل</span><span class="info-value small">{protocol}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-plug"></i> پورت‌ها</span><span class="info-value small">{', '.join(str(p) for p in ports[:3])}{' +' + str(len(ports)-3) if len(ports)>3 else ''}</span></div>
-    </div>
-
-    <div class="timer-section">
-        <div class="timer-label">⏱ زمان باقیمانده</div>
-        <div class="timer-display" id="timerDisplay">{days_left}</div>
+        <div class="info-item"><span class="info-label"><i class="ti ti-calendar"></i> زمان باقی</span><span class="info-value small">{days_left}</span></div>
     </div>
 
     <div class="progress-section">
@@ -839,7 +799,6 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 // ===== داده‌ها =====
 const subUrl = `{sub_url}`;
 const uuid = `{uuid}`;
-const remainingSeconds = 0;
 const isExpired = {str(not is_allowed).lower()};
 
 // ===== توابع عمومی =====
@@ -872,16 +831,16 @@ function copyUUID() {{
 let currentTheme = localStorage.getItem('persepolis-sub-theme') || 'persepolis_gold';
 const themeList = ['persepolis_gold','persepolis_dark','persepolis_sun','persepolis_royal','persepolis_stone','persepolis_light','persepolis_warm','persepolis_cool','persepolis_ancient','persepolis_modern'];
 const themeNames = {{
-    'persepolis_gold':'🏛️ طلای تخت جمشید',
-    'persepolis_dark':'🌙 شب تخت جمشید',
-    'persepolis_sun':'☀️ آفتاب تخت جمشید',
-    'persepolis_royal':'👑 سلطنتی تخت جمشید',
-    'persepolis_stone':'🗿 سنگی تخت جمشید',
-    'persepolis_light':'✨ روشن تخت جمشید',
-    'persepolis_warm':'🔥 گرم تخت جمشید',
-    'persepolis_cool':'❄️ خنک تخت جمشید',
-    'persepolis_ancient':'🏺 کهن تخت جمشید',
-    'persepolis_modern':'💎 مدرن تخت جمشید'
+    'persepolis_gold':'🏛️ طلایی',
+    'persepolis_dark':'🌙 شب',
+    'persepolis_sun':'☀️ آفتاب',
+    'persepolis_royal':'👑 سلطنتی',
+    'persepolis_stone':'🗿 سنگی',
+    'persepolis_light':'✨ روشن',
+    'persepolis_warm':'🔥 گرم',
+    'persepolis_cool':'❄️ خنک',
+    'persepolis_ancient':'🏺 کهن',
+    'persepolis_modern':'💎 مدرن'
 }};
 
 function applyTheme(theme) {{
@@ -927,49 +886,6 @@ document.addEventListener('click', function(e) {{
 
 // بارگذاری تم ذخیره‌شده
 applyTheme(currentTheme);
-
-// ===== تایمر زنده =====
-function formatTime(seconds) {{
-    if (seconds <= 0) return '⏰ منقضی شد';
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (days > 0) {{
-        return days + 'd ' + String(hours).padStart(2, '0') + 'h ' + String(mins).padStart(2, '0') + 'm';
-    }}
-    return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-}}
-
-function updateTimer() {{
-    const el = document.getElementById('timerDisplay');
-    if (isExpired) {{
-        el.textContent = '⏰ منقضی شد';
-        el.className = 'timer-display expired';
-        return;
-    }}
-    if (remainingSeconds <= 0) {{
-        el.textContent = '♾️ نامحدود';
-        el.className = 'timer-display';
-        return;
-    }}
-    const elapsed = Math.floor(Date.now() / 1000) - startTime;
-    const remaining = Math.max(0, remainingSeconds - elapsed);
-    el.textContent = formatTime(remaining);
-    if (remaining === 0) {{
-        el.className = 'timer-display expired';
-        el.textContent = '⏰ منقضی شد';
-    }}
-}}
-
-const startTime = Math.floor(Date.now() / 1000);
-if (remainingSeconds > 0 && !isExpired) {{
-    updateTimer();
-    setInterval(updateTimer, 1000);
-}} else if (isExpired) {{
-    document.getElementById('timerDisplay').textContent = '⏰ منقضی شد';
-    document.getElementById('timerDisplay').className = 'timer-display expired';
-}}
 
 // ===== انیمیشن نوار پیشرفت =====
 setTimeout(() => {{
