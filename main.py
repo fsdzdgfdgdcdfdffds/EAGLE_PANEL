@@ -38,6 +38,7 @@ CONFIG = {
     "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", os.environ.get("RENDER_EXTERNAL_URL", "localhost")),
 }
 
+# ===== رمز و توکن ثابت =====
 ADMIN_PASSWORD = "ARMIN9259.A"
 ACCESS_TOKEN = "QWPLOBYTROI"
 
@@ -448,7 +449,6 @@ async def change_password(request: Request, _=Depends(require_admin)):
         raise HTTPException(403, "رمز فعلی اشتباه")
     
     ADMIN_PASSWORD = new
-    os.environ["ADMIN_PASSWORD"] = new
     
     await save_state()
     log_activity("settings", "رمز پنل تغییر کرد", "ok")
