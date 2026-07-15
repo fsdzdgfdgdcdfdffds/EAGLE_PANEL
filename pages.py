@@ -1,4 +1,4 @@
-# pages.py - پنل تخت جمشید با یوزرنیم و رمز PERSEPOLIS
+# pages.py - پنل تخت جمشید با ساب‌لینک حرفه‌ای
 
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -221,6 +221,10 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/rangePlugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/fa.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0a0a1a;--bg2:#12122a;--bg3:#1a1a3a;--card:rgba(10,10,30,0.7);--card-b:rgba(212,175,55,0.08);--card-bh:rgba(212,175,55,0.15);--accent:#D4A843;--accent2:#F5D060;--accent3:#B8922E;--green:#10B981;--green-bg:rgba(16,185,129,0.08);--green-t:#34D399;--red:#EF4444;--red-bg:rgba(239,68,68,0.08);--red-t:#F87171;--amber:#F59E0B;--amber-bg:rgba(245,158,11,0.08);--amber-t:#FCD34D;--t1:#F5ECD7;--t2:#C4A35A;--t3:#8A7A4A;--sidebar-w:180px;--radius:12px;--shadow:0 8px 32px rgba(0,0,0,0.5),0 0 60px rgba(212,175,55,0.02)}
@@ -345,6 +349,8 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .btn-amber:hover{background:rgba(245,158,11,0.15);transform:translateY(-1px)}
 .btn-sm{padding:2px 6px;font-size:8px;border-radius:4px}
 .btn-icon{width:22px;height:22px;padding:0;justify-content:center}
+.btn-generate{background:rgba(212,175,55,0.08);color:var(--accent);border:1px solid rgba(212,175,55,0.1);padding:6px 10px;flex-shrink:0}
+.btn-generate:hover{background:rgba(212,175,55,0.15);transform:scale(1.05)}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
 .modal-bg.open{display:flex}
@@ -360,6 +366,11 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .fi:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(212,175,55,.06)}
 .fi::placeholder{color:var(--t3)}
 select.fi{appearance:none;cursor:pointer}
+.fi-date{color:var(--t1);background:rgba(0,0,20,.2);border:1px solid var(--card-b);border-radius:6px;padding:6px 10px;width:100%;font-family:inherit;font-size:10px;outline:none;transition:.3s;cursor:pointer}
+.fi-date:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(212,175,55,.06)}
+.fi-date::placeholder{color:var(--t3)}
+.fg-row{display:flex;gap:6px;align-items:center}
+.fg-row .fg{flex:1}
 
 .conn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
 .conn-card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--card-b);border-radius:10px;padding:10px 12px;transition:.3s}
@@ -421,6 +432,27 @@ body.light-theme .stat-mini{background:rgba(255,255,255,0.8)}
 body.light-theme .conn-card{background:rgba(255,255,255,0.8)}
 body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
 body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
+
+/* استایل‌های تقویم Flatpickr */
+.flatpickr-calendar{background:var(--card) !important;backdrop-filter:blur(30px) !important;border:1px solid var(--card-b) !important;border-radius:12px !important;box-shadow:var(--shadow) !important}
+.flatpickr-calendar .flatpickr-months .flatpickr-month{color:var(--t1) !important}
+.flatpickr-calendar .flatpickr-weekday{color:var(--t2) !important}
+.flatpickr-calendar .flatpickr-day{color:var(--t1) !important;border-radius:6px !important}
+.flatpickr-calendar .flatpickr-day:hover{background:rgba(212,175,55,0.1) !important}
+.flatpickr-calendar .flatpickr-day.selected{background:linear-gradient(135deg,#D4A843,#B8922E) !important;color:#1a1208 !important;border-color:#D4A843 !important}
+.flatpickr-calendar .flatpickr-day.today{border-color:var(--accent) !important}
+.flatpickr-calendar .flatpickr-day.inRange{background:rgba(212,175,55,0.08) !important}
+.flatpickr-calendar .flatpickr-day.startRange,.flatpickr-calendar .flatpickr-day.endRange{background:linear-gradient(135deg,#D4A843,#B8922E) !important;color:#1a1208 !important}
+.flatpickr-calendar .flatpickr-day.disabled{color:var(--t3) !important}
+.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months{color:var(--t1) !important;background:transparent !important}
+.flatpickr-calendar .flatpickr-current-month input.cur-year{color:var(--t1) !important}
+.flatpickr-calendar .flatpickr-prev-month,.flatpickr-calendar .flatpickr-next-month{color:var(--t3) !important}
+.flatpickr-calendar .flatpickr-prev-month:hover,.flatpickr-calendar .flatpickr-next-month:hover{color:var(--t1) !important}
+.flatpickr-calendar .flatpickr-rContainer .flatpickr-weekdays{background:transparent !important}
+.flatpickr-time{background:var(--card) !important;border-top:1px solid var(--card-b) !important;border-radius:0 0 12px 12px !important}
+.flatpickr-time input{color:var(--t1) !important}
+.flatpickr-time .flatpickr-time-separator{color:var(--t3) !important}
+.flatpickr-time .numInputWrapper:hover{background:rgba(212,175,55,0.05) !important}
 </style>
 </head>
 <body>
@@ -442,9 +474,19 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
     <button class="modal-close" onclick="closeModal('modal-user')"><i class="ti ti-x"></i></button>
     <div class="modal-title"><i class="ti ti-user-plus"></i> <span id="modal-user-title">ساخت کاربر جدید</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="fg" style="grid-column:1/2;"><label><i class="ti ti-tag"></i> <span id="f-label-name">نام کاربری</span></label><input class="fi" id="user-label" placeholder="مثلاً: علی" value="کاربر"></div>
+      <div class="fg" style="grid-column:1/2;position:relative;">
+        <label><i class="ti ti-tag"></i> <span id="f-label-name">نام کاربری</span></label>
+        <div style="display:flex;gap:4px;">
+          <input class="fi" id="user-label" placeholder="مثلاً: علی" value="کاربر" style="flex:1">
+          <button class="btn btn-generate btn-sm" onclick="generateRandomUsername()" title="ساخت نام تصادفی" style="padding:6px 10px;flex-shrink:0;">
+            <i class="ti ti-dice"></i>
+          </button>
+        </div>
+      </div>
       <div class="fg"><label><i class="ti ti-database"></i> <span id="f-label-quota">حجم (GB)</span></label><input class="fi" id="user-quota" type="number" min="0.5" step="0.5" value="2"></div>
-      <div class="fg"><label><i class="ti ti-calendar"></i> <span id="f-label-expiry">انقضا (روز)</span></label><input class="fi" id="user-exp" type="number" min="0" value="30"></div>
+      <div class="fg"><label><i class="ti ti-calendar"></i> <span id="f-label-expiry">انقضا</span></label>
+        <input class="fi-date" id="user-expiry-date" type="text" placeholder="انتخاب تاریخ">
+      </div>
       <div class="fg"><label><i class="ti ti-devices"></i> <span id="f-label-devices">دستگاه</span></label><input class="fi" id="user-devices" type="number" min="0" max="10" value="1"></div>
     </div>
     <div class="fg"><label><i class="ti ti-fingerprint"></i> <span id="f-label-fingerprint">انگشت‌نگاری</span></label>
@@ -490,7 +532,9 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
       <div class="fg" style="grid-column:1/2;"><label><i class="ti ti-tag"></i> <span id="e-label-name">نام</span></label><input class="fi" id="edit-label" placeholder="نام کاربری"></div>
       <div class="fg" id="edit-password-section"><label><i class="ti ti-lock"></i> <span id="e-label-password">رمز جدید</span></label><input class="fi" id="edit-password" type="password" placeholder="برای تغییر" dir="ltr"></div>
       <div class="fg"><label><i class="ti ti-database"></i> <span id="e-label-quota">حجم (GB)</span></label><input class="fi" id="edit-quota" type="number" min="0" step="0.5"></div>
-      <div class="fg"><label><i class="ti ti-calendar"></i> <span id="e-label-expiry">انقضا (روز)</span></label><input class="fi" id="edit-exp" type="number" min="0"></div>
+      <div class="fg"><label><i class="ti ti-calendar"></i> <span id="e-label-expiry">انقضا</span></label>
+        <input class="fi-date" id="edit-expiry-date" type="text" placeholder="انتخاب تاریخ">
+      </div>
       <div class="fg"><label><i class="ti ti-devices"></i> <span id="e-label-devices">دستگاه</span></label><input class="fi" id="edit-devices" type="number" min="0" max="10"></div>
       <div class="fg"><label><i class="ti ti-toggle-left"></i> <span id="e-label-status">وضعیت</span></label><select class="fi" id="edit-status"><option value="true">✅ فعال</option><option value="false">❌ غیرفعال</option></select></div>
     </div>
@@ -712,13 +756,13 @@ const translations = {
     logs_title: 'لاگ‌ها',
     modal_user_title: 'ساخت کاربر جدید',
     f_label_name: 'نام کاربری', f_label_quota: 'حجم (GB)',
-    f_label_expiry: 'انقضا (روز)', f_label_devices: 'دستگاه',
+    f_label_expiry: 'انقضا', f_label_devices: 'دستگاه',
     f_label_fingerprint: 'انگشت‌نگاری', f_label_protocol: 'پروتکل',
     f_label_http: 'HTTP نسخه', f_label_password: 'رمز (اختیاری)',
     btn_create_user: 'ساخت کاربر', btn_cancel: 'انصراف',
     modal_edit_title: 'ویرایش کاربر',
     e_label_name: 'نام', e_label_password: 'رمز جدید',
-    e_label_quota: 'حجم (GB)', e_label_expiry: 'انقضا (روز)',
+    e_label_quota: 'حجم (GB)', e_label_expiry: 'انقضا',
     e_label_devices: 'دستگاه', e_label_status: 'وضعیت',
     e_label_fingerprint: 'انگشت‌نگاری', e_label_protocol: 'پروتکل',
     e_label_http: 'HTTP نسخه',
@@ -755,13 +799,13 @@ const translations = {
     logs_title: 'Logs',
     modal_user_title: 'Create New User',
     f_label_name: 'Username', f_label_quota: 'Quota (GB)',
-    f_label_expiry: 'Expiry (Days)', f_label_devices: 'Devices',
+    f_label_expiry: 'Expiry', f_label_devices: 'Devices',
     f_label_fingerprint: 'Fingerprint', f_label_protocol: 'Protocol',
     f_label_http: 'HTTP Version', f_label_password: 'Password (Optional)',
     btn_create_user: 'Create User', btn_cancel: 'Cancel',
     modal_edit_title: 'Edit User',
     e_label_name: 'Name', e_label_password: 'New Password',
-    e_label_quota: 'Quota (GB)', e_label_expiry: 'Expiry (Days)',
+    e_label_quota: 'Quota (GB)', e_label_expiry: 'Expiry',
     e_label_devices: 'Devices', e_label_status: 'Status',
     e_label_fingerprint: 'Fingerprint', e_label_protocol: 'Protocol',
     e_label_http: 'HTTP Version',
@@ -778,6 +822,31 @@ let currentTheme = localStorage.getItem('persepolis-theme') || 'dark';
 let trafficChart = null;
 let chartPeriod = '7d';
 let qrCodeInstance = null;
+let expiryPicker = null;
+let editExpiryPicker = null;
+
+// ===== تولید یوزرنیم رندوم =====
+function generateRandomUsername() {
+    const prefixes = ['Cyber', 'Tech', 'Shadow', 'Neon', 'Nova', 'Apex', 'Zen', 'Vex', 'Zion', 'Knight', 'Phoenix', 'Falcon', 'Titan', 'Ghost', 'Raven', 'Wolf', 'Eagle', 'Hawk', 'Storm', 'Blaze', 'Quantum', 'Echo', 'Omega', 'Alpha', 'Delta', 'Sigma', 'Cipher', 'Dragon', 'Tiger', 'Viper'];
+    const suffixes = ['X', 'Z', 'Y', 'V', 'W', 'K', 'G', 'P', 'R', 'M', 'H', 'T', 'N', 'S', 'D', 'F', 'Q', 'L', 'J', 'C'];
+    const middle = ['flow', 'star', 'dark', 'light', 'storm', 'fire', 'ice', 'wind', 'cloud', 'shadow', 'nova', 'neon', 'cyber', 'ghost', 'raven', 'wolf', 'titan', 'zen', 'vex', 'apex', 'surge', 'pulse', 'cipher'];
+    
+    let username = '';
+    const useMiddle = Math.random() > 0.4;
+    
+    if (useMiddle) {
+        username = prefixes[Math.floor(Math.random() * prefixes.length)] + 
+                    middle[Math.floor(Math.random() * middle.length)] +
+                    Math.floor(Math.random() * 100);
+    } else {
+        username = prefixes[Math.floor(Math.random() * prefixes.length)] + 
+                    suffixes[Math.floor(Math.random() * suffixes.length)] +
+                    Math.floor(Math.random() * 1000);
+    }
+    
+    document.getElementById('user-label').value = username;
+    toast('✅ ' + (currentLang === 'fa' ? 'نام کاربری ساخته شد' : 'Username generated'), 'ok');
+}
 
 // ===== توابع =====
 function t(key) { return translations[currentLang]?.[key] || key; }
@@ -829,6 +898,14 @@ function setLang(lang) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ language: lang })
   }).catch(() => {});
+  
+  // بروزرسانی تقویم
+  if (expiryPicker) {
+    expiryPicker.set('locale', lang === 'fa' ? 'fa' : 'en');
+  }
+  if (editExpiryPicker) {
+    editExpiryPicker.set('locale', lang === 'fa' ? 'fa' : 'en');
+  }
 }
 
 function updateUITexts() {
@@ -1238,27 +1315,74 @@ function downloadQR() {
   toast('✅ ' + (currentLang === 'fa' ? 'QR دانلود شد' : 'QR downloaded'), 'ok');
 }
 
-// ===== مدیریت کاربران =====
+// ===== مدیریت کاربران با تقویم =====
+function initDatePickers() {
+  // تقویم ساخت کاربر
+  if (expiryPicker) {
+    expiryPicker.destroy();
+  }
+  expiryPicker = flatpickr("#user-expiry-date", {
+    locale: currentLang === 'fa' ? 'fa' : 'en',
+    dateFormat: "Y-m-d",
+    minDate: "today",
+    disableMobile: true,
+    placeholder: currentLang === 'fa' ? 'انتخاب تاریخ انقضا' : 'Select expiry date',
+    allowInput: true,
+    onChange: function(selectedDates, dateStr, instance) {
+      if (dateStr) {
+        document.getElementById('user-expiry-date').value = dateStr;
+      }
+    }
+  });
+  
+  // تقویم ویرایش کاربر
+  if (editExpiryPicker) {
+    editExpiryPicker.destroy();
+  }
+  editExpiryPicker = flatpickr("#edit-expiry-date", {
+    locale: currentLang === 'fa' ? 'fa' : 'en',
+    dateFormat: "Y-m-d",
+    minDate: "today",
+    disableMobile: true,
+    placeholder: currentLang === 'fa' ? 'انتخاب تاریخ انقضا' : 'Select expiry date',
+    allowInput: true,
+    onChange: function(selectedDates, dateStr, instance) {
+      if (dateStr) {
+        document.getElementById('edit-expiry-date').value = dateStr;
+      }
+    }
+  });
+}
+
 async function saveUser() {
   const label = document.getElementById('user-label').value.trim() || 'کاربر';
   const quota = parseFloat(document.getElementById('user-quota').value) || 0;
-  const exp = parseInt(document.getElementById('user-exp').value) || 30;
+  const expiryDate = document.getElementById('user-expiry-date').value;
   const devices = parseInt(document.getElementById('user-devices').value) || 0;
   const password = document.getElementById('user-password').value.trim();
   const fingerprint = document.getElementById('user-fingerprint').value || 'chrome';
   const protocol = document.getElementById('user-protocol').value || 'vless-ws';
   const http_version = document.getElementById('user-http').value || 'h2';
   
+  // محاسبه روزهای باقیمانده از تاریخ
+  let expires_days = 0;
+  if (expiryDate) {
+    const exp = new Date(expiryDate);
+    const now = new Date();
+    expires_days = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+    if (expires_days < 0) expires_days = 0;
+  }
+  
   try {
     const r = await authF('/api/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days: exp, max_devices: devices, password, fingerprint, protocol, http_version })
+      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days, max_devices: devices, password, fingerprint, protocol, http_version })
     });
     if (!r.ok) throw new Error();
     document.getElementById('user-label').value = 'کاربر';
     document.getElementById('user-quota').value = '2';
-    document.getElementById('user-exp').value = '30';
+    document.getElementById('user-expiry-date').value = '';
     document.getElementById('user-devices').value = '1';
     document.getElementById('user-password').value = '';
     document.getElementById('user-fingerprint').value = 'chrome';
@@ -1281,7 +1405,22 @@ async function openEditModal(uuid) {
     document.getElementById('edit-label').value = link.label || '';
     document.getElementById('edit-password').value = '';
     document.getElementById('edit-quota').value = link.limit_bytes === 0 ? '' : (link.limit_bytes / (1024 ** 3)).toFixed(1);
-    document.getElementById('edit-exp').value = link.expires_at ? Math.ceil((new Date(link.expires_at) - new Date()) / (1000 * 60 * 60 * 24)) : '';
+    
+    // تنظیم تاریخ در تقویم
+    if (link.expires_at) {
+      const expDate = new Date(link.expires_at);
+      const dateStr = expDate.toISOString().split('T')[0];
+      document.getElementById('edit-expiry-date').value = dateStr;
+      if (editExpiryPicker) {
+        editExpiryPicker.setDate(dateStr);
+      }
+    } else {
+      document.getElementById('edit-expiry-date').value = '';
+      if (editExpiryPicker) {
+        editExpiryPicker.clear();
+      }
+    }
+    
     document.getElementById('edit-devices').value = link.max_devices || 0;
     document.getElementById('edit-status').value = link.active ? 'true' : 'false';
     document.getElementById('edit-fingerprint').value = link.fingerprint || 'chrome';
@@ -1297,18 +1436,26 @@ async function saveEdit() {
   const password = document.getElementById('edit-password').value.trim();
   const label = document.getElementById('edit-label').value.trim() || 'کاربر';
   const quota = parseFloat(document.getElementById('edit-quota').value) || 0;
-  const exp = parseInt(document.getElementById('edit-exp').value) || 0;
+  const expiryDate = document.getElementById('edit-expiry-date').value;
   const devices = parseInt(document.getElementById('edit-devices').value) || 0;
   const active = document.getElementById('edit-status').value === 'true';
   const fingerprint = document.getElementById('edit-fingerprint').value || 'chrome';
   const protocol = document.getElementById('edit-protocol').value || 'vless-ws';
   const http_version = document.getElementById('edit-http').value || 'h2';
   
+  let expires_days = 0;
+  if (expiryDate) {
+    const exp = new Date(expiryDate);
+    const now = new Date();
+    expires_days = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+    if (expires_days < 0) expires_days = 0;
+  }
+  
   try {
     const r = await authF('/api/links/' + uuid, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days: exp, max_devices: devices, active, password, fingerprint, protocol, http_version })
+      body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days, max_devices: devices, active, password, fingerprint, protocol, http_version })
     });
     if (!r.ok) {
       if (r.status === 403) { toast('❌ ' + (currentLang === 'fa' ? 'رمز اشتباه' : 'Wrong password'), 'err'); return; }
@@ -1477,6 +1624,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadThemeFromServer();
   setLang(currentLang);
   await loadRGBStatus();
+  initDatePickers();
   
   loadDashboard();
   loadInbound();
@@ -1494,9 +1642,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 </body></html>"""
 
 
-# ===== تابع ساب‌لینک =====
+# ===== تابع ساب‌لینک حرفه‌ای با طراحی کارتی =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
-    """صفحه ساب‌لینک با منوی کشویی تم"""
+    """صفحه ساب‌لینک با طراحی کارتی و دکمه‌های اپلیکیشن"""
     from datetime import datetime
     
     used = link.get('used_bytes', 0)
@@ -1509,7 +1657,6 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     protocol = link.get('protocol', 'vless-ws')
     http_version = link.get('http_version', 'h2')
     active_connections = link.get('active_connections', 0)
-    active_connections_list = link.get('active_connections_list', [])
     sub_url = link.get('sub_url', '')
     used_val = link.get('used_val', '0')
     used_unit = link.get('used_unit', 'B')
@@ -1518,13 +1665,12 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     percent = link.get('percent', 0)
     days_left = link.get('days_left', 'نامحدود')
     vless_link = link.get('vless_link', '')
-    time_link = link.get('time_link', '')
-    volume_link = link.get('volume_link', '')
     protocol_name = link.get('protocol_name', 'VLESS-WS')
     protocol_icon = link.get('protocol_icon', '🚀')
     http_name = link.get('http_name', 'HTTP/2')
     
     is_allowed = active and not expired
+    host = get_host() if 'get_host' in dir() else 'localhost'
     
     def fmt_bytes(b):
         if not b or b == 0:
@@ -1537,36 +1683,8 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
             return f'{b/1024**2:.2f} MB'
         return f'{b/1024**3:.2f} GB'
     
-    # ساخت اتصالات
-    conns_html = ""
-    if active_connections > 0:
-        conns_html = f"""
-        <div style="background:rgba(212,175,55,0.02);border:1px solid rgba(212,175,55,0.04);border-radius:12px;padding:12px 14px;margin:12px 0">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:11px;color:#C4A35A">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34D399;animation:pulse 1.5s infinite"></span>
-                <span style="font-weight:700;color:#34D399">{active_connections} دستگاه متصل</span>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-        """
-        for conn in active_connections_list[:5]:
-            ip = conn.get('ip', 'نامشخص')
-            conns_html += f"""
-                <span style="font-family:monospace;font-size:10px;background:rgba(212,175,55,0.04);border:1px solid rgba(212,175,55,0.04);padding:3px 10px;border-radius:6px;color:#C4A35A">🔵 {ip}</span>
-            """
-        if len(active_connections_list) > 5:
-            conns_html += f"""
-                <span style="font-family:monospace;font-size:10px;background:rgba(212,175,55,0.02);padding:3px 10px;border-radius:6px;color:#8A7A4A">+{len(active_connections_list)-5} بیشتر</span>
-            """
-        conns_html += """
-            </div>
-        </div>
-        """
-    else:
-        conns_html = f"""
-        <div style="background:rgba(212,175,55,0.02);border:1px solid rgba(212,175,55,0.04);border-radius:12px;padding:10px 14px;margin:12px 0;text-align:center">
-            <span style="font-size:11px;color:#8A7A4A">🔴 بدون اتصال فعال</span>
-        </div>
-        """
+    used_fmt = fmt_bytes(used)
+    limit_fmt = 'نامحدود' if limit == 0 else fmt_bytes(limit)
     
     # منوی تم‌ها
     theme_names = {
@@ -1616,34 +1734,34 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 :root{{
-  --bg:#0a0a1a;--card:rgba(10,10,30,0.8);--card-border:rgba(212,175,55,0.06);
+  --bg:#0a0a1a;--card:rgba(10,10,30,0.85);--card-border:rgba(212,175,55,0.08);
   --text:#F5ECD7;--text2:#C4A35A;--text3:#8A7A4A;
   --accent:#D4A843;--accent2:#F5D060;--accent3:#B8922E;
   --green:#10B981;--green-bg:rgba(16,185,129,0.08);--green-text:#34D399;
   --red:#EF4444;--red-bg:rgba(239,68,68,0.08);--red-text:#F87171;
-  --amber:#F59E0B;--amber-bg:rgba(245,158,11,0.08);--amber-text:#FCD34D;
   --shadow:0 25px 80px rgba(0,0,0,0.6),0 0 120px rgba(212,175,55,0.02);
-  --transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);--radius:14px
+  --transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);--radius:16px
 }}
-[data-theme="persepolis_gold"]{{--bg:#0a0a1a;--card:rgba(10,10,20,0.85);--card-border:rgba(212,175,55,0.08);--accent:#D4A843;--accent2:#F5D060;--text:#F5ECD7;--text2:#C4A35A;--text3:#8A7A4A;--shadow:0 25px 80px rgba(0,0,0,0.6),0 0 120px rgba(212,175,55,0.03)}}
-[data-theme="persepolis_dark"]{{--bg:#0a0505;--card:rgba(15,8,8,0.85);--card-border:rgba(60,40,20,0.08);--accent:#D4A843;--accent2:#C4A35A;--text:#E8D5CC;--text2:#A88A7A;--text3:#6A5A4A;--shadow:0 25px 80px rgba(0,0,0,0.7)}}
-[data-theme="persepolis_sun"]{{--bg:#1a1208;--card:rgba(30,20,10,0.85);--card-border:rgba(245,208,96,0.08);--accent:#F5D060;--accent2:#FF8C00;--text:#F5ECD7;--text2:#D4A843;--text3:#8A7A3A;--shadow:0 25px 80px rgba(0,0,0,0.6),0 0 120px rgba(245,208,96,0.03)}}
-[data-theme="persepolis_royal"]{{--bg:#1a0808;--card:rgba(30,10,10,0.85);--card-border:rgba(184,146,46,0.08);--accent:#B8922E;--accent2:#D4A843;--text:#F5E8D7;--text2:#C4A35A;--text3:#8A7A4A;--shadow:0 25px 80px rgba(0,0,0,0.6),0 0 120px rgba(184,146,46,0.03)}}
-[data-theme="persepolis_stone"]{{--bg:#0a0808;--card:rgba(20,15,12,0.85);--card-border:rgba(138,122,90,0.08);--accent:#8A7A5A;--accent2:#6A5A3A;--text:#E8DDD0;--text2:#A89880;--text3:#6A5A4A;--shadow:0 25px 80px rgba(0,0,0,0.6)}}
-[data-theme="persepolis_light"]{{--bg:#F5ECD7;--card:rgba(255,248,240,0.85);--card-border:rgba(212,175,55,0.08);--accent:#D4A843;--accent2:#B8922E;--text:#1a1208;--text2:#6A5A3A;--text3:#8A7A5A;--shadow:0 25px 80px rgba(0,0,0,0.08),0 0 120px rgba(212,175,55,0.02)}}
-[data-theme="persepolis_warm"]{{--bg:#1a0808;--card:rgba(30,12,8,0.85);--card-border:rgba(212,168,67,0.08);--accent:#D4A843;--accent2:#E85A2A;--text:#F5E0D0;--text2:#D4A843;--text3:#8A6A4A;--shadow:0 25px 80px rgba(0,0,0,0.6),0 0 120px rgba(212,168,67,0.03)}}
-[data-theme="persepolis_cool"]{{--bg:#080a1a;--card:rgba(8,15,25,0.85);--card-border:rgba(74,122,138,0.08);--accent:#4A7A8A;--accent2:#2A5A6A;--text:#D4E8F0;--text2:#6A9AAA;--text3:#4A7A8A;--shadow:0 25px 80px rgba(0,0,0,0.6),0 0 120px rgba(74,122,138,0.03)}}
-[data-theme="persepolis_ancient"]{{--bg:#0a0805;--card:rgba(20,15,8,0.85);--card-border:rgba(138,122,74,0.08);--accent:#8A7A4A;--accent2:#6A5A2A;--text:#E8DDC8;--text2:#A89870;--text3:#6A5A3A;--shadow:0 25px 80px rgba(0,0,0,0.7)}}
-[data-theme="persepolis_modern"]{{--bg:#0a0a1a;--card:rgba(10,10,25,0.85);--card-border:rgba(212,175,55,0.1);--accent:#D4A843;--accent2:#F5D060;--text:#F0EEFF;--text2:#C4A35A;--text3:#6A5A3A;--shadow:0 25px 80px rgba(0,0,0,0.6),0 0 120px rgba(212,175,55,0.04)}}
+[data-theme="persepolis_gold"]{{--bg:#0a0a1a;--card:rgba(10,10,20,0.85);--card-border:rgba(212,175,55,0.08);--accent:#D4A843;--accent2:#F5D060;--text:#F5ECD7;--text2:#C4A35A;--text3:#8A7A4A}}
+[data-theme="persepolis_dark"]{{--bg:#0a0505;--card:rgba(15,8,8,0.85);--card-border:rgba(60,40,20,0.08);--accent:#D4A843;--accent2:#C4A35A;--text:#E8D5CC;--text2:#A88A7A;--text3:#6A5A4A}}
+[data-theme="persepolis_sun"]{{--bg:#1a1208;--card:rgba(30,20,10,0.85);--card-border:rgba(245,208,96,0.08);--accent:#F5D060;--accent2:#FF8C00;--text:#F5ECD7;--text2:#D4A843;--text3:#8A7A3A}}
+[data-theme="persepolis_royal"]{{--bg:#1a0808;--card:rgba(30,10,10,0.85);--card-border:rgba(184,146,46,0.08);--accent:#B8922E;--accent2:#D4A843;--text:#F5E8D7;--text2:#C4A35A;--text3:#8A7A4A}}
+[data-theme="persepolis_stone"]{{--bg:#0a0808;--card:rgba(20,15,12,0.85);--card-border:rgba(138,122,90,0.08);--accent:#8A7A5A;--accent2:#6A5A3A;--text:#E8DDD0;--text2:#A89880;--text3:#6A5A4A}}
+[data-theme="persepolis_light"]{{--bg:#F5ECD7;--card:rgba(255,248,240,0.85);--card-border:rgba(212,175,55,0.08);--accent:#D4A843;--accent2:#B8922E;--text:#1a1208;--text2:#6A5A3A;--text3:#8A7A5A}}
+[data-theme="persepolis_warm"]{{--bg:#1a0808;--card:rgba(30,12,8,0.85);--card-border:rgba(212,168,67,0.08);--accent:#D4A843;--accent2:#E85A2A;--text:#F5E0D0;--text2:#D4A843;--text3:#8A6A4A}}
+[data-theme="persepolis_cool"]{{--bg:#080a1a;--card:rgba(8,15,25,0.85);--card-border:rgba(74,122,138,0.08);--accent:#4A7A8A;--accent2:#2A5A6A;--text:#D4E8F0;--text2:#6A9AAA;--text3:#4A7A8A}}
+[data-theme="persepolis_ancient"]{{--bg:#0a0805;--card:rgba(20,15,8,0.85);--card-border:rgba(138,122,74,0.08);--accent:#8A7A4A;--accent2:#6A5A2A;--text:#E8DDC8;--text2:#A89870;--text3:#6A5A3A}}
+[data-theme="persepolis_modern"]{{--bg:#0a0a1a;--card:rgba(10,10,25,0.85);--card-border:rgba(212,175,55,0.1);--accent:#D4A843;--accent2:#F5D060;--text:#F0EEFF;--text2:#C4A35A;--text3:#6A5A3A}}
 
 @keyframes twinkle{{0%,100%{{opacity:0.1}}50%{{opacity:0.5}}}}
 @keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.25}}}}
 @keyframes cardIn{{from{{opacity:0;transform:translateY(30px) scale(0.96)}}to{{opacity:1;transform:translateY(0) scale(1)}}}}
+@keyframes float{{0%,100%{{transform:translate(0,0) scale(1)}}50%{{transform:translate(20px,-20px) scale(1.03)}}}}
+
 body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--bg);color:var(--text);transition:var(--transition);position:relative;overflow-x:hidden}}
 .stars-container{{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}}
 .star{{position:absolute;border-radius:50%;background:var(--text);animation:twinkle 4s ease-in-out infinite}}
 .glow-orb{{position:fixed;border-radius:50%;filter:blur(120px);z-index:0;pointer-events:none;animation:float 8s ease-in-out infinite}}
-@keyframes float{{0%,100%{{transform:translate(0,0) scale(1)}}50%{{transform:translate(20px,-20px) scale(1.03)}}}}
 .glow-orb1{{width:400px;height:400px;background:rgba(212,175,55,0.04);top:-100px;right:-50px}}
 .glow-orb2{{width:300px;height:300px;background:rgba(245,208,96,0.03);bottom:-50px;left:-30px;animation-delay:3s}}
 
@@ -1661,56 +1779,96 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .theme-dropdown .menu-item.active .check{{opacity:1}}
 .theme-dropdown .menu-item.active{{background:rgba(212,175,55,0.06);color:var(--text)}}
 
-.card{{position:relative;z-index:10;background:var(--card);backdrop-filter:blur(30px);border:1px solid var(--card-border);border-radius:var(--radius);padding:22px 20px 18px;max-width:420px;width:100%;box-shadow:var(--shadow);animation:cardIn 0.6s ease;transition:var(--transition);margin-top:60px}}
-.card-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--card-border)}}
+.card{{position:relative;z-index:10;background:var(--card);backdrop-filter:blur(30px);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px 20px 20px;max-width:480px;width:100%;box-shadow:var(--shadow);animation:cardIn 0.6s ease;transition:var(--transition);margin-top:60px}}
+
+/* هدر کارت */
+.card-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--card-border)}}
 .brand{{display:flex;align-items:center;gap:8px}}
 .brand-icon{{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#D4A843,#B8922E);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 30px rgba(212,175,55,0.15)}}
 .brand-text{{font-size:11px;font-weight:700;background:linear-gradient(135deg,#F5D060,#D4A843);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
 .brand-sub{{font-size:6px;color:var(--text3)}}
-.user-row{{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}}
-.user-name{{font-size:18px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px}}
-.user-name .proto-badge{{font-size:9px;font-weight:600;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:12px;color:var(--accent2)}}
-.status-badge{{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:9px;font-weight:700}}
+.theme-toggle-btn{{background:rgba(212,175,55,0.05);border:1px solid var(--card-border);color:var(--text2);width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;transition:var(--transition)}}
+.theme-toggle-btn:hover{{background:rgba(212,175,55,0.1);transform:rotate(20deg)}}
+
+/* نام کاربر */
+.user-name-row{{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}}
+.user-name{{font-size:20px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px}}
+.user-name .proto-badge{{font-size:9px;font-weight:600;background:rgba(212,175,55,0.08);padding:2px 10px;border-radius:12px;color:var(--accent2);letter-spacing:0.3px}}
+.status-badge{{display:inline-flex;align-items:center;gap:4px;padding:2px 12px;border-radius:12px;font-size:10px;font-weight:700}}
 .status-badge.active{{background:var(--green-bg);color:var(--green-text);border:1px solid rgba(16,185,129,0.1)}}
 .status-badge.inactive{{background:var(--red-bg);color:var(--red-text);border:1px solid rgba(239,68,68,0.1)}}
-.uuid-box{{background:rgba(212,175,55,0.03);border:1px solid var(--card-border);border-radius:6px;padding:4px 8px;font-size:8px;font-family:monospace;color:var(--text3);word-break:break-all;cursor:pointer;transition:var(--transition);margin:4px 0 8px;text-align:center}}
+.status-dot{{width:6px;height:6px;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite}}
+.status-dot.green{{background:var(--green-text)}}
+.status-dot.red{{background:var(--red-text)}}
+
+/* UUID */
+.uuid-box{{background:rgba(212,175,55,0.03);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;font-size:9px;font-family:monospace;color:var(--text3);word-break:break-all;cursor:pointer;transition:var(--transition);text-align:center;margin:6px 0 10px}}
 .uuid-box:hover{{background:rgba(212,175,55,0.06);transform:scale(1.01)}}
-.info-grid{{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0}}
-.info-item{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:6px;padding:5px 8px;display:flex;justify-content:space-between;align-items:center;transition:var(--transition)}}
-.info-item:hover{{background:rgba(212,175,55,0.04)}}
-.info-label{{font-size:7px;color:var(--text3);display:flex;align-items:center;gap:2px;font-weight:600}}
-.info-label i{{font-size:8px;color:var(--accent)}}
-.info-value{{font-size:10px;font-weight:700;color:var(--text)}}
-.info-value.small{{font-size:8px}}
-.timer-section{{background:linear-gradient(135deg,rgba(212,175,55,0.04),rgba(245,208,96,0.02));border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;margin:6px 0;text-align:center}}
-.timer-label{{font-size:7px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.05em}}
-.timer-display{{font-family:monospace;font-size:18px;font-weight:800;color:var(--accent2);letter-spacing:2px;background:rgba(0,0,0,0.2);padding:4px 10px;border-radius:6px;display:inline-block;margin-top:2px}}
-.timer-display.expired{{color:var(--red-text)}}
-.progress-section{{margin:6px 0}}
+
+/* آمار مصرف - کارت‌های اطلاعات */
+.stats-card-grid{{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}}
+.stat-info-card{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:10px;padding:10px 12px;transition:var(--transition)}}
+.stat-info-card:hover{{background:rgba(212,175,55,0.04);transform:translateY(-2px)}}
+.stat-info-label{{font-size:7px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em}}
+.stat-info-value{{font-size:15px;font-weight:700;color:var(--text);margin-top:2px}}
+.stat-info-value .unit{{font-size:9px;font-weight:400;color:var(--text2)}}
+.stat-info-value.used{{color:var(--accent2)}}
+.stat-info-value.limit{{color:var(--text2)}}
+
+/* نوار پیشرفت */
+.progress-section{{margin:8px 0}}
 .progress-bar{{height:4px;border-radius:4px;background:rgba(212,175,55,0.05);overflow:hidden}}
 .progress-fill{{height:100%;border-radius:4px;background:linear-gradient(90deg,#D4A843,#B8922E,#F5D060);width:0%;transition:width 1.2s ease}}
-.progress-text{{display:flex;justify-content:space-between;font-size:7px;color:var(--text3);margin-top:2px}}
+.progress-text{{display:flex;justify-content:space-between;font-size:8px;color:var(--text3);margin-top:3px}}
 .progress-text .pct{{font-weight:700;color:var(--text2)}}
-.vless-section{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:8px;padding:6px 8px;margin:6px 0}}
-.vless-label{{font-size:7px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:4px;margin-bottom:3px}}
-.vless-label i{{color:var(--accent);font-size:9px}}
-.vless-link{{font-family:monospace;font-size:7px;color:var(--accent2);word-break:break-all;line-height:1.6;background:rgba(0,0,0,0.15);padding:4px 6px;border-radius:4px;border:1px solid var(--card-border)}}
-.actions{{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}}
-.btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:var(--transition);white-space:nowrap;flex:1;justify-content:center}}
+
+/* لینک ساب‌اسکریپشن */
+.sub-link-section{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;margin:8px 0}}
+.sub-link-label{{font-size:7px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:4px;margin-bottom:3px}}
+.sub-link-label i{{color:var(--accent);font-size:8px}}
+.sub-link-url{{font-family:monospace;font-size:8px;color:var(--accent2);word-break:break-all;line-height:1.5;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;border:1px solid var(--card-border)}}
+.sub-link-actions{{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}}
+.sub-link-actions .btn{{flex:1;font-size:8px;padding:4px 8px;justify-content:center}}
+
+/* دکمه‌های اپلیکیشن */
+.apps-section{{margin:10px 0}}
+.apps-title{{font-size:9px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:4px}}
+.apps-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}}
+.app-btn{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;transition:var(--transition);text-decoration:none;color:var(--text)}}
+.app-btn:hover{{background:rgba(212,175,55,0.06);transform:translateY(-2px);border-color:var(--accent)}}
+.app-btn .app-icon{{font-size:20px;display:block;margin-bottom:2px}}
+.app-btn .app-name{{font-size:6px;color:var(--text2);font-weight:600;display:block}}
+.app-btn .app-action{{font-size:5px;color:var(--text3);display:block;margin-top:1px}}
+.app-btn .app-action.copy{{color:var(--accent2)}}
+
+/* کانفیگ‌ها */
+.configs-section{{margin:10px 0}}
+.config-item{{display:flex;align-items:center;justify-content:space-between;background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;margin-bottom:3px;transition:var(--transition)}}
+.config-item:hover{{background:rgba(212,175,55,0.04)}}
+.config-item .config-name{{font-size:9px;font-weight:600;color:var(--text)}}
+.config-item .config-type{{font-size:7px;color:var(--text3);background:rgba(212,175,55,0.04);padding:1px 6px;border-radius:4px}}
+.config-item .config-action{{font-size:8px;color:var(--accent2);cursor:pointer;transition:var(--transition)}}
+.config-item .config-action:hover{{color:var(--accent)}}
+
+/* دکمه‌ها */
+.btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:var(--transition);white-space:nowrap;justify-content:center}}
 .btn i{{font-size:10px}}
 .btn-success{{background:var(--green-bg);border:1px solid rgba(16,185,129,0.08);color:var(--green-text)}}
 .btn-success:hover{{background:rgba(16,185,129,0.12);transform:translateY(-2px)}}
 .btn-success.copied{{background:#059669;color:#fff;transform:scale(0.95)}}
-@keyframes copyAnim{{0%{{transform:scale(1)}}30%{{transform:scale(0.85)}}60%{{transform:scale(1.1)}}100%{{transform:scale(1)}}}}
-.btn-success.copy-anim{{animation:copyAnim 0.5s ease}}
 .btn-secondary{{background:rgba(212,175,55,0.03);border:1px solid var(--card-border);color:var(--text2)}}
 .btn-secondary:hover{{background:rgba(212,175,55,0.06);color:var(--text);transform:translateY(-2px)}}
-.footer{{margin-top:10px;padding-top:8px;border-top:1px solid var(--card-border);text-align:center;font-size:6px;color:var(--text3)}}
-.footer .eagle{{color:var(--accent);font-weight:700}}
+.btn-gold{{background:linear-gradient(135deg,#D4A843,#B8922E);color:#1a1208}}
+.btn-gold:hover{{transform:translateY(-2px);box-shadow:0 4px 20px rgba(212,175,55,0.2)}}
+
+.footer{{margin-top:12px;padding-top:10px;border-top:1px solid var(--card-border);text-align:center;font-size:6px;color:var(--text3)}}
+.footer .brand-name{{color:var(--accent);font-weight:700}}
+
 .toast{{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--card-border);color:var(--text);border-radius:8px;padding:6px 14px;font-size:9px;opacity:0;transition:var(--transition);z-index:999;pointer-events:none;box-shadow:var(--shadow);display:flex;align-items:center;gap:4px}}
 .toast.show{{opacity:1;transform:translateX(-50%) translateY(0)}}
 .toast.ok{{border-color:rgba(16,185,129,0.15);color:var(--green-text)}}
-@media(max-width:400px){{.card{{padding:14px 12px 12px;margin-top:70px}}.user-name{{font-size:15px}}.info-grid{{grid-template-columns:1fr 1fr}}.info-item{{padding:3px 6px}}.info-value{{font-size:8px}}.btn{{font-size:8px;padding:4px 8px}}.timer-display{{font-size:14px}}.theme-dropdown .toggle-btn{{padding:8px 14px;font-size:12px}}.theme-dropdown .menu{{min-width:170px}}}}
+
+@media(max-width:400px){{.card{{padding:16px 12px;margin-top:70px}}.user-name{{font-size:17px}}.stats-card-grid{{gap:4px}}.stat-info-value{{font-size:13px}}.apps-grid{{grid-template-columns:repeat(4,1fr)}}.app-btn .app-icon{{font-size:16px}}}}
 </style>
 </head>
 <body>
@@ -1729,7 +1887,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 
 <div class="theme-dropdown">
     <button class="toggle-btn" onclick="toggleThemeMenu()">
-        <span>🏛️</span>
+        <span>🎨</span>
         <span id="themeDisplay">انتخاب تم</span>
         <span class="arrow" id="themeArrow">▾</span>
     </button>
@@ -1739,50 +1897,131 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 </div>
 
 <div class="card" id="mainCard">
+    <!-- هدر -->
     <div class="card-header">
-        <div class="brand"><div class="brand-icon">🏛️</div><div><div class="brand-text">تخت جمشید</div><div class="brand-sub">اشتراک ویژه</div></div></div>
-        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
+        <div class="brand">
+            <div class="brand-icon">🏛️</div>
+            <div>
+                <div class="brand-text">تخت جمشید</div>
+                <div class="brand-sub">اشتراک ویژه</div>
+            </div>
+        </div>
+        <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
     </div>
 
-    <div class="user-row">
+    <!-- نام کاربر و وضعیت -->
+    <div class="user-name-row">
         <div class="user-name">
-            <span>🏛️</span> {label}
+            {label}
             <span class="proto-badge">{protocol_icon} {protocol_name} · {http_name}</span>
         </div>
         <span class="status-badge {'active' if is_allowed else 'inactive'}">
-            <i class="ti {'ti-circle-check' if is_allowed else 'ti-circle-x'}"></i>
+            <span class="status-dot {'green' if is_allowed else 'red'}"></span>
             {'فعال' if is_allowed else 'غیرفعال'}
         </span>
     </div>
+
+    <!-- UUID -->
     <div class="uuid-box" onclick="copyUUID()">🔑 {uuid}</div>
 
-    {conns_html}
-
-    <div class="info-grid">
-        <div class="info-item"><span class="info-label"><i class="ti ti-database"></i> مصرف</span><span class="info-value used">{used_val} {used_unit}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-package"></i> سهمیه</span><span class="info-value">{limit_val} {limit_unit}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-devices"></i> دستگاه</span><span class="info-value">{str(max_devices) if max_devices > 0 else '∞'}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-fingerprint"></i> FP</span><span class="info-value small">{fingerprint}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-settings"></i> پروتکل</span><span class="info-value small">{protocol_name}</span></div>
-        <div class="info-item"><span class="info-label"><i class="ti ti-calendar"></i> زمان باقی</span><span class="info-value small">{days_left}</span></div>
+    <!-- آمار مصرف -->
+    <div class="stats-card-grid">
+        <div class="stat-info-card">
+            <div class="stat-info-label">📊 مصرف</div>
+            <div class="stat-info-value used">{used_val} <span class="unit">{used_unit}</span></div>
+        </div>
+        <div class="stat-info-card">
+            <div class="stat-info-label">📦 سهمیه</div>
+            <div class="stat-info-value limit">{limit_val} <span class="unit">{limit_unit}</span></div>
+        </div>
+        <div class="stat-info-card">
+            <div class="stat-info-label">⏳ زمان باقی</div>
+            <div class="stat-info-value">{days_left}</div>
+        </div>
+        <div class="stat-info-card">
+            <div class="stat-info-label">📱 دستگاه‌ها</div>
+            <div class="stat-info-value">{str(max_devices) if max_devices > 0 else '∞'}</div>
+        </div>
     </div>
 
+    <!-- نوار پیشرفت -->
     <div class="progress-section">
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-text"><span>میزان مصرف</span><span class="pct">{percent:.1f}%</span></div>
+        <div class="progress-text">
+            <span>میزان مصرف</span>
+            <span class="pct">{percent:.1f}%</span>
+        </div>
     </div>
 
-    <div class="vless-section">
-        <div class="vless-label"><i class="ti ti-link"></i> لینک کانفیگ</div>
-        <div class="vless-link" id="vlessLink">{vless_link}</div>
+    <!-- لینک ساب‌اسکریپشن -->
+    <div class="sub-link-section">
+        <div class="sub-link-label"><i class="ti ti-link"></i> لینک اشتراک</div>
+        <div class="sub-link-url" id="subLink">{sub_url}</div>
+        <div class="sub-link-actions">
+            <button class="btn btn-success" onclick="copySub()" id="copySubBtn"><i class="ti ti-copy"></i> کپی لینک</button>
+            <button class="btn btn-gold" onclick="window.open('{sub_url}', '_blank')"><i class="ti ti-external-link"></i> باز کردن</button>
+        </div>
     </div>
 
-    <div class="actions">
-        <button class="btn btn-success" onclick="copySub()" id="copySubBtn"><i class="ti ti-link"></i> کپی ساب‌لینک</button>
-        <button class="btn btn-secondary" onclick="copyVless()" id="copyVlessBtn"><i class="ti ti-copy"></i> کپی کانفیگ</button>
+    <!-- اپلیکیشن‌ها -->
+    <div class="apps-section">
+        <div class="apps-title"><i class="ti ti-devices"></i> نصب روی دستگاه‌ها</div>
+        <div class="apps-grid">
+            <div class="app-btn" onclick="openApp('hiddify')">
+                <span class="app-icon">📱</span>
+                <span class="app-name">Hiddify</span>
+                <span class="app-action">ضربه بزنید</span>
+            </div>
+            <div class="app-btn" onclick="openApp('v2rayng')">
+                <span class="app-icon">📲</span>
+                <span class="app-name">V2rayNG</span>
+                <span class="app-action">ضربه بزنید</span>
+            </div>
+            <div class="app-btn" onclick="openApp('v2box')">
+                <span class="app-icon">📱</span>
+                <span class="app-name">V2Box</span>
+                <span class="app-action">ضربه بزنید</span>
+            </div>
+            <div class="app-btn" onclick="copySub()">
+                <span class="app-icon">📋</span>
+                <span class="app-name">نکست‌وی‌پی‌ان</span>
+                <span class="app-action copy">کپی لینک</span>
+            </div>
+            <div class="app-btn" onclick="openApp('clash')">
+                <span class="app-icon">⚔️</span>
+                <span class="app-name">Clash Meta</span>
+                <span class="app-action">ضربه بزنید</span>
+            </div>
+            <div class="app-btn" onclick="openApp('windows')">
+                <span class="app-icon">🪟</span>
+                <span class="app-name">Windows</span>
+                <span class="app-action">ضربه بزنید</span>
+            </div>
+            <div class="app-btn" onclick="openApp('macos')">
+                <span class="app-icon">🍎</span>
+                <span class="app-name">macOS</span>
+                <span class="app-action">ضربه بزنید</span>
+            </div>
+            <div class="app-btn" onclick="openApp('linux')">
+                <span class="app-icon">🐧</span>
+                <span class="app-name">Linux</span>
+                <span class="app-action">ضربه بزنید</span>
+            </div>
+        </div>
     </div>
 
-    <div class="footer"><span class="eagle">🏛️</span> تخت جمشید · نسخه ۱۳ · {protocol_icon} {protocol_name} · {http_name}</div>
+    <!-- کانفیگ‌ها -->
+    <div class="configs-section">
+        <div class="config-item">
+            <span class="config-name">{label}-Default</span>
+            <span class="config-type">{protocol_name} · {http_name}</span>
+            <span class="config-action" onclick="copyConfig('{vless_link}')">📋</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span class="brand-name">🏛️ تخت جمشید</span> · نسخه ۱۴ · {protocol_icon} {protocol_name}
+    </div>
 </div>
 
 <script>
@@ -1803,24 +2042,11 @@ function copySub() {{
     const btn = document.getElementById('copySubBtn');
     navigator.clipboard.writeText(subUrl).then(() => {{
         toast('✅ ساب‌لینک کپی شد!', 'ok');
-        btn.classList.add('copy-anim');
+        btn.classList.add('copied');
         btn.innerHTML = '<i class="ti ti-check"></i> کپی شد!';
         setTimeout(() => {{
-            btn.classList.remove('copy-anim');
-            btn.innerHTML = '<i class="ti ti-link"></i> کپی ساب‌لینک';
-        }}, 1500);
-    }}).catch(() => toast('❌ خطا در کپی', 'err'));
-}}
-
-function copyVless() {{
-    const btn = document.getElementById('copyVlessBtn');
-    navigator.clipboard.writeText(vlessLink).then(() => {{
-        toast('✅ کانفیگ کپی شد!', 'ok');
-        btn.classList.add('copy-anim');
-        btn.innerHTML = '<i class="ti ti-check"></i> کپی شد!';
-        setTimeout(() => {{
-            btn.classList.remove('copy-anim');
-            btn.innerHTML = '<i class="ti ti-copy"></i> کپی کانفیگ';
+            btn.classList.remove('copied');
+            btn.innerHTML = '<i class="ti ti-copy"></i> کپی لینک';
         }}, 1500);
     }}).catch(() => toast('❌ خطا در کپی', 'err'));
 }}
@@ -1829,6 +2055,30 @@ function copyUUID() {{
     navigator.clipboard.writeText(uuid).then(() => toast('✅ کپی شد', 'ok'));
 }}
 
+function copyConfig(link) {{
+    navigator.clipboard.writeText(link).then(() => toast('✅ کانفیگ کپی شد!', 'ok'));
+}}
+
+function openApp(app) {{
+    const apps = {{
+        'hiddify': 'https://github.com/hiddify/hiddify-app/releases',
+        'v2rayng': 'https://github.com/2dust/v2rayNG/releases',
+        'v2box': 'https://apps.apple.com/app/v2box/id6446814670',
+        'clash': 'https://github.com/MetaCubeX/ClashMetaForAndroid/releases',
+        'windows': 'https://github.com/2dust/v2rayN/releases',
+        'macos': 'https://github.com/ShadowLaunch/ShadowLaunch/releases',
+        'linux': 'https://github.com/SagerNet/sing-box/releases'
+    }};
+    const url = apps[app];
+    if (url) {{
+        window.open(url, '_blank');
+    }} else {{
+        toast('📋 لینک در کلیپ‌بورد', 'ok');
+        copySub();
+    }}
+}}
+
+// ===== مدیریت تم =====
 let currentTheme = localStorage.getItem('persepolis-sub-theme') || 'persepolis_gold';
 const themeList = ['persepolis_gold','persepolis_dark','persepolis_sun','persepolis_royal','persepolis_stone','persepolis_light','persepolis_warm','persepolis_cool','persepolis_ancient','persepolis_modern'];
 const themeNames = {{
@@ -1886,6 +2136,7 @@ document.addEventListener('click', function(e) {{
 
 applyTheme(currentTheme);
 
+// انیمیشن نوار پیشرفت
 setTimeout(() => {{
     const fill = document.getElementById('progressFill');
     if (fill) fill.style.width = '{percent:.1f}%';
