@@ -1,4 +1,4 @@
-# pages.py - پنل تخت جمشید با ساب‌لینک حرفه‌ای
+# pages.py - پنل تخت جمشید با ساب‌لینک حرفه‌ای + لینک مستقیم برنامه‌ها
 
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -433,7 +433,6 @@ body.light-theme .conn-card{background:rgba(255,255,255,0.8)}
 body.light-theme .settings-card{background:rgba(255,255,255,0.8)}
 body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
 
-/* استایل‌های تقویم Flatpickr */
 .flatpickr-calendar{background:var(--card) !important;backdrop-filter:blur(30px) !important;border:1px solid var(--card-b) !important;border-radius:12px !important;box-shadow:var(--shadow) !important}
 .flatpickr-calendar .flatpickr-months .flatpickr-month{color:var(--t1) !important}
 .flatpickr-calendar .flatpickr-weekday{color:var(--t2) !important}
@@ -899,7 +898,6 @@ function setLang(lang) {
     body: JSON.stringify({ language: lang })
   }).catch(() => {});
   
-  // بروزرسانی تقویم
   if (expiryPicker) {
     expiryPicker.set('locale', lang === 'fa' ? 'fa' : 'en');
   }
@@ -1317,7 +1315,6 @@ function downloadQR() {
 
 // ===== مدیریت کاربران با تقویم =====
 function initDatePickers() {
-  // تقویم ساخت کاربر
   if (expiryPicker) {
     expiryPicker.destroy();
   }
@@ -1335,7 +1332,6 @@ function initDatePickers() {
     }
   });
   
-  // تقویم ویرایش کاربر
   if (editExpiryPicker) {
     editExpiryPicker.destroy();
   }
@@ -1364,7 +1360,6 @@ async function saveUser() {
   const protocol = document.getElementById('user-protocol').value || 'vless-ws';
   const http_version = document.getElementById('user-http').value || 'h2';
   
-  // محاسبه روزهای باقیمانده از تاریخ
   let expires_days = 0;
   if (expiryDate) {
     const exp = new Date(expiryDate);
@@ -1406,7 +1401,6 @@ async function openEditModal(uuid) {
     document.getElementById('edit-password').value = '';
     document.getElementById('edit-quota').value = link.limit_bytes === 0 ? '' : (link.limit_bytes / (1024 ** 3)).toFixed(1);
     
-    // تنظیم تاریخ در تقویم
     if (link.expires_at) {
       const expDate = new Date(link.expires_at);
       const dateStr = expDate.toISOString().split('T')[0];
@@ -1642,10 +1636,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 </body></html>"""
 
 
-# ===== تابع ساب‌لینک حرفه‌ای با طراحی کارتی =====
+# ===== تابع ساب‌لینک حرفه‌ای با دیپ لینک و تاریخ دقیق =====
 def get_sub_page_html(uuid: str, link: dict) -> str:
-    """صفحه ساب‌لینک با طراحی کارتی و دکمه‌های اپلیکیشن"""
+    """صفحه ساب‌لینک با دیپ لینک و تاریخ دقیق"""
     from datetime import datetime
+    import calendar
+    import locale
     
     used = link.get('used_bytes', 0)
     limit = link.get('limit_bytes', 0)
@@ -1668,23 +1664,55 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     protocol_name = link.get('protocol_name', 'VLESS-WS')
     protocol_icon = link.get('protocol_icon', '🚀')
     http_name = link.get('http_name', 'HTTP/2')
+    expires_at = link.get('expires_at')
     
     is_allowed = active and not expired
     host = get_host() if 'get_host' in dir() else 'localhost'
     
-    def fmt_bytes(b):
-        if not b or b == 0:
-            return '0 B'
-        if b < 1024:
-            return f'{b} B'
-        if b < 1024**2:
-            return f'{b/1024:.1f} KB'
-        if b < 1024**3:
-            return f'{b/1024**2:.2f} MB'
-        return f'{b/1024**3:.2f} GB'
+    # ===== تاریخ دقیق به شمسی =====
+    persian_months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
     
-    used_fmt = fmt_bytes(used)
-    limit_fmt = 'نامحدود' if limit == 0 else fmt_bytes(limit)
+    def to_persian_date(date_str):
+        if not date_str:
+            return "نامحدود"
+        try:
+            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            # استفاده از تقویم شمسی
+            from datetime import datetime as dtm
+            import jdatetime
+            jd = jdatetime.datetime.fromgregorian(datetime=dt)
+            return f"{jd.day} {persian_months[jd.month-1]} {jd.year}"
+        except:
+            try:
+                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                return dt.strftime("%d %B %Y")
+            except:
+                return date_str
+    
+    expiry_persian = to_persian_date(expires_at) if expires_at else "نامحدود"
+    
+    # ===== لینک‌های دیپ لینک برای برنامه‌ها =====
+    encoded_sub = sub_url
+    
+    # لینک‌های مخصوص هر برنامه
+    deep_links = {
+        'hiddify': f"hiddify://subscribe?url={encoded_sub}",
+        'v2rayng': f"v2rayng://subscribe?url={encoded_sub}",
+        'v2box': f"v2box://subscribe?url={encoded_sub}",
+        'clash': f"clash://install-config?url={encoded_sub}",
+        'nekobox': f"nekobox://subscribe?url={encoded_sub}",
+        'singbox': f"sing-box://subscribe?url={encoded_sub}",
+    }
+    
+    # لینک‌های نصب برنامه‌ها
+    app_links = {
+        'hiddify': 'https://github.com/hiddify/hiddify-app/releases',
+        'v2rayng': 'https://github.com/2dust/v2rayNG/releases',
+        'v2box': 'https://apps.apple.com/app/v2box/id6446814670',
+        'clash': 'https://github.com/MetaCubeX/ClashMetaForAndroid/releases',
+        'nekobox': 'https://github.com/MatsuriDayo/NekoBoxForAndroid/releases',
+        'singbox': 'https://github.com/SagerNet/sing-box/releases',
+    }
     
     # منوی تم‌ها
     theme_names = {
@@ -1719,6 +1747,26 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
             <span class="dot" style="background:{theme_colors[t]}"></span>
             {theme_names[t]}
             <span class="check">✓</span>
+        </div>
+        """
+    
+    # ساخت دکمه‌های اپلیکیشن‌ها
+    app_buttons = ""
+    apps = [
+        ('hiddify', '📱', 'Hiddify', 'ضربه بزنید'),
+        ('v2rayng', '📲', 'V2rayNG', 'ضربه بزنید'),
+        ('v2box', '📱', 'V2Box', 'ضربه بزنید'),
+        ('nekobox', '📱', 'NekoBox', 'ضربه بزنید'),
+        ('clash', '⚔️', 'Clash Meta', 'ضربه بزنید'),
+        ('singbox', '📦', 'Sing-Box', 'ضربه بزنید'),
+    ]
+    
+    for app_id, icon, name, action in apps:
+        app_buttons += f"""
+        <div class="app-btn" onclick="openApp('{app_id}')">
+            <span class="app-icon">{icon}</span>
+            <span class="app-name">{name}</span>
+            <span class="app-action">{action}</span>
         </div>
         """
     
@@ -1781,7 +1829,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 
 .card{{position:relative;z-index:10;background:var(--card);backdrop-filter:blur(30px);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px 20px 20px;max-width:480px;width:100%;box-shadow:var(--shadow);animation:cardIn 0.6s ease;transition:var(--transition);margin-top:60px}}
 
-/* هدر کارت */
+/* هدر */
 .card-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--card-border)}}
 .brand{{display:flex;align-items:center;gap:8px}}
 .brand-icon{{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#D4A843,#B8922E);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 30px rgba(212,175,55,0.15)}}
@@ -1792,7 +1840,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 
 /* نام کاربر */
 .user-name-row{{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}}
-.user-name{{font-size:20px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px}}
+.user-name{{font-size:20px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}}
 .user-name .proto-badge{{font-size:9px;font-weight:600;background:rgba(212,175,55,0.08);padding:2px 10px;border-radius:12px;color:var(--accent2);letter-spacing:0.3px}}
 .status-badge{{display:inline-flex;align-items:center;gap:4px;padding:2px 12px;border-radius:12px;font-size:10px;font-weight:700}}
 .status-badge.active{{background:var(--green-bg);color:var(--green-text);border:1px solid rgba(16,185,129,0.1)}}
@@ -1805,7 +1853,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .uuid-box{{background:rgba(212,175,55,0.03);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;font-size:9px;font-family:monospace;color:var(--text3);word-break:break-all;cursor:pointer;transition:var(--transition);text-align:center;margin:6px 0 10px}}
 .uuid-box:hover{{background:rgba(212,175,55,0.06);transform:scale(1.01)}}
 
-/* آمار مصرف - کارت‌های اطلاعات */
+/* آمار - کارت‌ها */
 .stats-card-grid{{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}}
 .stat-info-card{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:10px;padding:10px 12px;transition:var(--transition)}}
 .stat-info-card:hover{{background:rgba(212,175,55,0.04);transform:translateY(-2px)}}
@@ -1814,6 +1862,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .stat-info-value .unit{{font-size:9px;font-weight:400;color:var(--text2)}}
 .stat-info-value.used{{color:var(--accent2)}}
 .stat-info-value.limit{{color:var(--text2)}}
+.stat-info-value.expiry{{color:var(--accent)}}
 
 /* نوار پیشرفت */
 .progress-section{{margin:8px 0}}
@@ -1822,7 +1871,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .progress-text{{display:flex;justify-content:space-between;font-size:8px;color:var(--text3);margin-top:3px}}
 .progress-text .pct{{font-weight:700;color:var(--text2)}}
 
-/* لینک ساب‌اسکریپشن */
+/* لینک ساب */
 .sub-link-section{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;margin:8px 0}}
 .sub-link-label{{font-size:7px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:4px;margin-bottom:3px}}
 .sub-link-label i{{color:var(--accent);font-size:8px}}
@@ -1830,25 +1879,15 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .sub-link-actions{{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}}
 .sub-link-actions .btn{{flex:1;font-size:8px;padding:4px 8px;justify-content:center}}
 
-/* دکمه‌های اپلیکیشن */
+/* اپلیکیشن‌ها */
 .apps-section{{margin:10px 0}}
 .apps-title{{font-size:9px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:4px}}
-.apps-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}}
+.apps-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}}
 .app-btn{{background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;transition:var(--transition);text-decoration:none;color:var(--text)}}
 .app-btn:hover{{background:rgba(212,175,55,0.06);transform:translateY(-2px);border-color:var(--accent)}}
 .app-btn .app-icon{{font-size:20px;display:block;margin-bottom:2px}}
 .app-btn .app-name{{font-size:6px;color:var(--text2);font-weight:600;display:block}}
 .app-btn .app-action{{font-size:5px;color:var(--text3);display:block;margin-top:1px}}
-.app-btn .app-action.copy{{color:var(--accent2)}}
-
-/* کانفیگ‌ها */
-.configs-section{{margin:10px 0}}
-.config-item{{display:flex;align-items:center;justify-content:space-between;background:rgba(212,175,55,0.02);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;margin-bottom:3px;transition:var(--transition)}}
-.config-item:hover{{background:rgba(212,175,55,0.04)}}
-.config-item .config-name{{font-size:9px;font-weight:600;color:var(--text)}}
-.config-item .config-type{{font-size:7px;color:var(--text3);background:rgba(212,175,55,0.04);padding:1px 6px;border-radius:4px}}
-.config-item .config-action{{font-size:8px;color:var(--accent2);cursor:pointer;transition:var(--transition)}}
-.config-item .config-action:hover{{color:var(--accent)}}
 
 /* دکمه‌ها */
 .btn{{font-family:inherit;font-size:9px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;border:none;transition:var(--transition);white-space:nowrap;justify-content:center}}
@@ -1868,7 +1907,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 .toast.show{{opacity:1;transform:translateX(-50%) translateY(0)}}
 .toast.ok{{border-color:rgba(16,185,129,0.15);color:var(--green-text)}}
 
-@media(max-width:400px){{.card{{padding:16px 12px;margin-top:70px}}.user-name{{font-size:17px}}.stats-card-grid{{gap:4px}}.stat-info-value{{font-size:13px}}.apps-grid{{grid-template-columns:repeat(4,1fr)}}.app-btn .app-icon{{font-size:16px}}}}
+@media(max-width:400px){{.card{{padding:16px 12px;margin-top:70px}}.user-name{{font-size:17px}}.stats-card-grid{{gap:4px}}.stat-info-value{{font-size:13px}}.apps-grid{{grid-template-columns:repeat(3,1fr)}}.app-btn .app-icon{{font-size:16px}}}}
 </style>
 </head>
 <body>
@@ -1897,7 +1936,6 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 </div>
 
 <div class="card" id="mainCard">
-    <!-- هدر -->
     <div class="card-header">
         <div class="brand">
             <div class="brand-icon">🏛️</div>
@@ -1909,7 +1947,6 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
         <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
     </div>
 
-    <!-- نام کاربر و وضعیت -->
     <div class="user-name-row">
         <div class="user-name">
             {label}
@@ -1921,10 +1958,8 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
         </span>
     </div>
 
-    <!-- UUID -->
     <div class="uuid-box" onclick="copyUUID()">🔑 {uuid}</div>
 
-    <!-- آمار مصرف -->
     <div class="stats-card-grid">
         <div class="stat-info-card">
             <div class="stat-info-label">📊 مصرف</div>
@@ -1939,12 +1974,11 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
             <div class="stat-info-value">{days_left}</div>
         </div>
         <div class="stat-info-card">
-            <div class="stat-info-label">📱 دستگاه‌ها</div>
-            <div class="stat-info-value">{str(max_devices) if max_devices > 0 else '∞'}</div>
+            <div class="stat-info-label">📅 تاریخ انقضا</div>
+            <div class="stat-info-value expiry">{expiry_persian}</div>
         </div>
     </div>
 
-    <!-- نوار پیشرفت -->
     <div class="progress-section">
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         <div class="progress-text">
@@ -1953,7 +1987,6 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
         </div>
     </div>
 
-    <!-- لینک ساب‌اسکریپشن -->
     <div class="sub-link-section">
         <div class="sub-link-label"><i class="ti ti-link"></i> لینک اشتراک</div>
         <div class="sub-link-url" id="subLink">{sub_url}</div>
@@ -1963,59 +1996,10 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
         </div>
     </div>
 
-    <!-- اپلیکیشن‌ها -->
     <div class="apps-section">
-        <div class="apps-title"><i class="ti ti-devices"></i> نصب روی دستگاه‌ها</div>
+        <div class="apps-title"><i class="ti ti-devices"></i> نصب روی دستگاه</div>
         <div class="apps-grid">
-            <div class="app-btn" onclick="openApp('hiddify')">
-                <span class="app-icon">📱</span>
-                <span class="app-name">Hiddify</span>
-                <span class="app-action">ضربه بزنید</span>
-            </div>
-            <div class="app-btn" onclick="openApp('v2rayng')">
-                <span class="app-icon">📲</span>
-                <span class="app-name">V2rayNG</span>
-                <span class="app-action">ضربه بزنید</span>
-            </div>
-            <div class="app-btn" onclick="openApp('v2box')">
-                <span class="app-icon">📱</span>
-                <span class="app-name">V2Box</span>
-                <span class="app-action">ضربه بزنید</span>
-            </div>
-            <div class="app-btn" onclick="copySub()">
-                <span class="app-icon">📋</span>
-                <span class="app-name">نکست‌وی‌پی‌ان</span>
-                <span class="app-action copy">کپی لینک</span>
-            </div>
-            <div class="app-btn" onclick="openApp('clash')">
-                <span class="app-icon">⚔️</span>
-                <span class="app-name">Clash Meta</span>
-                <span class="app-action">ضربه بزنید</span>
-            </div>
-            <div class="app-btn" onclick="openApp('windows')">
-                <span class="app-icon">🪟</span>
-                <span class="app-name">Windows</span>
-                <span class="app-action">ضربه بزنید</span>
-            </div>
-            <div class="app-btn" onclick="openApp('macos')">
-                <span class="app-icon">🍎</span>
-                <span class="app-name">macOS</span>
-                <span class="app-action">ضربه بزنید</span>
-            </div>
-            <div class="app-btn" onclick="openApp('linux')">
-                <span class="app-icon">🐧</span>
-                <span class="app-name">Linux</span>
-                <span class="app-action">ضربه بزنید</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- کانفیگ‌ها -->
-    <div class="configs-section">
-        <div class="config-item">
-            <span class="config-name">{label}-Default</span>
-            <span class="config-type">{protocol_name} · {http_name}</span>
-            <span class="config-action" onclick="copyConfig('{vless_link}')">📋</span>
+            {app_buttons}
         </div>
     </div>
 
@@ -2027,8 +2011,9 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
 <script>
 const subUrl = `{sub_url}`;
 const uuid = `{uuid}`;
-const vlessLink = `{vless_link}`;
 const isExpired = {str(not is_allowed).lower()};
+const deepLinks = {json.dumps(deep_links)};
+const appLinks = {json.dumps(app_links)};
 
 function toast(msg, type) {{
     const t = document.getElementById('toast');
@@ -2055,23 +2040,22 @@ function copyUUID() {{
     navigator.clipboard.writeText(uuid).then(() => toast('✅ کپی شد', 'ok'));
 }}
 
-function copyConfig(link) {{
-    navigator.clipboard.writeText(link).then(() => toast('✅ کانفیگ کپی شد!', 'ok'));
-}}
-
-function openApp(app) {{
-    const apps = {{
-        'hiddify': 'https://github.com/hiddify/hiddify-app/releases',
-        'v2rayng': 'https://github.com/2dust/v2rayNG/releases',
-        'v2box': 'https://apps.apple.com/app/v2box/id6446814670',
-        'clash': 'https://github.com/MetaCubeX/ClashMetaForAndroid/releases',
-        'windows': 'https://github.com/2dust/v2rayN/releases',
-        'macos': 'https://github.com/ShadowLaunch/ShadowLaunch/releases',
-        'linux': 'https://github.com/SagerNet/sing-box/releases'
-    }};
-    const url = apps[app];
-    if (url) {{
-        window.open(url, '_blank');
+function openApp(appId) {{
+    // ابتدا تلاش با دیپ لینک
+    if (deepLinks[appId]) {{
+        try {{
+            window.location.href = deepLinks[appId];
+            toast('📱 در حال باز کردن ' + appId, 'ok');
+            return;
+        }} catch(e) {{
+            console.log('Deep link failed:', e);
+        }}
+    }}
+    
+    // اگر دیپ لینک کار نکرد، به صفحه دانلود برو
+    if (appLinks[appId]) {{
+        window.open(appLinks[appId], '_blank');
+        toast('📥 لینک دانلود ' + appId, 'ok');
     }} else {{
         toast('📋 لینک در کلیپ‌بورد', 'ok');
         copySub();
@@ -2136,7 +2120,6 @@ document.addEventListener('click', function(e) {{
 
 applyTheme(currentTheme);
 
-// انیمیشن نوار پیشرفت
 setTimeout(() => {{
     const fill = document.getElementById('progressFill');
     if (fill) fill.style.width = '{percent:.1f}%';
