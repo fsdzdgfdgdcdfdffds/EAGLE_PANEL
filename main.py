@@ -38,12 +38,14 @@ CONFIG = {
     "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", os.environ.get("RENDER_EXTERNAL_URL", "localhost")),
 }
 
-# ===== رمز و توکن ثابت =====
-ADMIN_PASSWORD = "ARMIN9259.A"
-ACCESS_TOKEN = "QWPLOBYTROI"
+# ===== دو نوع توکن =====
+# توکن کامل - همه چیز رو میبینه (ادمین)
+ADMIN_TOKEN = "PERSEPOLIS-ADMIN-2024"
+# توکن محدود - همه چیز بجز تنظیمات و لاگ
+USER_TOKEN = "PERSEPOLIS-USER-2024"
 
 # ─── App ──────────────────────────────────────────────────────────────────────
-app = FastAPI(title="🏛️ Persepolis Gateway v12", docs_url=None, redoc_url=None)
+app = FastAPI(title="🏛️ Persepolis Gateway v13", docs_url=None, redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -400,8 +402,8 @@ async def startup():
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
     await load_state()
     
-    log_activity("system", "🏛️ Persepolis Gateway v12 راه‌اندازی شد", "ok")
-    logger.info(f"🏛️ Persepolis Gateway v12 started on port {CONFIG['port']}")
+    log_activity("system", "🏛️ Persepolis Gateway v13 راه‌اندازی شد", "ok")
+    logger.info(f"🏛️ Persepolis Gateway v13 started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -434,26 +436,6 @@ async def set_theme(request: Request, _=Depends(require_auth)):
         await save_state()
         return {"ok": True, "theme": theme}
     raise HTTPException(status_code=400, detail="تم نامعتبر")
-
-@app.post("/api/change-password")
-async def change_password(request: Request, _=Depends(require_admin)):
-    global ADMIN_PASSWORD
-    body = await request.json()
-    old = body.get("old_password", "").strip()
-    new = body.get("new_password", "").strip()
-    
-    if not old or not new or len(new) < 4:
-        raise HTTPException(400, "رمز جدید حداقل 4 کاراکتر")
-    
-    if old != ADMIN_PASSWORD:
-        raise HTTPException(403, "رمز فعلی اشتباه")
-    
-    ADMIN_PASSWORD = new
-    
-    await save_state()
-    log_activity("settings", "رمز پنل تغییر کرد", "ok")
-    
-    return {"ok": True}
 
 @app.get("/api/settings")
 async def get_settings(_=Depends(require_auth)):
@@ -837,33 +819,27 @@ async def get_connections(_=Depends(require_auth)):
 async def api_login(request: Request):
     body = await request.json()
     ip = client_ip(request)
-    password = body.get("password", "")
-    remember = body.get("remember", False)
-    is_token = body.get("is_token", False)
     token_input = body.get("token", "").strip().upper()
+    remember = body.get("remember", False)
     
     is_admin = False
     
-    if is_token:
-        # ورود با توکن
-        if token_input != ACCESS_TOKEN:
-            log_activity("auth", f"تلاش ورود ناموفق با توکن از {ip}", "err")
-            raise HTTPException(status_code=401, detail="توکن نامعتبر است")
-        is_admin = False
-        log_activity("auth", f"ورود موفق با توکن از {ip}", "ok")
-    else:
-        # ورود با رمز (فقط ادمین)
-        if password != ADMIN_PASSWORD:
-            log_activity("auth", f"تلاش ورود ناموفق با رمز از {ip}", "err")
-            raise HTTPException(status_code=401, detail="رمز عبور اشتباه است")
+    # چک کردن توکن
+    if token_input == ADMIN_TOKEN:
         is_admin = True
-        log_activity("auth", f"ورود موفق به پنل از {ip} (ادمین)", "ok")
+        log_activity("auth", f"ورود موفق با توکن کامل از {ip} (ادمین)", "ok")
+    elif token_input == USER_TOKEN:
+        is_admin = False
+        log_activity("auth", f"ورود موفق با توکن محدود از {ip} (کاربر)", "ok")
+    else:
+        log_activity("auth", f"تلاش ورود ناموفق با توکن از {ip}", "err")
+        raise HTTPException(status_code=401, detail="توکن نامعتبر است")
     
-    token = await create_session(is_admin=is_admin)
+    session_token = await create_session(is_admin=is_admin)
     
     max_age = SESSION_TTL if remember else None
     resp = JSONResponse({"ok": True, "is_admin": is_admin})
-    resp.set_cookie(SESSION_COOKIE, token, max_age=max_age, httponly=True, samesite="lax", path="/")
+    resp.set_cookie(SESSION_COOKIE, session_token, max_age=max_age, httponly=True, samesite="lax", path="/")
     return resp
 
 @app.post("/api/logout")
@@ -881,7 +857,7 @@ async def api_me(request: Request):
         return {"authenticated": False, "is_admin": False}
     return {"authenticated": True, "is_admin": info.get("is_admin", False)}
 
-# ─── API: Activity Logs ───────────────────────────────────────────────────────
+# ─── API: Activity Logs (فقط ادمین) ──────────────────────────────────────
 
 @app.get("/api/activity")
 async def get_activity_logs(_=Depends(require_admin)):
@@ -889,7 +865,7 @@ async def get_activity_logs(_=Depends(require_admin)):
     logs = list(activity_logs)[-limit:]
     return {"logs": logs}
 
-# ─── Backup ────────────────────────────────────────────────────────────────────
+# ─── Backup (همه میتونن دانلود کنن، فقط ادمین بازیابی) ──────────────────
 
 @app.get("/api/backup")
 async def get_backup(_=Depends(require_auth)):
@@ -909,11 +885,12 @@ async def get_backup(_=Depends(require_auth)):
         "hourly_traffic": dict(hourly_traffic),
         "hourly_traffic_history": hist_dict,
         "exported_at": datetime.now().isoformat(),
-        "version": "12.0"
+        "version": "13.0"
     }
 
 @app.post("/api/backup/restore")
 async def restore_backup(request: Request, _=Depends(require_admin)):
+    """فقط ادمین میتونه بکاپ بازیابی کنه"""
     global hourly_traffic_history
     try:
         body = await request.json()
@@ -1650,7 +1627,7 @@ async def root():
     return HTMLResponse("""
     <!DOCTYPE html>
     <html>
-    <head><meta charset="UTF-8"><title>🏛️ Persepolis Gateway v12</title>
+    <head><meta charset="UTF-8"><title>🏛️ Persepolis Gateway v13</title>
     <style>
     body{font-family:sans-serif;background:#0a0a1a;color:#F5ECD7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
     .card{text-align:center;padding:40px;background:rgba(20,15,10,0.7);border-radius:20px;border:1px solid rgba(212,175,55,0.2)}
@@ -1662,7 +1639,7 @@ async def root():
     <body>
     <div class="card">
         <h1>🏛️</h1>
-        <h2>Persepolis Gateway v12</h2>
+        <h2>Persepolis Gateway v13</h2>
         <p class="sub">پنل مدیریت فیلترشکن</p>
         <a href="/login">ورود به پنل →</a>
     </div>
