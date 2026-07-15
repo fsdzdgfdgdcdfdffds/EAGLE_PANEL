@@ -1,4 +1,4 @@
-# pages.py - پنل تخت جمشید با ورود توکن + رمز
+# pages.py - پنل تخت جمشید با یوزرنیم و رمز PERSEPOLIS
 
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -58,11 +58,6 @@ body{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-item
 .lang-toggle button{background:none;border:none;color:var(--t3);font-family:inherit;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;transition:.3s}
 .lang-toggle button.active{background:linear-gradient(135deg,#D4A843,#B8922E);color:#1a1208}
 .lang-toggle button:hover:not(.active){color:var(--t1)}
-.toggle-type{display:flex;gap:8px;margin-bottom:20px;background:rgba(212,175,55,0.03);border-radius:10px;padding:4px;border:1px solid var(--border)}
-.toggle-type button{flex:1;padding:8px;border:none;border-radius:8px;background:transparent;color:var(--t3);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.3s}
-.toggle-type button.active{background:linear-gradient(135deg,#D4A843,#B8922E);color:#1a1208;box-shadow:0 4px 15px rgba(212,175,55,.2)}
-.toggle-type button:hover:not(.active){color:var(--t1)}
-.token-hint{font-size:9px;color:var(--t3);text-align:center;margin-top:4px;font-family:monospace;letter-spacing:2px}
 @media(max-width:900px){.container{grid-template-columns:1fr}.info-section{display:none}.login-section{padding:32px 24px}}
 @media(max-width:480px){.login-section{padding:24px 16px}.welcome{font-size:19px}}
 </style>
@@ -90,28 +85,21 @@ body{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-item
         <div class="brand"><div class="brand-icon">🏛️</div><div><div class="brand-text">تخت جمشید</div><div class="brand-sub">مدیریت کاربران</div></div></div>
         <div class="welcome" id="welcome-text">خوش آمدید</div>
         <div class="sub-text" id="sub-text">وارد پنل مدیریت شوید</div>
-        
-        <div class="toggle-type">
-            <button class="active" onclick="setLoginType('password')" id="btn-password">🔑 رمز</button>
-            <button onclick="setLoginType('token')" id="btn-token">🎫 توکن</button>
-        </div>
-        
         <div class="error-box" id="error-box"><i class="ti ti-alert-circle"></i><span id="error-text"></span></div>
         <form id="login-form" onsubmit="handleLogin(event)">
-            <div class="field" id="password-field">
+            <div class="field">
+                <label id="label-username">نام کاربری</label>
+                <input type="text" id="username" placeholder="نام کاربری را وارد کنید" value="admin" dir="ltr">
+            </div>
+            <div class="field">
                 <label id="label-password">رمز عبور</label>
                 <input type="password" id="password" placeholder="رمز عبور را وارد کنید" dir="ltr">
-            </div>
-            <div class="field" id="token-field" style="display:none">
-                <label id="label-token">توکن</label>
-                <input type="text" id="token" placeholder="توکن را وارد کنید" dir="ltr" style="font-family:monospace;letter-spacing:2px">
-                <div class="token-hint">💡 توکن: QWPLOBYTROI</div>
             </div>
             <div class="options"><label><input type="checkbox" id="remember"> <span id="remember-text">مرا به خاطر بسپار</span></label></div>
             <button class="btn-login" type="submit" id="login-btn"><i class="ti ti-login-2"></i> <span id="login-text">ورود</span></button>
         </form>
         <div class="or-divider"><span id="or-text">یا</span></div>
-        <button class="connect-btn" onclick="quickConnect()"><i class="ti ti-plug"></i> <span id="connect-text">ورود با توکن</span></button>
+        <button class="connect-btn" onclick="quickConnect()"><i class="ti ti-plug"></i> <span id="connect-text">ورود با یک کلیک</span></button>
     </div>
     <div class="info-section">
         <div class="info-title" id="info-title">🏛️ تخت جمشید</div>
@@ -129,12 +117,12 @@ const translations={
 fa:{
 welcome:"خوش آمدید",
 sub:"وارد پنل مدیریت شوید",
+username:"نام کاربری",
 password:"رمز عبور",
-token:"توکن",
 remember:"مرا به خاطر بسپار",
 login:"ورود",
 or:"یا",
-connect:"ورود با توکن",
+connect:"ورود با یک کلیک",
 secure:"امن",
 secure_d:"حریم خصوصی شما",
 fast:"سریع",
@@ -149,12 +137,12 @@ info_sub:"سریع‌ترین و امن‌ترین اتصال"
 en:{
 welcome:"Welcome Back",
 sub:"Login to panel",
+username:"Username",
 password:"Password",
-token:"Token",
 remember:"Remember me",
 login:"Login",
 or:"OR",
-connect:"Login with Token",
+connect:"Quick Login",
 secure:"Secure",
 secure_d:"Your Privacy",
 fast:"Fast",
@@ -167,19 +155,11 @@ info_title:"🏛️ Persepolis Panel",
 info_sub:"Fastest & Most Secure Connection"
 }};
 let currentLang=localStorage.getItem('persepolis-lang')||'fa';
-let loginType='password';
-const ADMIN_PASSWORD='ARMIN9259.A';
-const ACCESS_TOKEN='QWPLOBYTROI';
+const ADMIN_USERNAME="admin";
+const ADMIN_PASSWORD="PERSEPOLIS";
 
 function setLang(lang){currentLang=lang;localStorage.setItem('persepolis-lang',lang);document.querySelectorAll('.lang-toggle button').forEach(b=>b.classList.toggle('active',b.textContent.includes(lang==='fa'?'فارسی':'English')));updateTexts()}
-function updateTexts(){const t=translations[currentLang];document.getElementById('welcome-text').textContent=t.welcome;document.getElementById('sub-text').textContent=t.sub;document.getElementById('label-password').textContent=t.password;document.getElementById('label-token').textContent=t.token;document.getElementById('remember-text').textContent=t.remember;document.getElementById('login-text').textContent=t.login;document.getElementById('or-text').textContent=t.or;document.getElementById('connect-text').textContent=t.connect;document.getElementById('f-secure').textContent=t.secure;document.getElementById('f-secure-d').textContent=t.secure_d;document.getElementById('f-fast').textContent=t.fast;document.getElementById('f-fast-d').textContent=t.fast_d;document.getElementById('f-global').textContent=t.global;document.getElementById('f-global-d').textContent=t.global_d;document.getElementById('f-anon').textContent=t.anon;document.getElementById('f-anon-d').textContent=t.anon_d;document.getElementById('info-title').textContent=t.info_title;document.getElementById('info-sub').textContent=t.info_sub}
-
-function setLoginType(type){
-loginType=type;
-document.querySelectorAll('.toggle-type button').forEach(b=>b.classList.toggle('active',b.textContent.includes(type==='password'?'🔑':'🎫')));
-document.getElementById('password-field').style.display=type==='password'?'block':'none';
-document.getElementById('token-field').style.display=type==='token'?'block':'none';
-}
+function updateTexts(){const t=translations[currentLang];document.getElementById('welcome-text').textContent=t.welcome;document.getElementById('sub-text').textContent=t.sub;document.getElementById('label-username').textContent=t.username;document.getElementById('label-password').textContent=t.password;document.getElementById('remember-text').textContent=t.remember;document.getElementById('login-text').textContent=t.login;document.getElementById('or-text').textContent=t.or;document.getElementById('connect-text').textContent=t.connect;document.getElementById('f-secure').textContent=t.secure;document.getElementById('f-secure-d').textContent=t.secure_d;document.getElementById('f-fast').textContent=t.fast;document.getElementById('f-fast-d').textContent=t.fast_d;document.getElementById('f-global').textContent=t.global;document.getElementById('f-global-d').textContent=t.global_d;document.getElementById('f-anon').textContent=t.anon;document.getElementById('f-anon-d').textContent=t.anon_d;document.getElementById('info-title').textContent=t.info_title;document.getElementById('info-sub').textContent=t.info_sub}
 
 async function handleLogin(e){
 e.preventDefault();
@@ -191,46 +171,19 @@ btn.disabled=true;
 btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> در حال ورود...';
 
 try{
-let password=null;
-let token=null;
-let isTokenLogin=false;
+const username=document.getElementById('username').value;
+const password=document.getElementById('password').value;
+const remember=document.getElementById('remember').checked;
 
-if(loginType==='password'){
-password=document.getElementById('password').value;
-if(password!==ADMIN_PASSWORD){
-errText.textContent='رمز عبور اشتباه است';
-err.classList.add('show');
-btn.disabled=false;
-btn.innerHTML='<i class="ti ti-login-2"></i> '+translations[currentLang].login;
-return;
-}
-}else{
-token=document.getElementById('token').value.trim().toUpperCase();
-if(token!==ACCESS_TOKEN){
-errText.textContent='توکن نامعتبر است';
-err.classList.add('show');
-btn.disabled=false;
-btn.innerHTML='<i class="ti ti-login-2"></i> '+translations[currentLang].login;
-return;
-}
-isTokenLogin=true;
-}
-
-// ارسال به سرور
 const r=await fetch('/api/login',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-password:password || token,
-remember:document.getElementById('remember').checked,
-is_token:isTokenLogin,
-token:token
-})
+body:JSON.stringify({username,password,remember})
 });
 
 if(!r.ok){
 const d=await r.json().catch(()=>({}));
-errText.textContent=d.detail||'خطا در ورود';
+errText.textContent=d.detail||'یوزرنیم یا رمز عبور اشتباه است';
 err.classList.add('show');
 btn.disabled=false;
 btn.innerHTML='<i class="ti ti-login-2"></i> '+translations[currentLang].login;
@@ -246,16 +199,15 @@ btn.innerHTML='<i class="ti ti-login-2"></i> '+translations[currentLang].login;
 }
 
 function quickConnect(){
-document.getElementById('token').value=ACCESS_TOKEN;
+document.getElementById('username').value=ADMIN_USERNAME;
+document.getElementById('password').value=ADMIN_PASSWORD;
 document.getElementById('remember').checked=true;
-setLoginType('token');
 document.getElementById('login-form').dispatchEvent(new Event('submit'));
 }
 
 document.getElementById('password').addEventListener('keydown',(e)=>{if(e.key==='Enter')document.getElementById('login-form').dispatchEvent(new Event('submit'))});
-document.getElementById('token').addEventListener('keydown',(e)=>{if(e.key==='Enter')document.getElementById('login-form').dispatchEvent(new Event('submit'))});
+document.getElementById('username').addEventListener('keydown',(e)=>{if(e.key==='Enter')document.getElementById('login-form').dispatchEvent(new Event('submit'))});
 setLang(currentLang);
-setLoginType('password');
 </script>
 </body></html>"""
 
@@ -393,7 +345,6 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .btn-amber:hover{background:rgba(245,158,11,0.15);transform:translateY(-1px)}
 .btn-sm{padding:2px 6px;font-size:8px;border-radius:4px}
 .btn-icon{width:22px;height:22px;padding:0;justify-content:center}
-.btn-hidden{display:none !important}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
 .modal-bg.open{display:flex}
@@ -611,8 +562,8 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
     <div class="nav-it" data-pg="users"><i class="ti ti-users"></i> <span id="nav-users">کاربران</span></div>
     <div class="nav-it" data-pg="inbound"><i class="ti ti-plug"></i> <span id="nav-inbound">اینباند</span></div>
     <div class="nav-it" data-pg="connections"><i class="ti ti-plug-connected"></i> <span id="nav-connections">اتصالات</span></div>
-    <div id="settings-nav" class="nav-it" data-pg="settings"><i class="ti ti-settings"></i> <span id="nav-settings">تنظیمات</span></div>
-    <div id="logs-nav" class="nav-it" data-pg="logs"><i class="ti ti-notes"></i> <span id="nav-logs">لاگ‌ها</span></div>
+    <div class="nav-it" data-pg="settings"><i class="ti ti-settings"></i> <span id="nav-settings">تنظیمات</span></div>
+    <div class="nav-it" data-pg="logs"><i class="ti ti-notes"></i> <span id="nav-logs">لاگ‌ها</span></div>
     <div class="nav-it" data-pg="backup"><i class="ti ti-database"></i> <span id="nav-backup">بکاپ</span></div>
   </div>
   <div class="sb-foot"><button class="logout-btn" onclick="logout()"><i class="ti ti-logout"></i> <span id="nav-logout">خروج</span></button></div>
@@ -706,7 +657,7 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
   <div id="conns-grid" class="conn-grid"><div class="empty"><i class="ti ti-plug-off"></i><p id="no-conn">هیچ اتصالی وجود ندارد</p></div></div>
 </section>
 
-<!-- صفحه تنظیمات - فقط برای ادمین -->
+<!-- صفحه تنظیمات -->
 <section class="pg" id="pg-settings">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-settings"></i> <span id="settings-title">تنظیمات</span></div><div class="tb-sub" id="settings-sub">مدیریت پنل</div></div></div>
   
@@ -714,13 +665,11 @@ body.light-theme .chart-section{background:rgba(255,255,255,0.8)}
   
   <div class="settings-card"><div class="title"><i class="ti ti-language"></i> <span id="set-lang-title">زبان پنل</span></div><div style="display:flex;gap:6px;margin-top:4px"><button class="btn btn-pur" onclick="setLang('fa')" style="flex:1;font-size:11px;padding:6px 12px" id="lang-fa-btn">🇮🇷 فارسی</button><button class="btn btn-o" onclick="setLang('en')" style="flex:1;font-size:11px;padding:6px 12px" id="lang-en-btn">🇬🇧 English</button></div><div style="font-size:9px;color:var(--t3);margin-top:6px">💡 <span id="set-current-lang">زبان فعلی</span>: <span id="current-lang-label">فارسی</span></div></div>
   
-  <div class="settings-card"><div class="title"><i class="ti ti-key"></i> <span id="set-pass-title">تغییر رمز</span></div><div class="field"><label id="set-old-pass">رمز فعلی</label><input class="fi" id="old-password" type="password" placeholder="رمز فعلی" dir="ltr"></div><div class="field"><label id="set-new-pass">رمز جدید</label><input class="fi" id="new-password" type="password" placeholder="حداقل ۴ کاراکتر" dir="ltr"></div><div class="field"><label id="set-confirm-pass">تکرار</label><input class="fi" id="confirm-password" type="password" placeholder="تکرار" dir="ltr"></div><button class="btn btn-p" onclick="changePassword()"><i class="ti ti-key"></i> <span id="set-change-btn">تغییر</span></button><div id="password-result" style="margin-top:8px;display:none;font-size:11px;"></div></div>
-  
   <div class="settings-card"><div class="title"><i class="ti ti-color-swatch"></i> <span id="set-rgb-title">تم RGB</span></div><div class="toggle-row"><div class="toggle-label"><i class="ti ti-color-palette" style="background:linear-gradient(135deg,#ff0000,#00ff00,#0000ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent"></i> RGB</div><div class="switch" id="rgb-switch" onclick="toggleRGB()"><div class="slider"></div></div></div></div>
   
 </section>
 
-<!-- صفحه لاگ‌ها - فقط برای ادمین -->
+<!-- صفحه لاگ‌ها -->
 <section class="pg" id="pg-logs">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-notes"></i> <span id="logs-title">لاگ‌ها</span></div><div class="tb-sub" id="logs-count">۰ لاگ</div></div><div class="tb-right"><button class="btn btn-sm btn-o" onclick="loadLogs()"><i class="ti ti-refresh"></i></button></div></div>
   <div style="background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:8px 10px;max-height:400px;overflow-y:auto;transition:background .4s"><div id="logs-container" style="font-family:monospace;font-size:9px;color:var(--t2);direction:ltr;text-align:left;line-height:1.5"></div></div>
@@ -757,8 +706,7 @@ const translations = {
     settings_title: 'تنظیمات', settings_sub: 'مدیریت پنل',
     set_theme: 'تم پنل', set_dark: 'تاریک', set_light: 'روشن',
     set_current_theme: 'تم فعلی', set_lang: 'زبان پنل', set_current_lang: 'زبان فعلی',
-    set_pass: 'تغییر رمز', set_old_pass: 'رمز فعلی', set_new_pass: 'رمز جدید',
-    set_confirm_pass: 'تکرار', set_change_btn: 'تغییر', set_rgb: 'تم RGB',
+    set_rgb: 'تم RGB',
     backup_title: 'بکاپ', backup_sub: 'ذخیره و بازیابی',
     backup_download: 'بکاپ‌گیری', backup_download_btn: 'دانلود', backup_restore_btn: 'بازیابی',
     logs_title: 'لاگ‌ها',
@@ -801,8 +749,7 @@ const translations = {
     settings_title: 'Settings', settings_sub: 'Panel Settings',
     set_theme: 'Theme', set_dark: 'Dark', set_light: 'Light',
     set_current_theme: 'Current Theme', set_lang: 'Language', set_current_lang: 'Current Language',
-    set_pass: 'Change Password', set_old_pass: 'Current Password', set_new_pass: 'New Password',
-    set_confirm_pass: 'Confirm', set_change_btn: 'Change', set_rgb: 'RGB Mode',
+    set_rgb: 'RGB Mode',
     backup_title: 'Backup', backup_sub: 'Save & Restore',
     backup_download: 'Backup', backup_download_btn: 'Download', backup_restore_btn: 'Restore',
     logs_title: 'Logs',
@@ -826,37 +773,15 @@ const translations = {
   }
 };
 
-// ===== متغیرها =====
 let currentLang = localStorage.getItem('persepolis-lang') || 'fa';
 let currentTheme = localStorage.getItem('persepolis-theme') || 'dark';
 let trafficChart = null;
 let chartPeriod = '7d';
 let qrCodeInstance = null;
-let isAdmin = false;
 
 // ===== توابع =====
 function t(key) { return translations[currentLang]?.[key] || key; }
 
-// ===== چک کردن دسترسی =====
-async function checkAccess() {
-    try {
-        const r = await fetch('/api/me');
-        const data = await r.json();
-        isAdmin = data.is_admin || false;
-        
-        // اگر کاربر توکنی هست، تنظیمات و لاگ رو مخفی کن
-        if (!isAdmin) {
-            document.getElementById('settings-nav').style.display = 'none';
-            document.getElementById('logs-nav').style.display = 'none';
-            document.querySelector('.nav-it[data-pg="settings"]').style.display = 'none';
-            document.querySelector('.nav-it[data-pg="logs"]').style.display = 'none';
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-// ===== توابع تم =====
 function setTheme(theme) {
   currentTheme = theme;
   localStorage.setItem('persepolis-theme', theme);
@@ -892,7 +817,6 @@ async function loadThemeFromServer() {
   } catch(e) { setTheme(currentTheme); }
 }
 
-// ===== توابع زبان =====
 function setLang(lang) {
   currentLang = lang;
   localStorage.setItem('persepolis-lang', lang);
@@ -975,11 +899,6 @@ function updateUITexts() {
   document.getElementById('set-current-theme').textContent = t.set_current_theme;
   document.getElementById('set-lang-title').textContent = t.set_lang;
   document.getElementById('set-current-lang').textContent = t.set_current_lang;
-  document.getElementById('set-pass-title').textContent = t.set_pass;
-  document.getElementById('set-old-pass').textContent = t.set_old_pass;
-  document.getElementById('set-new-pass').textContent = t.set_new_pass;
-  document.getElementById('set-confirm-pass').textContent = t.set_confirm_pass;
-  document.getElementById('set-change-btn').textContent = t.set_change_btn;
   document.getElementById('set-rgb-title').textContent = t.set_rgb;
   
   document.getElementById('backup-title').textContent = t.backup_title;
@@ -1461,9 +1380,8 @@ async function loadConnections() {
   } catch(e) { console.error(e); }
 }
 
-// ===== بارگذاری لاگ‌ها (فقط ادمین) =====
+// ===== بارگذاری لاگ‌ها =====
 async function loadLogs() {
-  if (!isAdmin) return;
   try {
     const r = await authF('/api/activity');
     const data = await r.json();
@@ -1514,61 +1432,6 @@ async function toggleRGB() {
   } catch(e) { toast('❌ ' + (currentLang === 'fa' ? 'خطا' : 'Error'), 'err'); }
 }
 
-// ===== تغییر رمز (فقط ادمین) =====
-async function changePassword() {
-  if (!isAdmin) {
-    toast('⛔ ' + (currentLang === 'fa' ? 'شما دسترسی ندارید!' : 'Access denied!'), 'err');
-    return;
-  }
-  const oldPw = document.getElementById('old-password').value;
-  const newPw = document.getElementById('new-password').value;
-  const confirmPw = document.getElementById('confirm-password').value;
-  const result = document.getElementById('password-result');
-  if (!oldPw || !newPw || !confirmPw) {
-    result.style.display = 'block';
-    result.style.color = '#F87171';
-    result.innerHTML = '❌ ' + (currentLang === 'fa' ? 'همه فیلدها را پر کنید' : 'Fill all fields');
-    return;
-  }
-  if (newPw.length < 4) {
-    result.style.display = 'block';
-    result.style.color = '#F87171';
-    result.innerHTML = '❌ ' + (currentLang === 'fa' ? 'حداقل ۴ کاراکتر' : 'Minimum 4 characters');
-    return;
-  }
-  if (newPw !== confirmPw) {
-    result.style.display = 'block';
-    result.style.color = '#F87171';
-    result.innerHTML = '❌ ' + (currentLang === 'fa' ? 'رمزها مطابقت ندارند' : 'Passwords do not match');
-    return;
-  }
-  try {
-    const r = await authF('/api/change-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_password: oldPw, new_password: newPw })
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      result.style.display = 'block';
-      result.style.color = '#F87171';
-      result.innerHTML = '❌ ' + (data.detail || data.message || (currentLang === 'fa' ? 'خطا' : 'Error'));
-      return;
-    }
-    result.style.display = 'block';
-    result.style.color = '#34D399';
-    result.innerHTML = '✅ ' + (currentLang === 'fa' ? 'رمز تغییر کرد!' : 'Password changed!');
-    document.getElementById('old-password').value = '';
-    document.getElementById('new-password').value = '';
-    document.getElementById('confirm-password').value = '';
-    toast('✅ ' + (currentLang === 'fa' ? 'رمز تغییر کرد' : 'Password changed'), 'ok');
-  } catch(e) {
-    result.style.display = 'block';
-    result.style.color = '#F87171';
-    result.innerHTML = '❌ ' + (currentLang === 'fa' ? 'خطا' : 'Error');
-  }
-}
-
 // ===== بکاپ =====
 async function createBackup() {
   try {
@@ -1609,13 +1472,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const r = await fetch('/api/me');
     const d = await r.json();
     if (!d.authenticated) location.href = '/login';
-    isAdmin = d.is_admin || false;
-    
-    // مخفی کردن تنظیمات و لاگ برای کاربر عادی
-    if (!isAdmin) {
-      document.getElementById('settings-nav').style.display = 'none';
-      document.getElementById('logs-nav').style.display = 'none';
-    }
   } catch(e) { location.href = '/login'; }
   
   await loadThemeFromServer();
@@ -1626,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadInbound();
   loadUsers();
   loadConnections();
-  if (isAdmin) loadLogs();
+  loadLogs();
   
   setInterval(() => {
     if (document.getElementById('pg-dashboard').classList.contains('on')) loadDashboard();
@@ -1926,7 +1782,7 @@ body{{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-ite
         <button class="btn btn-secondary" onclick="copyVless()" id="copyVlessBtn"><i class="ti ti-copy"></i> کپی کانفیگ</button>
     </div>
 
-    <div class="footer"><span class="eagle">🏛️</span> تخت جمشید · نسخه ۱۲ · {protocol_icon} {protocol_name} · {http_name}</div>
+    <div class="footer"><span class="eagle">🏛️</span> تخت جمشید · نسخه ۱۳ · {protocol_icon} {protocol_name} · {http_name}</div>
 </div>
 
 <script>
