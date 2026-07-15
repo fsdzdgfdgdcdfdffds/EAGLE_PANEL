@@ -36,9 +36,10 @@ CONFIG = {
     "port": int(os.environ.get("PORT", 8000)),
     "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
     "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", os.environ.get("RENDER_EXTERNAL_URL", "localhost")),
-    "admin_password": os.environ.get("ADMIN_PASSWORD", "ARMIN9259.A"),
-    "access_token": os.environ.get("ACCESS_TOKEN", "QWPLOBYTROI"),
 }
+
+ADMIN_PASSWORD = "ARMIN9259.A"
+ACCESS_TOKEN = "QWPLOBYTROI"
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 app = FastAPI(title="🏛️ Persepolis Gateway v12", docs_url=None, redoc_url=None)
@@ -79,9 +80,6 @@ http_client: httpx.AsyncClient | None = None
 # ─── Auth ──────────────────────────────────────────────────────────────────────
 SESSION_COOKIE = "persepolis_session"
 SESSION_TTL = 60 * 60 * 24 * 7
-ADMIN_PASSWORD = CONFIG["admin_password"]
-ACCESS_TOKEN = CONFIG["access_token"]
-AUTH = {"password_hash": hashlib.sha256(f"{ADMIN_PASSWORD}{CONFIG['secret']}".encode()).hexdigest()}
 SESSIONS: dict = {}  # token -> {"expiry": time, "is_admin": bool}
 SESSIONS_LOCK = asyncio.Lock()
 
@@ -131,9 +129,6 @@ FINGERPRINTS = {
 
 def now_ir() -> datetime:
     return datetime.now(IRAN_TZ)
-
-def hash_password(pw: str) -> str:
-    return hashlib.sha256(f"{pw}{CONFIG['secret']}".encode()).hexdigest()
 
 def generate_uuid() -> str:
     h = secrets.token_hex(16)
@@ -216,7 +211,6 @@ def is_link_allowed(link: dict | None) -> bool:
 def generate_vless_link(uuid: str, host: str, remark: str = "", protocol: str = DEFAULT_PROTOCOL, 
                         fingerprint: str = "chrome", port: int = DEFAULT_PORT, 
                         sni: str = None, http_version: str = "h2", fake_port: bool = False) -> str:
-    """ساخت لینک VLESS با پشتیبانی از پروتکل‌های مختلف و HTTP/2, HTTP/3"""
     if not remark:
         remark = "تختجمشید"
     
@@ -242,14 +236,12 @@ def generate_vless_link(uuid: str, host: str, remark: str = "", protocol: str = 
         params["type"] = "ws"
         params["host"] = host
         params["path"] = f"/{proto_type}/{uuid}"
-        
         if http_version == "h3":
             params["quic"] = "true"
             
     elif proto_type == "grpc":
         params["type"] = "grpc"
         params["serviceName"] = f"{uuid}.service"
-        
         if http_version == "h3":
             params["quic"] = "true"
             
@@ -259,7 +251,6 @@ def generate_vless_link(uuid: str, host: str, remark: str = "", protocol: str = 
         params["mode"] = mode
         params["host"] = host
         params["path"] = f"/xhttp-siz10/{mode}/{uuid}"
-        
         if http_version == "h3":
             params["quic"] = "true"
             
@@ -352,7 +343,7 @@ async def require_admin(request: Request):
 # ─── State Persistence ──────────────────────────────────────────────────────
 
 async def load_state():
-    global LINKS, SUBS, AUTH, SETTINGS, hourly_traffic_history, hourly_traffic
+    global LINKS, SUBS, SETTINGS, hourly_traffic_history, hourly_traffic
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         if DATA_FILE.exists():
@@ -361,8 +352,6 @@ async def load_state():
             data = json.loads(raw)
             LINKS.update(data.get("links", {}))
             SUBS.update(data.get("subs", {}))
-            if "password_hash" in data:
-                AUTH["password_hash"] = data["password_hash"]
             if "settings" in data:
                 SETTINGS.update(data["settings"])
             if "hourly_traffic" in data:
@@ -388,7 +377,6 @@ async def save_state():
             data = {
                 "links": dict(LINKS),
                 "subs": dict(SUBS),
-                "password_hash": AUTH["password_hash"],
                 "settings": SETTINGS,
                 "hourly_traffic": dict(hourly_traffic),
                 "hourly_traffic_history": hist_dict,
@@ -448,7 +436,7 @@ async def set_theme(request: Request, _=Depends(require_auth)):
 
 @app.post("/api/change-password")
 async def change_password(request: Request, _=Depends(require_admin)):
-    """تغییر رمز - فقط ادمین"""
+    global ADMIN_PASSWORD
     body = await request.json()
     old = body.get("old_password", "").strip()
     new = body.get("new_password", "").strip()
@@ -456,11 +444,10 @@ async def change_password(request: Request, _=Depends(require_admin)):
     if not old or not new or len(new) < 4:
         raise HTTPException(400, "رمز جدید حداقل 4 کاراکتر")
     
-    if hash_password(old) != AUTH["password_hash"]:
+    if old != ADMIN_PASSWORD:
         raise HTTPException(403, "رمز فعلی اشتباه")
     
-    AUTH["password_hash"] = hash_password(new)
-    CONFIG["admin_password"] = new
+    ADMIN_PASSWORD = new
     os.environ["ADMIN_PASSWORD"] = new
     
     await save_state()
@@ -561,8 +548,7 @@ async def create_link(request: Request, _=Depends(require_auth)):
     if fingerprint not in FINGERPRINTS:
         fingerprint = "chrome"
     config_password = body.get("password", "").strip()
-    password_hash = hash_password(config_password) if config_password else None
-
+    
     uid = generate_uuid()
     async with LINKS_LOCK:
         LINKS[uid] = {
@@ -579,7 +565,7 @@ async def create_link(request: Request, _=Depends(require_auth)):
             "http_version": http_version,
             "max_devices": max_devices,
             "fingerprint": fingerprint,
-            "password_hash": password_hash,
+            "password_hash": config_password,
         }
 
     if sub_id:
@@ -602,7 +588,7 @@ async def create_link(request: Request, _=Depends(require_auth)):
     link_data = {
         "uuid": uid,
         **LINKS[uid],
-        "has_password": password_hash is not None,
+        "has_password": bool(config_password),
         "vless_link": main_link,
         "sub_url": f"https://{host}/sub/{uid}",
         "warning_config": "",
@@ -645,7 +631,7 @@ async def list_links(_=Depends(require_auth)):
             "fingerprint": fp,
             "max_devices": d.get("max_devices", 0),
             "expired": is_link_expired(d),
-            "has_password": d.get("password_hash") is not None,
+            "has_password": bool(d.get("password_hash")),
             "last_connected_at": last_connected,
             "vless_link": generate_vless_link(uid, host, remark=remark, protocol=protocol, fingerprint=fp, port=DEFAULT_PORT, http_version=http_version, fake_port=False),
             "sub_url": f"https://{host}/sub/{uid}",
@@ -665,9 +651,7 @@ async def update_link(uid: str, request: Request, _=Depends(require_auth)):
         
         if link.get("password_hash"):
             password = body.get("password", "").strip()
-            if not password:
-                raise HTTPException(status_code=403, detail="برای ویرایش این کانفیگ رمز آن را وارد کنید")
-            if hash_password(password) != link["password_hash"]:
+            if not password or password != link["password_hash"]:
                 raise HTTPException(status_code=403, detail="رمز کانفیگ اشتباه است")
         
         old_sub = link.get("sub_id")
@@ -729,9 +713,7 @@ async def delete_link(uid: str, request: Request, _=Depends(require_auth)):
         link = LINKS[uid]
         
         if link.get("password_hash"):
-            if not password:
-                raise HTTPException(status_code=403, detail="برای حذف این کانفیگ رمز آن را وارد کنید")
-            if hash_password(password) != link["password_hash"]:
+            if not password or password != link["password_hash"]:
                 raise HTTPException(status_code=403, detail="رمز کانفیگ اشتباه است")
         
         label = link.get("label", uid)
@@ -871,7 +853,7 @@ async def api_login(request: Request):
         log_activity("auth", f"ورود موفق با توکن از {ip}", "ok")
     else:
         # ورود با رمز (فقط ادمین)
-        if hash_password(str(password)) != AUTH["password_hash"]:
+        if password != ADMIN_PASSWORD:
             log_activity("auth", f"تلاش ورود ناموفق با رمز از {ip}", "err")
             raise HTTPException(status_code=401, detail="رمز عبور اشتباه است")
         is_admin = True
@@ -903,7 +885,6 @@ async def api_me(request: Request):
 
 @app.get("/api/activity")
 async def get_activity_logs(_=Depends(require_admin)):
-    """فقط ادمین میتونه لاگ‌ها رو ببینه"""
     limit = 100
     logs = list(activity_logs)[-limit:]
     return {"logs": logs}
@@ -924,7 +905,6 @@ async def get_backup(_=Depends(require_auth)):
     return {
         "links": links,
         "subs": subs,
-        "password_hash": AUTH["password_hash"],
         "settings": SETTINGS,
         "hourly_traffic": dict(hourly_traffic),
         "hourly_traffic_history": hist_dict,
@@ -934,7 +914,6 @@ async def get_backup(_=Depends(require_auth)):
 
 @app.post("/api/backup/restore")
 async def restore_backup(request: Request, _=Depends(require_admin)):
-    """فقط ادمین میتونه بکاپ بازیابی کنه"""
     global hourly_traffic_history
     try:
         body = await request.json()
@@ -954,9 +933,6 @@ async def restore_backup(request: Request, _=Depends(require_admin)):
                     if not isinstance(sub_data, dict):
                         continue
                     SUBS[sid] = sub_data
-        
-        if "password_hash" in body:
-            AUTH["password_hash"] = body["password_hash"]
         
         if "settings" in body and isinstance(body["settings"], dict):
             SETTINGS.update(body["settings"])
@@ -1341,7 +1317,6 @@ async def subscription_single(request: Request, uuid: str):
             user_ip = c.get("ip", "نامشخص")
             break
     
-    # ساخت ۳ کانفیگ
     proto_icon = PROTOCOLS.get(protocol, PROTOCOLS["vless-ws"])["icon"]
     proto_name = PROTOCOLS.get(protocol, PROTOCOLS["vless-ws"])["name"]
     http_name = HTTP_VERSIONS.get(http_version, HTTP_VERSIONS["h2"])["name"]
@@ -1453,7 +1428,7 @@ async def sub_group_subscription(uuid_key: str, request: Request):
 
     if sub.get("password_hash"):
         pw = request.query_params.get("pw", "")
-        if hash_password(pw) != sub["password_hash"]:
+        if pw != sub["password_hash"]:
             raise HTTPException(status_code=403, detail="wrong password")
 
     host = get_host()
