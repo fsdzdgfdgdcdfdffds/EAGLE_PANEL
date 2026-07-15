@@ -1305,7 +1305,6 @@ async def subscription_single(request: Request, uuid: str):
         )
     
     # ===== اگر مرورگر =====
-    # تابع get_sub_page_html از pages.py دریافت میشه
     from pages import get_sub_page_html
     
     active_connections_list = []
@@ -1350,7 +1349,6 @@ async def subscription_single(request: Request, uuid: str):
         "http_name": http_name,
         "fingerprint": fingerprint,
         "label": label,
-        "expires_at": expires_at,
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
@@ -1583,7 +1581,6 @@ async def info_page(uuid: str, request: Request):
         "http_name": http_name,
         "fingerprint": fingerprint,
         "label": label,
-        "expires_at": expires_at,
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
