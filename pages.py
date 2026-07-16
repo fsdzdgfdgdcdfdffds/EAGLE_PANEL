@@ -1,4 +1,4 @@
-# pages.py - پنل تخت جمشید ۳.۰ (نسخه کامل با محدودیت سرعت)
+# pages.py - پنل تخت جمشید ۳.۰ (نسخه کامل بدون خطا)
 
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -68,7 +68,6 @@ body{font-family:'Vazirmatn',sans-serif;min-height:100vh;display:flex;align-item
 .lang-toggle button{background:none;border:none;color:var(--t3);font-family:inherit;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;transition:.3s}
 .lang-toggle button.active{background:linear-gradient(135deg,#C9A84C,#A8883A);color:#1a1208}
 .lang-toggle button:hover:not(.active){color:var(--t1)}
-
 @media(max-width:900px){
   .container{grid-template-columns:1fr;border-radius:20px;max-width:480px}
   .info-section{display:none}
@@ -160,6 +159,11 @@ setLang(currentLang);
 </script>
 </body></html>"""
 
+
+# ============================================================
+# DASHBOARD_HTML (قسمت‌های کلیدی که تغییر میکنه)
+# ============================================================
+
 DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -176,6 +180,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/rangePlugin.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/fa.js"></script>
 <style>
+/* ===== تمام استایل‌های قبلی ===== */
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0a0508;--bg2:#12080a;--bg3:#1a0f0a;--card:rgba(10,5,8,0.8);--card-b:rgba(201,168,76,0.06);--card-bh:rgba(201,168,76,0.12);--accent:#C9A84C;--accent2:#E8C84A;--accent3:#A8883A;--green:#10B981;--green-bg:rgba(16,185,129,0.08);--green-t:#34D399;--red:#EF4444;--red-bg:rgba(239,68,68,0.08);--red-t:#F87171;--amber:#F59E0B;--amber-bg:rgba(245,158,11,0.08);--amber-t:#FCD34D;--t1:#F5ECD7;--t2:#C9A84C;--t3:#8A7A4A;--sidebar-w:180px;--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.5),0 0 60px rgba(201,168,76,0.02);--safe-bottom:env(safe-area-inset-bottom,0px)}
 body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;display:flex;font-size:13px;position:relative;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
@@ -254,7 +259,6 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .stat-card .number.small{font-size:13px}
 .stat-card .label{font-size:9px;color:var(--t3);margin-top:2px;font-weight:500}
 .stat-card .sub{font-size:7px;color:var(--t3);margin-top:0px;opacity:.6}
-
 .chart-section{background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:16px;margin:12px 0;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:all .3s}
 .chart-section:hover{border-color:var(--card-bh);transform:translateY(-2px)}
 .chart-section .chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
@@ -263,7 +267,6 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 @keyframes titlePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 .chart-section .chart-sub{font-size:9px;color:var(--t3)}
 .chart-section .chart-actions{display:flex;gap:4px;flex-wrap:wrap}
-
 .users-table{width:100%;border-collapse:collapse;font-size:12px}
 .users-table thead th{padding:10px 12px;text-align:right;color:var(--t2);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--card-b);background:rgba(201,168,76,0.02)}
 .users-table tbody td{padding:8px 12px;border-bottom:1px solid var(--card-b);color:var(--t1);vertical-align:middle}
@@ -291,7 +294,6 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .user-name-cell .name{font-weight:600;color:var(--t1)}
 .user-name-cell .uuid-short{font-size:7px;color:var(--t3);font-family:monospace}
 .action-btns{display:flex;gap:2px;flex-wrap:wrap;justify-content:center}
-
 .btn{font-family:inherit;font-size:10px;font-weight:600;border-radius:6px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border:none;transition:all .3s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;touch-action:manipulation}
 .btn i{font-size:11px;transition:transform .3s}
 .btn:hover i{transform:scale(1.1)}
@@ -313,7 +315,6 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 .btn-success:hover{background:rgba(16,185,129,0.12);transform:translateY(-2px)}
 .btn-royal{background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;box-shadow:0 3px 15px rgba(124,58,237,.2)}
 .btn-royal:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(124,58,237,.3)}
-
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .modal-bg.open{display:flex}
 .modal{background:var(--card);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--card-b);border-radius:14px;padding:20px 18px;max-width:560px;width:calc(100% - 20px);max-height:90vh;overflow-y:auto;position:relative;animation:modalIn .5s cubic-bezier(0.34,1.56,0.64,1);box-shadow:var(--shadow);-webkit-overflow-scrolling:touch}
@@ -330,7 +331,6 @@ body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t1);min
 select.fi{appearance:none;cursor:pointer}
 .fi-date{color:var(--t1);background:rgba(0,0,20,.2);border:1px solid var(--card-b);border-radius:6px;padding:6px 10px;width:100%;font-family:inherit;font-size:10px;outline:none;transition:.3s;cursor:pointer}
 .fi-date:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(201,168,76,.06)}
-
 .conn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
 .conn-card{background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--card-b);border-radius:10px;padding:10px 12px;transition:.3s}
 .conn-card:hover{border-color:var(--card-bh);transform:translateY(-2px)}
@@ -338,7 +338,6 @@ select.fi{appearance:none;cursor:pointer}
 .conn-card .label{font-size:8px;color:var(--t3);margin-top:1px}
 .conn-card .conn-info{display:flex;justify-content:space-between;margin-top:4px;font-size:8px;color:var(--t2);gap:3px;flex-wrap:wrap}
 .conn-status-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#34D399;animation:pulse 1.5s infinite;margin-left:3px}
-
 .settings-card{background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--card-b);border-radius:var(--radius);padding:14px 16px;max-width:480px;margin-bottom:10px;position:relative;overflow:hidden;transition:all .3s}
 .settings-card:hover{border-color:var(--card-bh)}
 .settings-card::before{content:'';position:absolute;top:-50%;right:-50%;width:150px;height:150px;background:radial-gradient(circle,rgba(201,168,76,0.02),transparent 70%);pointer-events:none}
@@ -354,14 +353,12 @@ select.fi{appearance:none;cursor:pointer}
 .switch.on{background:linear-gradient(135deg,#C9A84C,#A8883A)}
 .switch .slider{position:absolute;top:2px;right:2px;width:16px;height:16px;background:#1a1208;border-radius:50%;transition:.4s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 2px 4px rgba(0,0,0,0.2)}
 .switch.on .slider{right:18px}
-
 .toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(50px);background:var(--card);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--card-b);color:var(--t1);border-radius:8px;padding:8px 16px;font-size:11px;opacity:0;transition:all .4s cubic-bezier(0.34,1.56,0.64,1);z-index:999;pointer-events:none;box-shadow:var(--shadow);display:flex;align-items:center;gap:5px;max-width:90%}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.ok{border-color:rgba(16,185,129,.2);background:var(--green-bg);color:var(--green-t)}
 .toast.err{border-color:rgba(239,68,68,.2);background:var(--red-bg);color:var(--red-t)}
 .toast.warn{border-color:rgba(245,158,11,.2);background:var(--amber-bg);color:var(--amber-t)}
 .toast.info{border-color:rgba(201,168,76,.2);background:rgba(201,168,76,0.08);color:var(--accent2)}
-
 .bottom-nav{display:none;position:fixed;bottom:0;right:0;left:0;background:var(--card);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-top:1px solid var(--card-b);z-index:300;padding:4px 2px calc(6px + var(--safe-bottom));justify-content:space-around;align-items:center}
 .bottom-nav .nav-item{display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--t3);font-size:7px;cursor:pointer;padding:3px 6px;border-radius:6px;transition:all .3s;border:none;background:none;font-family:inherit;min-width:40px;position:relative}
 .bottom-nav .nav-item i{font-size:16px;transition:all .3s}
@@ -369,12 +366,10 @@ select.fi{appearance:none;cursor:pointer}
 .bottom-nav .nav-item.active{color:var(--accent)}
 .bottom-nav .nav-item.active i{transform:scale(1.1)}
 .bottom-nav .nav-item .badge-dot{position:absolute;top:0;right:50%;width:6px;height:6px;background:var(--red);border-radius:50%;animation:pulse 1.5s infinite}
-
 .clock-widget{display:flex;flex-direction:column;align-items:center;background:rgba(201,168,76,0.03);border:1px solid var(--card-b);border-radius:10px;padding:6px 12px;min-width:100px}
 .clock-widget .time{font-size:16px;font-weight:800;color:var(--t1);font-family:monospace}
 .clock-widget .date{font-size:7px;color:var(--t3);margin-top:1px}
 .clock-widget .persian-date{font-size:7px;color:var(--t2);margin-top:1px}
-
 .top-users-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:6px}
 .top-user-card{background:rgba(201,168,76,0.02);border:1px solid var(--card-b);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px;transition:all .3s}
 .top-user-card:hover{transform:translateY(-2px);border-color:var(--card-bh)}
@@ -388,7 +383,6 @@ select.fi{appearance:none;cursor:pointer}
 .top-user-card .info .usage{font-size:7px;color:var(--t3)}
 .top-user-card .info .bar{width:100%;height:2px;border-radius:2px;background:rgba(201,168,76,0.05);overflow:hidden;margin-top:2px}
 .top-user-card .info .bar .fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#C9A84C,#E8C84A);transition:width .8s}
-
 .timeline{position:relative;padding-right:20px}
 .timeline::before{content:'';position:absolute;right:4px;top:0;bottom:0;width:2px;background:var(--card-b)}
 .timeline-item{position:relative;padding:6px 12px 6px 0;border-bottom:1px solid var(--card-b);display:flex;align-items:center;gap:8px}
@@ -401,7 +395,6 @@ select.fi{appearance:none;cursor:pointer}
 .timeline-item .badge-tag.connect{background:var(--green-bg);color:var(--green-t)}
 .timeline-item .badge-tag.disconnect{background:var(--red-bg);color:var(--red-t)}
 .timeline-item .badge-tag.warning{background:var(--amber-bg);color:var(--amber-t)}
-
 body.royal-theme{--bg:#0a0508;--card:rgba(20,5,30,0.85);--card-b:rgba(139,92,246,0.08);--card-bh:rgba(139,92,246,0.15);--accent:#8B5CF6;--accent2:#A78BFA;--accent3:#7C3AED;--t1:#F5F0FF;--t2:#A78BFA;--t3:#8B7AAA}
 body.royal-theme .logo-icon{background:linear-gradient(135deg,#7C3AED,#6D28D9,#8B5CF6)}
 body.royal-theme .btn-p{background:linear-gradient(135deg,#7C3AED,#6D28D9,#8B5CF6)}
@@ -411,79 +404,11 @@ body.royal-theme .accent-text{color:#A78BFA}
 body.light-theme{--bg:#f0ece6;--bg2:#e8e4de;--card:rgba(255,252,245,0.85);--card-b:rgba(201,168,76,0.1);--t1:#1a1208;--t2:#8A7A4A;--t3:#6A5A3A}
 body.fire-theme{--bg:#1a0805;--card:rgba(30,12,8,0.85);--card-b:rgba(232,90,42,0.08);--accent:#E85A2A;--accent2:#F5A060;--t1:#F5E0D0;--t2:#D4A843;--t3:#8A6A4A}
 body.star-theme{--bg:#05080a;--card:rgba(5,10,15,0.85);--card-b:rgba(60,120,200,0.08);--accent:#4A8AC8;--accent2:#6AAAE8;--t1:#D4E8F5;--t2:#6A9AC8;--t3:#4A7A9A}
-
-@media(max-width:992px){
-  .stats-grid{grid-template-columns:repeat(3,1fr)}
-  .stat-card .number{font-size:15px}
-}
-@media(max-width:768px){
-  .bottom-nav{display:flex!important}
-  .main{padding-bottom:calc(65px + var(--safe-bottom))!important;margin-right:0!important;padding-top:55px!important;padding-left:12px!important;padding-right:12px!important}
-  .sidebar{transform:translateX(100%);padding-bottom:60px}
-  .sidebar.open{transform:translateX(0)}
-  .mob-top{display:flex}
-  .stats-grid{grid-template-columns:repeat(3,1fr);gap:6px}
-  .stat-card{padding:8px 4px}
-  .stat-card .number{font-size:14px}
-  .stat-card .icon{font-size:14px}
-  .clock-widget{display:none}
-  .top-users-grid{grid-template-columns:1fr 1fr}
-}
-@media(max-width:480px){
-  .stats-grid{grid-template-columns:1fr 1fr;gap:4px}
-  .stat-card{padding:6px 2px;border-radius:10px}
-  .stat-card .number{font-size:13px}
-  .stat-card .icon{font-size:12px;margin-bottom:1px}
-  .stat-card .label{font-size:7px}
-  .stat-card .sub{font-size:6px}
-  .main{padding:48px 6px 70px}
-  .bottom-nav .nav-item{min-width:32px;padding:2px 4px}
-  .bottom-nav .nav-item i{font-size:14px}
-  .bottom-nav .nav-item span{font-size:6px}
-  .tb-title{font-size:13px}
-  .tb-title i{font-size:15px}
-  .topbar{gap:4px}
-  .btn{font-size:8px;padding:3px 6px}
-  .btn-sm{padding:1px 4px;font-size:7px}
-  .users-table thead th{font-size:6px;padding:4px 2px}
-  .users-table tbody td{font-size:7px;padding:4px 2px}
-  .users-table .usage-bar .bar{width:30px;height:3px}
-  .users-table .usage-text{font-size:7px}
-  .user-name-cell .avatar{width:18px;height:18px;font-size:7px}
-  .user-name-cell .name{font-size:8px}
-  .user-name-cell .uuid-short{font-size:6px}
-  .modal{padding:14px 12px}
-  .modal-title{font-size:12px}
-  .fi{font-size:9px;padding:4px 6px}
-  .fg label{font-size:7px}
-  .conn-grid{grid-template-columns:1fr 1fr;gap:4px}
-  .conn-card{padding:6px 8px}
-  .conn-card .ip{font-size:9px}
-  .conn-card .label{font-size:7px}
-  .conn-card .conn-info{font-size:7px}
-  .settings-card{padding:8px 10px}
-  .settings-card .title{font-size:11px}
-  .settings-card .toggle-row .toggle-label{font-size:10px}
-  .glow-left,.glow-right{display:none}
-  .particles .particle{display:none}
-  .particles .particle:nth-child(-n+8){display:block}
-  .top-users-grid{grid-template-columns:1fr}
-  .timeline-item{padding:4px 8px 4px 0}
-  .timeline-item .content .text{font-size:8px}
-  .clock-widget{display:none}
-}
-@media(max-width:360px){
-  .stats-grid{grid-template-columns:1fr 1fr;gap:3px}
-  .stat-card{padding:4px 2px}
-  .stat-card .number{font-size:11px}
-  .stat-card .icon{font-size:10px}
-  .main{padding:44px 4px 60px}
-  .tb-title{font-size:11px}
-  .users-table .usage-bar .bar{width:20px}
-}
-@media(min-width:769px){
-  .bottom-nav{display:none!important}
-}
+@media(max-width:992px){.stats-grid{grid-template-columns:repeat(3,1fr)}.stat-card .number{font-size:15px}}
+@media(max-width:768px){.bottom-nav{display:flex!important}.main{padding-bottom:calc(65px + var(--safe-bottom))!important;margin-right:0!important;padding-top:55px!important;padding-left:12px!important;padding-right:12px!important}.sidebar{transform:translateX(100%);padding-bottom:60px}.sidebar.open{transform:translateX(0)}.mob-top{display:flex}.stats-grid{grid-template-columns:repeat(3,1fr);gap:6px}.stat-card{padding:8px 4px}.stat-card .number{font-size:14px}.stat-card .icon{font-size:14px}.clock-widget{display:none}.top-users-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr 1fr;gap:4px}.stat-card{padding:6px 2px;border-radius:10px}.stat-card .number{font-size:13px}.stat-card .icon{font-size:12px;margin-bottom:1px}.stat-card .label{font-size:7px}.stat-card .sub{font-size:6px}.main{padding:48px 6px 70px}.bottom-nav .nav-item{min-width:32px;padding:2px 4px}.bottom-nav .nav-item i{font-size:14px}.bottom-nav .nav-item span{font-size:6px}.tb-title{font-size:13px}.tb-title i{font-size:15px}.topbar{gap:4px}.btn{font-size:8px;padding:3px 6px}.btn-sm{padding:1px 4px;font-size:7px}.users-table thead th{font-size:6px;padding:4px 2px}.users-table tbody td{font-size:7px;padding:4px 2px}.users-table .usage-bar .bar{width:30px;height:3px}.users-table .usage-text{font-size:7px}.user-name-cell .avatar{width:18px;height:18px;font-size:7px}.user-name-cell .name{font-size:8px}.user-name-cell .uuid-short{font-size:6px}.modal{padding:14px 12px}.modal-title{font-size:12px}.fi{font-size:9px;padding:4px 6px}.fg label{font-size:7px}.conn-grid{grid-template-columns:1fr 1fr;gap:4px}.conn-card{padding:6px 8px}.conn-card .ip{font-size:9px}.conn-card .label{font-size:7px}.conn-card .conn-info{font-size:7px}.settings-card{padding:8px 10px}.settings-card .title{font-size:11px}.settings-card .toggle-row .toggle-label{font-size:10px}.glow-left,.glow-right{display:none}.particles .particle{display:none}.particles .particle:nth-child(-n+8){display:block}.top-users-grid{grid-template-columns:1fr}.timeline-item{padding:4px 8px 4px 0}.timeline-item .content .text{font-size:8px}.clock-widget{display:none}}
+@media(max-width:360px){.stats-grid{grid-template-columns:1fr 1fr;gap:3px}.stat-card{padding:4px 2px}.stat-card .number{font-size:11px}.stat-card .icon{font-size:10px}.main{padding:44px 4px 60px}.tb-title{font-size:11px}.users-table .usage-bar .bar{width:20px}}
+@media(min-width:769px){.bottom-nav{display:none!important}}
 </style>
 </head>
 <body>
@@ -493,7 +418,7 @@ body.star-theme{--bg:#05080a;--card:rgba(5,10,15,0.85);--card-b:rgba(60,120,200,
 <div class="glow-orb glow-right"></div>
 <div class="toast" id="toast"></div>
 
-<!-- ===== مدال ساخت کاربر با محدودیت سرعت ===== -->
+<!-- ===== مدال ساخت کاربر ===== -->
 <div class="modal-bg" id="modal-user">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-user')"><i class="ti ti-x"></i></button>
@@ -555,7 +480,7 @@ body.star-theme{--bg:#05080a;--card:rgba(5,10,15,0.85);--card-b:rgba(60,120,200,
   </div>
 </div>
 
-<!-- ===== مدال ویرایش کاربر با محدودیت سرعت ===== -->
+<!-- ===== مدال ویرایش کاربر ===== -->
 <div class="modal-bg" id="modal-edit">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-edit')"><i class="ti ti-x"></i></button>
@@ -1430,7 +1355,14 @@ function navTo(name) {
     document.querySelectorAll('.pg').forEach(p => p.classList.toggle('on', p.id === 'pg-' + name));
     document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.toggle('active', n.dataset.pg === name));
     closeSb();
-    const loaders = { dashboard: loadDashboard, users: loadUsers, inbound: loadInbound, connections: loadConnections, logs: loadLogs, settings: () => {} };
+    const loaders = {
+        dashboard: loadDashboard,
+        users: loadUsers,
+        inbound: loadInbound,
+        connections: loadConnections,
+        logs: loadLogs,
+        settings: () => {}
+    };
     if (loaders[name]) loaders[name]();
 }
 
@@ -1549,7 +1481,7 @@ async function loadInbound() {
     } catch(e) { console.error(e); }
 }
 
-// ===== بارگذاری کاربران با نمایش محدودیت سرعت =====
+// ===== بارگذاری کاربران (با نمایش محدودیت سرعت) =====
 async function loadUsers() {
     try {
         const r = await authF('/api/links');
@@ -1680,6 +1612,7 @@ function initDatePickers() {
     });
 }
 
+// ===== ساخت کاربر با محدودیت سرعت =====
 async function saveUser() {
     const label = document.getElementById('user-label').value.trim() || 'کاربر';
     const quota = parseFloat(document.getElementById('user-quota').value) || 0;
@@ -1703,9 +1636,21 @@ async function saveUser() {
         const r = await authF('/api/links', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days, max_devices: devices, password, fingerprint, protocol, http_version, rate_limit })
+            body: JSON.stringify({ 
+                label, 
+                limit_value: quota, 
+                limit_unit: 'GB', 
+                expires_days, 
+                max_devices: devices, 
+                password, 
+                fingerprint, 
+                protocol, 
+                http_version,
+                rate_limit
+            })
         });
         if (!r.ok) throw new Error();
+        // ریست فرم
         document.getElementById('user-label').value = 'کاربر';
         document.getElementById('user-quota').value = '2';
         document.getElementById('user-expiry-date').value = '';
@@ -1779,7 +1724,19 @@ async function saveEdit() {
         const r = await authF('/api/links/' + uuid, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ label, limit_value: quota, limit_unit: 'GB', expires_days, max_devices: devices, active, password, fingerprint, protocol, http_version, rate_limit })
+            body: JSON.stringify({ 
+                label, 
+                limit_value: quota, 
+                limit_unit: 'GB', 
+                expires_days, 
+                max_devices: devices, 
+                active, 
+                password, 
+                fingerprint, 
+                protocol, 
+                http_version,
+                rate_limit
+            })
         });
         if (!r.ok) {
             if (r.status === 403) { toast('❌ ' + (currentLang === 'fa' ? 'رمز اشتباه' : 'Wrong password'), 'err'); return; }
@@ -1967,7 +1924,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 </body></html>"""
 
 
-# ===== تابع ساب‌لینک با نمایش محدودیت سرعت =====
+# ============================================================
+# تابع ساب‌لینک با نمایش محدودیت سرعت
+# ============================================================
+
 def get_sub_page_html(uuid: str, link: dict) -> str:
     """صفحه ساب‌لینک با نمایش محدودیت سرعت"""
     used = link.get('used_bytes', 0)
@@ -1995,6 +1955,7 @@ def get_sub_page_html(uuid: str, link: dict) -> str:
     
     is_allowed = active and not expired
     
+    # تم‌ها
     theme_names = {
         'persepolis_gold':'🏛️ طلایی',
         'persepolis_dark':'🌙 شب',
