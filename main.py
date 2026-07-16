@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import hashlib
 import secrets
 import time
 import aiofiles
@@ -19,7 +20,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import httpx
 import logging
-from aiolimiter import AsyncLimiter
 
 # ─── تنظیمات ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -31,6 +31,7 @@ logger = logging.getLogger("Persepolis-Gateway")
 
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
+# ─── کانفیگ ──────────────────────────────────────────────────────────────────
 CONFIG = {
     "port": int(os.environ.get("PORT", 8000)),
     "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
@@ -41,7 +42,7 @@ ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "PERSEPOLIS"
 
 # ─── App ──────────────────────────────────────────────────────────────────────
-app = FastAPI(title="🏛️ Persepolis Gateway v15", docs_url=None, redoc_url=None)
+app = FastAPI(title="🏛️ Persepolis Gateway v14", docs_url=None, redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,6 +57,7 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 DATA_FILE = DATA_DIR / "persepolis_state.json"
 SAVE_LOCK = asyncio.Lock()
 
+# ─── In-Memory State ─────────────────────────────────────────────────────────
 LINKS: dict = {}
 LINKS_LOCK = asyncio.Lock()
 SUBS: dict = {}
@@ -75,11 +77,6 @@ device_connections: dict = {}
 DEVICE_CONNECTIONS_LOCK = asyncio.Lock()
 http_client: httpx.AsyncClient | None = None
 
-# ─── محدودیت سرعت ──────────────────────────────────────────────────────────
-USER_RATE_LIMITS: dict = {}
-USER_LIMITERS: dict = {}
-USER_LIMITERS_LOCK = asyncio.Lock()
-
 # ─── Auth ──────────────────────────────────────────────────────────────────────
 SESSION_COOKIE = "persepolis_session"
 SESSION_TTL = 60 * 60 * 24 * 7
@@ -92,10 +89,9 @@ SETTINGS: dict = {
     "default_protocol": "vless-ws",
     "language": "fa",
     "theme": "dark",
-    "auto_backup": True,
 }
 
-# ─── پروتکل‌ها ────────────────────────────────────────────────────────────────
+# ─── پروتکل‌های پشتیبانی شده ──────────────────────────────────────────────────
 PROTOCOLS = {
     "vless-ws": {"name": "VLESS-WS", "icon": "🚀", "type": "ws", "alpn": "h2,http/1.1"},
     "vless-grpc": {"name": "VLESS-gRPC", "icon": "⚡", "type": "grpc", "alpn": "h2"},
@@ -108,6 +104,7 @@ PROTOCOLS = {
 DEFAULT_PROTOCOL = "vless-ws"
 DEFAULT_PORT = 443
 
+# ─── HTTP نسخه‌ها ────────────────────────────────────────────────────────────
 HTTP_VERSIONS = {
     "h1": {"name": "HTTP/1.1", "alpn": "http/1.1"},
     "h2": {"name": "HTTP/2", "alpn": "h2"},
@@ -115,6 +112,7 @@ HTTP_VERSIONS = {
     "auto": {"name": "Auto", "alpn": "h2,http/1.1"},
 }
 
+# ─── انگشت‌نگاری ──────────────────────────────────────────────────────────────
 FINGERPRINTS = {
     "chrome": "🌐 Chrome",
     "firefox": "🦊 Firefox",
@@ -294,47 +292,7 @@ async def remove_device_connection(uuid: str, client_ip: str):
                 if not device_connections[uuid]:
                     del device_connections[uuid]
 
-# ─── توابع محدودیت سرعت ──────────────────────────────────────────────────────
-
-async def get_user_limiter(uuid: str, rate_bytes_per_sec: int):
-    if rate_bytes_per_sec <= 0:
-        return None
-    
-    async with USER_LIMITERS_LOCK:
-        existing = USER_LIMITERS.get(uuid)
-        if existing is None:
-            new_limiter = AsyncLimiter(rate_bytes_per_sec, 1)
-            USER_LIMITERS[uuid] = new_limiter
-            return new_limiter
-        
-        if existing.max_rate != rate_bytes_per_sec:
-            new_limiter = AsyncLimiter(rate_bytes_per_sec, 1)
-            USER_LIMITERS[uuid] = new_limiter
-            return new_limiter
-            
-        return existing
-
-async def check_rate_limit(uuid: str, data_len: int) -> bool:
-    async with LINKS_LOCK:
-        link = LINKS.get(uuid)
-        if not link:
-            return True
-        rate_limit = link.get("rate_limit", 0)
-        
-    if rate_limit <= 0:
-        return True
-    
-    limiter = await get_user_limiter(uuid, rate_limit)
-    if limiter is None:
-        return True
-    
-    try:
-        await limiter.acquire(data_len)
-        return True
-    except Exception:
-        return False
-
-# ─── Session ──────────────────────────────────────────────────────────────────
+# ─── Session Functions ──────────────────────────────────────────────────────
 
 async def create_session() -> str:
     token = secrets.token_urlsafe(32)
@@ -342,17 +300,20 @@ async def create_session() -> str:
         SESSIONS[token] = time.time() + SESSION_TTL
     return token
 
-async def is_valid_session(token: str | None) -> bool:
+async def get_session_info(token: str | None) -> dict | None:
     if not token:
-        return False
+        return None
     async with SESSIONS_LOCK:
         expiry = SESSIONS.get(token)
         if expiry is None:
-            return False
+            return None
         if expiry < time.time():
             SESSIONS.pop(token, None)
-            return False
-        return True
+            return None
+        return {"expiry": expiry}
+
+async def is_valid_session(token: str | None) -> bool:
+    return await get_session_info(token) is not None
 
 async def destroy_session(token: str | None):
     if not token:
@@ -369,7 +330,7 @@ async def require_auth(request: Request):
 # ─── State Persistence ──────────────────────────────────────────────────────
 
 async def load_state():
-    global LINKS, SUBS, SETTINGS, hourly_traffic_history, hourly_traffic, USER_RATE_LIMITS
+    global LINKS, SUBS, SETTINGS, hourly_traffic_history, hourly_traffic
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         if DATA_FILE.exists():
@@ -387,9 +348,7 @@ async def load_state():
                 hourly_traffic_history = defaultdict(lambda: defaultdict(int))
                 for day, hours in hist.items():
                     hourly_traffic_history[day] = defaultdict(int, hours)
-            if "user_rate_limits" in data:
-                USER_RATE_LIMITS = data["user_rate_limits"]
-            logger.info(f"📂 State loaded: {len(LINKS)} links")
+            logger.info(f"📂 State loaded: {len(LINKS)} links, {len(SUBS)} subs")
     except Exception as e:
         logger.warning(f"Could not load state: {e}")
 
@@ -397,6 +356,7 @@ async def save_state():
     async with SAVE_LOCK:
         try:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
+            
             hist_dict = {}
             for day, hours in hourly_traffic_history.items():
                 hist_dict[day] = dict(hours)
@@ -407,7 +367,6 @@ async def save_state():
                 "settings": SETTINGS,
                 "hourly_traffic": dict(hourly_traffic),
                 "hourly_traffic_history": hist_dict,
-                "user_rate_limits": USER_RATE_LIMITS,
                 "saved_at": datetime.now().isoformat(),
             }
             tmp = DATA_FILE.with_suffix(".tmp")
@@ -426,8 +385,9 @@ async def startup():
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
     await load_state()
-    log_activity("system", "🏛️ Persepolis Gateway v15 راه‌اندازی شد", "ok")
-    logger.info(f"🏛️ Persepolis Gateway v15 started on port {CONFIG['port']}")
+    
+    log_activity("system", "🏛️ Persepolis Gateway v14 راه‌اندازی شد", "ok")
+    logger.info(f"🏛️ Persepolis Gateway v14 started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -455,7 +415,7 @@ async def get_language():
 async def set_theme(request: Request, _=Depends(require_auth)):
     body = await request.json()
     theme = body.get("theme", "dark")
-    if theme in ["dark", "light", "royal-theme", "fire-theme", "star-theme", "auto"]:
+    if theme in ["dark", "light"]:
         SETTINGS["theme"] = theme
         await save_state()
         return {"ok": True, "theme": theme}
@@ -471,16 +431,6 @@ async def toggle_rgb(request: Request, _=Depends(require_auth)):
     SETTINGS["rgb_mode"] = bool(body.get("enabled", False))
     await save_state()
     return {"rgb_mode": SETTINGS["rgb_mode"]}
-
-@app.post("/api/settings/advanced")
-async def save_advanced_settings(request: Request, _=Depends(require_auth)):
-    body = await request.json()
-    port = body.get("port", 443)
-    ws_path = body.get("wsPath", "/ws/")
-    SETTINGS["advanced_port"] = port
-    SETTINGS["advanced_ws_path"] = ws_path
-    await save_state()
-    return {"ok": True, "port": port, "wsPath": ws_path}
 
 # ─── API: Dashboard Stats ──────────────────────────────────────────────────
 
@@ -526,35 +476,11 @@ async def dashboard_stats(_=Depends(require_auth)):
 @app.get("/api/inbound")
 async def get_inbound(_=Depends(require_auth)):
     return {
-        "port": SETTINGS.get("advanced_port", DEFAULT_PORT),
+        "port": DEFAULT_PORT,
         "protocol": SETTINGS.get("default_protocol", "vless-ws"),
         "host": get_host(),
         "is_active": True
     }
-
-# ─── API: Clean Expired ──────────────────────────────────────────────────────
-
-@app.post("/api/clean-expired")
-async def clean_expired_users(_=Depends(require_auth)):
-    removed = []
-    async with LINKS_LOCK:
-        for uuid, link in list(LINKS.items()):
-            if is_link_expired(link):
-                exp = link.get("expires_at")
-                if exp:
-                    try:
-                        exp_date = datetime.fromisoformat(exp)
-                        if (datetime.now() - exp_date).days > 7:
-                            removed.append(uuid)
-                            del LINKS[uuid]
-                    except:
-                        pass
-    
-    if removed:
-        log_activity("cleanup", f"{len(removed)} کاربر منقضی پاک‌سازی شدند", "info")
-        await save_state()
-    
-    return {"ok": True, "removed": len(removed)}
 
 # ─── API: Links ─────────────────────────────────────────────────────────────
 
@@ -566,7 +492,6 @@ async def create_link(request: Request, _=Depends(require_auth)):
     lu = body.get("limit_unit") or "GB"
     limit_bytes = 0 if lv <= 0 else parse_size_to_bytes(lv, lu)
     exp_days = int(body.get("expires_days") or 0)
-    rate_limit = int(body.get("rate_limit") or 0)
     
     expires_at = None
     if exp_days > 0:
@@ -607,10 +532,7 @@ async def create_link(request: Request, _=Depends(require_auth)):
             "max_devices": max_devices,
             "fingerprint": fingerprint,
             "password_hash": config_password,
-            "rate_limit": rate_limit,
         }
-    
-    USER_RATE_LIMITS[uid] = rate_limit
 
     if sub_id:
         async with SUBS_LOCK:
@@ -636,7 +558,6 @@ async def create_link(request: Request, _=Depends(require_auth)):
         "vless_link": main_link,
         "sub_url": f"https://{host}/sub/{uid}",
         "warning_config": "",
-        "rate_limit_display": f"{rate_limit/1024:.1f} KB/s" if rate_limit > 0 else "بدون محدودیت"
     }
     
     return link_data
@@ -654,7 +575,6 @@ async def list_links(_=Depends(require_auth)):
         fp = d.get("fingerprint", "chrome")
         label = d.get("label", "کاربر")
         remark = f"🏛️ {label}"
-        rate_limit = d.get("rate_limit", 0)
         
         last_connected = None
         for c in connections.values():
@@ -682,8 +602,6 @@ async def list_links(_=Depends(require_auth)):
             "vless_link": generate_vless_link(uid, host, remark=remark, protocol=protocol, fingerprint=fp, port=DEFAULT_PORT, http_version=http_version, fake_port=False),
             "sub_url": f"https://{host}/sub/{uid}",
             "warning_config": "",
-            "rate_limit": rate_limit,
-            "rate_limit_display": f"{rate_limit/1024:.1f} KB/s" if rate_limit > 0 else "بدون محدودیت"
         })
     result.sort(key=lambda x: x["created_at"], reverse=True)
     return {"links": result}
@@ -731,14 +649,6 @@ async def update_link(uid: str, request: Request, _=Depends(require_auth)):
             link["protocol"] = body["protocol"]
         if "http_version" in body and body["http_version"] in HTTP_VERSIONS:
             link["http_version"] = body["http_version"]
-        if "rate_limit" in body:
-            rate_limit = int(body.get("rate_limit") or 0)
-            link["rate_limit"] = rate_limit
-            USER_RATE_LIMITS[uid] = rate_limit
-            async with USER_LIMITERS_LOCK:
-                if uid in USER_LIMITERS:
-                    del USER_LIMITERS[uid]
-        
         new_sub = body.get("sub_id", "UNCHANGED")
         if new_sub != "UNCHANGED":
             link["sub_id"] = new_sub or None
@@ -775,12 +685,6 @@ async def delete_link(uid: str, request: Request, _=Depends(require_auth)):
         label = link.get("label", uid)
         sub_id = link.get("sub_id")
         del LINKS[uid]
-        
-        if uid in USER_RATE_LIMITS:
-            del USER_RATE_LIMITS[uid]
-        async with USER_LIMITERS_LOCK:
-            if uid in USER_LIMITERS:
-                del USER_LIMITERS[uid]
     
     if sub_id:
         async with SUBS_LOCK:
@@ -893,7 +797,7 @@ async def get_connections(_=Depends(require_auth)):
         "raw_count": len(connections),
     }
 
-# ─── Auth ────────────────────────────────────────────────────────────────────
+# ─── Auth Endpoints ────────────────────────────────────────────────────────
 
 @app.post("/api/login")
 async def api_login(request: Request):
@@ -926,7 +830,7 @@ async def api_logout(request: Request):
 async def api_me(request: Request):
     return {"authenticated": await is_valid_session(request.cookies.get(SESSION_COOKIE))}
 
-# ─── API: Activity Logs ─────────────────────────────────────────────────────
+# ─── API: Activity Logs ───────────────────────────────────────────────────────
 
 @app.get("/api/activity")
 async def get_activity_logs(_=Depends(require_auth)):
@@ -934,7 +838,7 @@ async def get_activity_logs(_=Depends(require_auth)):
     logs = list(activity_logs)[-limit:]
     return {"logs": logs}
 
-# ─── Backup ──────────────────────────────────────────────────────────────────
+# ─── Backup ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/backup")
 async def get_backup(_=Depends(require_auth)):
@@ -953,9 +857,8 @@ async def get_backup(_=Depends(require_auth)):
         "settings": SETTINGS,
         "hourly_traffic": dict(hourly_traffic),
         "hourly_traffic_history": hist_dict,
-        "user_rate_limits": USER_RATE_LIMITS,
         "exported_at": datetime.now().isoformat(),
-        "version": "15.0"
+        "version": "14.0"
     }
 
 @app.post("/api/backup/restore")
@@ -991,10 +894,6 @@ async def restore_backup(request: Request, _=Depends(require_auth)):
             hourly_traffic_history = defaultdict(lambda: defaultdict(int))
             for day, hours in body["hourly_traffic_history"].items():
                 hourly_traffic_history[day] = defaultdict(int, hours)
-        
-        if "user_rate_limits" in body:
-            USER_RATE_LIMITS.clear()
-            USER_RATE_LIMITS.update(body["user_rate_limits"])
         
         await save_state()
         log_activity("backup", "بکاپ بازیابی شد", "ok")
@@ -1098,13 +997,6 @@ async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: 
             data = msg.get("bytes") or (msg.get("text") or "").encode()
             if not data:
                 continue
-            
-            if not await check_rate_limit(uid, len(data)):
-                await asyncio.sleep(0.05)
-                if not await check_rate_limit(uid, len(data)):
-                    await ws.close(code=1008, reason="rate limit exceeded")
-                    break
-            
             if not await check_and_use(uid, len(data)):
                 await ws.close(code=1008, reason="quota/disabled/unknown")
                 break
@@ -1129,13 +1021,6 @@ async def relay_tcp_to_ws(ws: WebSocket, reader: asyncio.StreamReader, conn_id: 
             data = await reader.read(RELAY_BUF)
             if not data:
                 break
-            
-            if not await check_rate_limit(uid, len(data)):
-                await asyncio.sleep(0.05)
-                if not await check_rate_limit(uid, len(data)):
-                    await ws.close(code=1008, reason="rate limit exceeded")
-                    break
-            
             if not await check_and_use(uid, len(data)):
                 await ws.close(code=1008, reason="quota/disabled/unknown")
                 break
@@ -1182,9 +1067,7 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         "bytes": 0,
     }
     
-    rate_limit = link.get("rate_limit", 0)
-    rate_display = f"{rate_limit/1024:.1f} KB/s" if rate_limit > 0 else "بدون محدودیت"
-    logger.info(f"✅ WS [{conn_id}] uuid={uuid[:8]}… ip={client_ip} سرعت={rate_display} total={len(connections)}")
+    logger.info(f"✅ WS [{conn_id}] uuid={uuid[:8]}… ip={client_ip} total={len(connections)}")
     log_activity("connection", f"اتصال جدید از {client_ip} (کانفیگ {link.get('label','?')})", "info")
     
     writer = None
@@ -1258,10 +1141,12 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         await remove_device_connection(uuid, client_ip)
         logger.info(f"🔌 WS closed [{conn_id}] total={len(connections)}")
 
-# ─── Subscription ────────────────────────────────────────────────────────────
+# ─── ===== ساب‌لینک با طراحی جدید ===== ──────────────────────────────────
 
 @app.get("/sub/{uuid}")
 async def subscription_single(request: Request, uuid: str):
+    import base64
+    
     user_agent = request.headers.get("user-agent", "").lower()
     is_browser = any(b in user_agent for b in [
         "chrome", "firefox", "safari", "edge", "opera", "brave",
@@ -1341,7 +1226,6 @@ async def subscription_single(request: Request, uuid: str):
     used_bytes = link.get("used_bytes", 0)
     expires_at = link.get("expires_at")
     max_devices = link.get("max_devices", 0)
-    rate_limit = link.get("rate_limit", 0)
     
     percent = 0
     if limit_bytes > 0:
@@ -1386,9 +1270,11 @@ async def subscription_single(request: Request, uuid: str):
     proto_name = PROTOCOLS.get(protocol, PROTOCOLS["vless-ws"])["name"]
     http_name = HTTP_VERSIONS.get(http_version, HTTP_VERSIONS["h2"])["name"]
     
+    # ===== لینک اصلی =====
     main_remark = f"{proto_icon} {label} ({proto_name}+{http_name})"
     main_link = generate_vless_link(uuid, host, remark=main_remark, protocol=protocol, fingerprint=fingerprint, port=DEFAULT_PORT, http_version=http_version, fake_port=False)
     
+    # ===== لینک‌های اضافی برای کلاینت =====
     time_remark = f"⏳ {days_left}"
     time_link = generate_vless_link(uuid, host, remark=time_remark, protocol=protocol, fingerprint=fingerprint, port=DEFAULT_PORT, http_version=http_version, fake_port=True)
     
@@ -1398,6 +1284,7 @@ async def subscription_single(request: Request, uuid: str):
         volume_remark = "📊 ∞"
     volume_link = generate_vless_link(uuid, host, remark=volume_remark, protocol=protocol, fingerprint=fingerprint, port=DEFAULT_PORT, http_version=http_version, fake_port=True)
     
+    # ===== اگر کلاینت (غیر مرورگر) =====
     if not is_browser:
         config_lines = [main_link, time_link, volume_link]
         content = "\n".join(config_lines)
@@ -1417,6 +1304,7 @@ async def subscription_single(request: Request, uuid: str):
             }
         )
     
+    # ===== اگر مرورگر =====
     from pages import get_sub_page_html
     
     active_connections_list = []
@@ -1461,8 +1349,6 @@ async def subscription_single(request: Request, uuid: str):
         "http_name": http_name,
         "fingerprint": fingerprint,
         "label": label,
-        "rate_limit": rate_limit,
-        "rate_limit_display": f"{rate_limit/1024:.1f} KB/s" if rate_limit > 0 else "بدون محدودیت"
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
@@ -1597,7 +1483,6 @@ async def info_page(uuid: str, request: Request):
     used_bytes = link.get("used_bytes", 0)
     expires_at = link.get("expires_at")
     max_devices = link.get("max_devices", 0)
-    rate_limit = link.get("rate_limit", 0)
     
     percent = 0
     if limit_bytes > 0:
@@ -1696,8 +1581,6 @@ async def info_page(uuid: str, request: Request):
         "http_name": http_name,
         "fingerprint": fingerprint,
         "label": label,
-        "rate_limit": rate_limit,
-        "rate_limit_display": f"{rate_limit/1024:.1f} KB/s" if rate_limit > 0 else "بدون محدودیت"
     }
     
     return HTMLResponse(content=get_sub_page_html(uuid, link_data))
@@ -1724,7 +1607,7 @@ async def root():
     return HTMLResponse("""
     <!DOCTYPE html>
     <html>
-    <head><meta charset="UTF-8"><title>🏛️ Persepolis Gateway v15</title>
+    <head><meta charset="UTF-8"><title>🏛️ Persepolis Gateway v14</title>
     <style>
     body{font-family:sans-serif;background:#0a0a1a;color:#F5ECD7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
     .card{text-align:center;padding:40px;background:rgba(20,15,10,0.7);border-radius:20px;border:1px solid rgba(212,175,55,0.2)}
@@ -1736,7 +1619,7 @@ async def root():
     <body>
     <div class="card">
         <h1>🏛️</h1>
-        <h2>Persepolis Gateway v15</h2>
+        <h2>Persepolis Gateway v14</h2>
         <p class="sub">پنل مدیریت فیلترشکن</p>
         <a href="/login">ورود به پنل →</a>
     </div>
